@@ -15,11 +15,11 @@ function layout($title, $content) {
 }
 
 if ($page === 'home') {
-    $content = "<div class='card'><h3>Welcome</h3><p>This is a simple PHP website.</p></div>";
+    $content = "<div class='card'><h3>Welcome to hdwhjbcdwjhd</h3><p>This is a simple PHP website.</p></div>";
     layout('Home', $content);
 }
 elseif ($page === 'about') {
-    $content = "<div class='card'><h3>About</h3><p>This site is built using basic PHP routing.</p></div>";
+    $content = "<div class='card'><h3>About</h3><p>TBy Zaido.</p></div>";
     layout('About', $content);
 }
 elseif ($page === 'contact') {
