@@ -1,8 +1,5 @@
 <?php
-// Simple PHP Website (Single-file demo)
-// Save as index.php and run using XAMPP/Laragon or PHP built-in server
 
-// Simple router
 $page = $_GET['page'] ?? 'home';
 
 function layout($title, $content) {
@@ -17,7 +14,6 @@ function layout($title, $content) {
     </style>\n</head>\n<body>\n<header>\n<h2>CITAS Internship Monotoring and Data Analytics System</h2>\n<nav>\n<a href='?page=home'>Home</a>\n<a href='?page=about'>About</a>\n<a href='?page=contact'>Contact</a>\n</nav>\n</header>\n<div class='container'>\n$content\n</div>\n</body>\n</html>";
 }
 
-// Pages
 if ($page === 'home') {
     $content = "<div class='card'><h3>Welcome</h3><p>This is a simple PHP website.</p></div>";
     layout('Home', $content);
