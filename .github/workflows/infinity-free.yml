@@ -1,4 +1,4 @@
-name: 🚀 Deploy to citas-internahip27.infinityfreeapp.com
+name: 🚀 Deploy to citas-internship-monitoring.fast-page.org
 
 on:
   workflow_dispatch: # Uncomment below to deploy on push instead
@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    name: 🎉 Deploy to citas-internahip27.infinityfreeapp.com
+    name: 🎉 Deploy to citas-internship-monitoring.fast-page.org
     runs-on: ubuntu-latest
 
     steps:
