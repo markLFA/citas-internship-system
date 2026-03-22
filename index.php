@@ -11,9 +11,9 @@ function layout($title, $content) {
         header { background: #333; color: white; padding: 15px; }
         nav a { color: white; margin-right: 15px; text-decoration: none; }
         .container { padding: 20px; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgb(255, 134, 42); }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgb(18, 18, 18); }
         input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
-        button { padding: 10px; background: #333; color: white; border: none; }
+        button { padding: 10px; background: rgb(255, 134, 42); color: white; border: none; }
     </style>\n</head>\n<body>\n<header>\n<h2>CITAS Internship Monotoring and Data Analytics System</h2>\n<nav>\n<a href='?page=home'>Home</a>\n<a href='?page=about'>About</a>\n<a href='?page=contact'>Contact</a>\n</nav>\n</header>\n<div class='container'>\n$content\n</div>\n</body>\n</html>";
 }
 
