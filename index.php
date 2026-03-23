@@ -87,7 +87,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .btn {
             width: 100%;
             padding: 10px;
-            background: #1e3a8a;
+            background:rgb(232, 83, 33);
             color: white;
             border: none;
             border-radius: 6px;
@@ -96,7 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         .btn:hover {
-            background: #0f172a;
+            background:rgb(42, 26, 15);
         }
 
         .error {
