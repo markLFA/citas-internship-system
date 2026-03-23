@@ -40,7 +40,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         body {
             height: 100vh;
-            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            background: linear-gradient(135deg,rgb(142, 38, 12),rgb(224, 86, 17));
             display: flex;
             justify-content: center;
             align-items: center;
