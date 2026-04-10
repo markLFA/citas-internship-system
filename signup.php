@@ -105,7 +105,7 @@ button {
         <button type="submit">Sign Up</button>
     </form>
 
-    <p>Already have an account? <a href="login.php">Login</a></p>
+    <p>Already have an account? <a href="index.php">Login</a></p>
 </div>
 </body>
 </html>
