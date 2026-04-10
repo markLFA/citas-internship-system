@@ -1,4 +1,5 @@
 <?php
+session_start();
 echo "Welcome to CITAS Internship System!";
 $userid = $_SESSION["user_id"];
 $name = $_SESSION["name"];
