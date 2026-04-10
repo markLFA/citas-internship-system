@@ -1,6 +1,4 @@
 <?php
-
-echo "Welcome to CITAS Internship System!";
 session_start();
 require 'config/db.php';
 
