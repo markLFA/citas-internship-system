@@ -1,24 +1,30 @@
 <?php
-// Start session
 session_start();
+require 'config.php';
 
-// Sample login logic (temporary - replace with database later)
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST["username"];
+
+    $email = $_POST["email"];
     $password = $_POST["password"];
 
-    // TEMP credentials (for testing only)
-    $valid_user = "admin";
-    $valid_pass = "1234";
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
 
-    if ($username === $valid_user && $password === $valid_pass) {
-        $_SESSION["user"] = $username;
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+
+    if ($user && password_verify($password, $user["password_hash"])) {
+        $_SESSION["user_id"] = $user["id"];
+        $_SESSION["name"] = $user["name"];
+        $_SESSION["role"] = $user["role"];
+
         header("Location: dashboard.php");
         exit();
     } else {
-        $error = "Invalid username or password!";
+        $error = "Invalid email or password!";
     }
 }
 ?>
@@ -26,120 +32,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>CITAS Internship Monitoring System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>CITAS Login</title>
+<style>
+body {
+    height: 100vh;
+    background: linear-gradient(135deg,rgb(142, 38, 12),rgb(224, 86, 17));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial;
+}
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 320px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    text-align: center;
+}
 
-        body {
-            height: 100vh;
-            background: linear-gradient(135deg,rgb(142, 38, 12),rgb(224, 86, 17));
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+input, select {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+}
 
-        .login-container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 320px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            text-align: center;
-        }
+button {
+    width: 100%;
+    padding: 10px;
+    background: orange;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
 
-        .login-container h2 {
-            margin-bottom: 10px;
-            color: #1e3a8a;
-        }
-
-        .login-container p {
-            font-size: 12px;
-            margin-bottom: 20px;
-            color: #555;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        .input-group label {
-            font-size: 12px;
-            color: #333;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 8px;
-            margin-top: 5px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 10px;
-            background:rgb(232, 83, 33);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .btn:hover {
-            background:rgb(42, 26, 15);
-        }
-
-        .error {
-            color: red;
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
-
-        .footer {
-            margin-top: 15px;
-            font-size: 11px;
-            color: #888;
-        }
-    </style>
+.error {
+    color: red;
+    font-size: 12px;
+}
+</style>
 </head>
-<body>
 
-<div class="login-container">
+<body>
+<div class="container">
     <h2>CITAS</h2>
-    <p>Internship Monitoring & Data Analytics System</p>
 
     <?php if ($error): ?>
         <div class="error"><?php echo $error; ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="">
-        <div class="input-group">
-            <label>Username</label>
-            <input type="text" name="username" required>
-        </div>
+    <form method="POST">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
 
-        <div class="input-group">
-            <label>Password</label>
-            <input type="password" name="password" required>
-        </div>
-
-        <button type="submit" class="btn">Login</button>
+        <button type="submit">Login</button>
     </form>
 
-    <div class="footer">
-        © <?php echo date("Y"); ?> CITAS System
-    </div>
+    <p>No account? <a href="signup.php">Sign up</a></p>
 </div>
-
 </body>
 </html>
