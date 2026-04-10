@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+?>
+<?php
 
 $host = "sql212.infinityfree.com";
 $user = "if0_41451086";
