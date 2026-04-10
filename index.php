@@ -92,7 +92,7 @@ button {
         <button type="submit">Login</button>
     </form>
 
-    <p>No account? <a href="pages/signup.php">Sign up</a></p>
+    <p>No account? <a href="signup.php">Sign up</a></p>
 </div>
 </body>
 </html>
