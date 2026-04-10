@@ -1,8 +1,9 @@
 <?php
-$host = "localhost";
-$user = "root";          // change later
-$pass = "password";      // change later
-$db   = "citas_db";      // change later
+
+$host = "sql212.infinityfree.com";
+$user = "if0_41451086";
+$pass = "vg285V2bypuq"; 
+$db   = "if0_41451086_XXX"; 
 
 $conn = new mysqli($host, $user, $pass, $db);
 
