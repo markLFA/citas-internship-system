@@ -77,7 +77,7 @@ button {
 
 <body>
 <div class="container">
-    <h2>CITAS</h2>
+    <h2>CITAS Internship</h2>
 
     <?php if ($error): ?>
         <div class="error"><?php echo $error; ?></div>
