@@ -32,7 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CITAS Login</title>
 <style>
 body {
@@ -48,7 +48,8 @@ body {
     background: white;
     padding: 30px;
     border-radius: 12px;
-    width: 320px;
+    width: 90%;          /* takes 90% of screen width */
+    max-width: 380px;    /* but won't stretch too wide on desktop */
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     text-align: center;
 }
@@ -71,6 +72,9 @@ button {
 .error {
     color: red;
     font-size: 12px;
+}
+* {
+    box-sizing: border-box;
 }
 </style>
 </head>
