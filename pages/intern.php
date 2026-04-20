@@ -22,7 +22,7 @@ $announcements = mysqli_query($conn, "SELECT * FROM announcements ORDER BY creat
 <html>
 <head>
     <title>Intern Dashboard</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
