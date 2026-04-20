@@ -1,0 +1,290 @@
+/* ════════════════════════════════════════════════
+   assets/css/intern.css
+   CITAS — Intern / Student Page Styles
+   Always load AFTER style.css
+   ════════════════════════════════════════════════ */
+
+/* ─── PROFILE HEADER ────────────────────────── */
+.intern-hero {
+  background: var(--navy);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.intern-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 90% 50%, rgba(201,146,42,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 20%, rgba(30,53,96,0.6) 0%, transparent 50%);
+  pointer-events: none;
+}
+.intern-avatar-lg {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'EB Garamond', serif; font-size: 28px; font-weight: 700;
+  color: var(--navy); flex-shrink: 0; position: relative; z-index: 1;
+  box-shadow: 0 0 0 4px rgba(201,146,42,0.25);
+  cursor: pointer;
+  transition: box-shadow .2s;
+}
+.intern-avatar-lg:hover { box-shadow: 0 0 0 6px rgba(201,146,42,0.35); }
+.intern-avatar-edit {
+  position: absolute; bottom: 0; right: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--white); font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--gold); cursor: pointer;
+}
+.intern-hero-info { flex: 1; position: relative; z-index: 1; }
+.intern-hero-info h2 {
+  font-family: 'EB Garamond', serif; font-size: 24px;
+  font-weight: 700; color: var(--white); margin-bottom: 4px;
+}
+.intern-hero-meta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 14px;
+}
+.intern-hero-meta span { display: flex; align-items: center; gap: 5px; }
+.intern-hero-stats {
+  display: flex; gap: 20px; flex-wrap: wrap;
+}
+.hero-stat {
+  background: rgba(255,255,255,0.08); border-radius: 8px;
+  padding: 10px 16px; border: 1px solid rgba(255,255,255,0.1);
+}
+.hero-stat .hs-val {
+  font-family: 'EB Garamond', serif; font-size: 22px;
+  font-weight: 700; color: var(--gold2); line-height: 1;
+}
+.hero-stat .hs-lbl {
+  font-size: 10px; color: rgba(255,255,255,0.4);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px;
+}
+.intern-hero-actions { display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+
+/* ─── TIME IN/OUT WIDGET ────────────────────── */
+.time-widget {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.time-widget-header {
+  background: var(--navy); padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.time-widget-header .tw-title {
+  font-family: 'EB Garamond', serif; font-size: 16px;
+  font-weight: 700; color: var(--white);
+}
+.tw-clock {
+  font-family: 'EB Garamond', serif; font-size: 13px;
+  color: var(--gold2); letter-spacing: 0.05em;
+}
+.time-widget-body { padding: 20px; }
+
+.time-status-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; margin-bottom: 18px; font-weight: 500;
+}
+.time-status-bar.clocked-out {
+  background: var(--cream); border: 1.5px dashed var(--border); color: var(--muted);
+}
+.time-status-bar.clocked-in {
+  background: var(--green-bg); border: 1.5px solid #86efac; color: var(--green);
+}
+.time-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.clocked-in .time-status-dot  { background: var(--green); animation: pulse-dot 1.5s infinite; }
+.clocked-out .time-status-dot { background: var(--muted); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.time-action-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px;
+}
+.time-btn {
+  padding: 12px 10px; border-radius: var(--radius-sm); border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .15s; display: flex;
+  align-items: center; justify-content: center; gap: 7px;
+}
+.time-btn-in  { background: var(--navy); color: var(--white); }
+.time-btn-in:hover  { background: var(--navy3); }
+.time-btn-out { background: var(--red-bg); color: var(--red); border: 1.5px solid #fca5a5; }
+.time-btn-out:hover { background: #fecaca; }
+.time-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.time-log-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px;
+}
+.time-log-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.time-log-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: var(--cream); border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+.time-log-item .tl-date { color: var(--muted); font-size: 11.5px; }
+.time-log-item .tl-hours {
+  font-weight: 600; color: var(--navy);
+  font-family: 'EB Garamond', serif; font-size: 14px;
+}
+.time-log-in  { color: var(--green); font-size: 11px; font-weight: 600; }
+.time-log-out { color: var(--red);   font-size: 11px; font-weight: 600; }
+
+/* ─── ANNOUNCEMENTS ─────────────────────────── */
+.announcement-card {
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--white); overflow: hidden; transition: box-shadow .2s;
+}
+.announcement-card:hover { box-shadow: var(--shadow); }
+.announcement-priority {
+  height: 4px;
+  background: linear-gradient(90deg, var(--gold), var(--gold2));
+}
+.announcement-priority.urgent { background: linear-gradient(90deg, var(--red), #ef4444); }
+.announcement-priority.info   { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.announcement-body { padding: 16px 18px; }
+.announcement-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--gold); margin-bottom: 8px; display: block;
+}
+.announcement-tag.urgent { color: var(--red); }
+.announcement-tag.info   { color: #3b82f6; }
+.announcement-title {
+  font-family: 'EB Garamond', serif; font-size: 16px; font-weight: 700;
+  color: var(--navy); margin-bottom: 6px; line-height: 1.3;
+}
+.announcement-content {
+  font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 12px;
+}
+.announcement-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11.5px; color: var(--muted);
+}
+.announcement-author { display: flex; align-items: center; gap: 6px; }
+.announcement-author-dot {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--navy); color: var(--white);
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Coordinator post form */
+.post-form-wrap {
+  background: var(--cream); border: 1.5px dashed var(--border);
+  border-radius: var(--radius); padding: 18px;
+}
+.post-form-wrap h4 {
+  font-family: 'EB Garamond', serif; font-size: 15px;
+  font-weight: 700; color: var(--navy); margin-bottom: 14px;
+}
+
+/* ─── WEEKLY REPORTS ────────────────────────── */
+.report-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--white);
+  transition: box-shadow .2s; margin-bottom: 10px;
+}
+.report-item:hover { box-shadow: var(--shadow); }
+.report-icon {
+  width: 40px; height: 40px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; background: var(--cream);
+}
+.report-icon.pdf  { background: #fee2e2; }
+.report-icon.docx { background: var(--blue-bg); }
+.report-icon.img  { background: var(--green-bg); }
+.report-info { flex: 1; min-width: 0; }
+.report-name {
+  font-size: 13.5px; font-weight: 600; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.report-meta { font-size: 12px; color: var(--muted); }
+.report-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ─── COMPANY INFO CARD ─────────────────────── */
+.company-info-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; background: var(--white);
+}
+.company-info-banner {
+  background: linear-gradient(135deg, var(--navy2), var(--navy3));
+  padding: 20px 22px; display: flex; align-items: center; gap: 16px;
+}
+.company-logo-placeholder {
+  width: 52px; height: 52px; border-radius: 10px;
+  background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0; color: var(--white);
+}
+.company-banner-info h3 {
+  font-family: 'EB Garamond', serif; font-size: 18px;
+  font-weight: 700; color: var(--white); margin-bottom: 3px;
+}
+.company-banner-info span { font-size: 12px; color: rgba(255,255,255,0.5); }
+.company-info-body { padding: 18px 22px; }
+.company-detail-row {
+  display: flex; gap: 10px; padding: 9px 0;
+  border-bottom: 1px solid var(--cream2); font-size: 13px;
+}
+.company-detail-row:last-child { border-bottom: none; }
+.company-detail-label { color: var(--muted); min-width: 130px; flex-shrink: 0; }
+.company-detail-value { color: var(--text); font-weight: 500; }
+.company-not-set {
+  padding: 32px; text-align: center;
+  background: var(--cream); border-radius: var(--radius);
+  border: 2px dashed var(--border);
+}
+.company-not-set .icon { font-size: 36px; margin-bottom: 10px; }
+.company-not-set p { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+
+/* ─── SUPERVISOR CARD ───────────────────────── */
+.supervisor-card {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 16px; background: var(--cream);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+}
+.supervisor-card .sup-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--navy); color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.supervisor-card .sup-info strong { display: block; font-size: 14px; font-weight: 600; color: var(--navy); }
+.supervisor-card .sup-info span   { font-size: 12px; color: var(--muted); }
+
+/* ─── HOURS PROGRESS ────────────────────────── */
+.hours-overview {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 10px;
+}
+.hours-big {
+  font-family: 'EB Garamond', serif; font-size: 38px;
+  font-weight: 700; color: var(--navy); line-height: 1;
+}
+.hours-big sub { font-size: 16px; color: var(--muted); font-weight: 400; }
+
+/* ─── RESPONSIVE INTERN ─────────────────────── */
+@media (max-width: 1100px) {
+  .intern-hero { flex-wrap: wrap; }
+  .intern-hero-actions { flex-direction: row; }
+  .time-action-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .intern-hero { padding: 20px 18px; gap: 16px; }
+  .intern-avatar-lg { width: 58px; height: 58px; font-size: 22px; }
+  .intern-hero-stats { gap: 10px; }
+  .hero-stat { padding: 8px 12px; }
+}
