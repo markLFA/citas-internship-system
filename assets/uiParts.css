@@ -122,7 +122,6 @@
   transform: translateY(-1px);
   box-shadow: var(--c-shadow-md);
 }
-
 /* ══════════════════════════════════════════════════════════════
    CARDS
 ══════════════════════════════════════════════════════════════ */
@@ -254,10 +253,91 @@
 .cui-modal-close:hover { background: var(--c-gray-200); color: var(--c-gray-900); }
 
 /* ══════════════════════════════════════════════════════════════
-   NAVIGATION BAR (Popup / Sidebar)
+   NAVBAR  (sticky top bar)
 ══════════════════════════════════════════════════════════════ */
+.cui-navbar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: #ffffff;
+  border-bottom: 1px solid #E5E7EB;   /* fallback — no var() needed */
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  z-index: 1100;                       /* sits above sidebar overlay (z:199) */
+  gap: .75rem;
+}
 
-/* Sidebar nav */
+/* Left side: hamburger + brand */
+.cui-navbar-left {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-shrink: 0;
+}
+
+/* Hamburger button — three spans drawn as lines */
+.cui-navbar-menu {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.cui-navbar-menu:hover { background: #F3F4F6; }
+
+.cui-navbar-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #374151;
+  border-radius: 2px;
+  transition: all .2s ease;
+}
+
+/* Animate to X when sidebar is open */
+.cui-navbar-menu.open .cui-navbar-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.cui-navbar-menu.open .cui-navbar-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.cui-navbar-menu.open .cui-navbar-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Brand */
+.cui-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  text-decoration: none;
+  user-select: none;
+}
+.cui-navbar-icon { font-size: 1.25rem; line-height: 1; }
+.cui-navbar-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -.3px;
+}
+
+/* Right side */
+.cui-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════════════════════ */
 .cui-sidebar {
   width: 240px;
   background: var(--c-gray-900);
@@ -366,7 +446,6 @@
 .cui-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .cui-hamburger.open span:nth-child(2) { opacity: 0; }
 .cui-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
 
 /* ══════════════════════════════════════════════════════════════
    BADGES

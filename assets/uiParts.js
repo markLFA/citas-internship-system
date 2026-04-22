@@ -801,10 +801,69 @@ function button(text, {
     return c;
   }
 
+  // ════════════════════════════════════════════════════════
+  //  NAVBAR  (sticky top bar with hamburger + brand + right actions)
+  //  UI.navbar({ brand, brandIcon, sidebar, right, id })
+  //
+  //  sidebar: pass the object returned by UI.sidebar() so the
+  //           hamburger button can call sidebar.toggle()
+  //  right:   array of DOM elements placed on the right side
+  //           e.g. [UI.button('Logout', { variant:'ghost' })]
+  //
+  //  Returns { el }  — the <header> element (already in the DOM)
+  // ════════════════════════════════════════════════════════
+  function navbar({
+    brand     = 'CITAS',
+    brandIcon = '🎓',
+    sidebar   = null,
+    right     = [],
+    id        = 'cui-navbar',
+  } = {}) {
+
+    // ── bar ────────────────────────────────────────────────
+    const bar = el('header', 'cui-navbar');
+    if (id) bar.id = id;
+
+    // ── left section ───────────────────────────────────────
+    const left = el('div', 'cui-navbar-left');
+
+    // Hamburger — only rendered when a sidebar instance is passed
+    if (sidebar && typeof sidebar.toggle === 'function') {
+      const menuBtn = el('button', 'cui-navbar-menu', {
+        'aria-label': 'Toggle navigation',
+        'type': 'button',
+      });
+      // Three-line icon drawn with spans (works in every font)
+      for (let i = 0; i < 3; i++) menuBtn.appendChild(el('span', 'cui-navbar-bar'));
+      menuBtn.addEventListener('click', () => sidebar.toggle());
+      left.appendChild(menuBtn);
+    }
+
+    // Brand
+    const brandWrap = el('div', 'cui-navbar-brand');
+    brandWrap.appendChild(el('span', 'cui-navbar-icon', { text: brandIcon }));
+    brandWrap.appendChild(el('span', 'cui-navbar-name', { text: brand }));
+    left.appendChild(brandWrap);
+
+    // ── right section ──────────────────────────────────────
+    const rightWrap = el('div', 'cui-navbar-right');
+    right.forEach(item => {
+      if (item instanceof Node) rightWrap.appendChild(item);
+    });
+
+    bar.appendChild(left);
+    bar.appendChild(rightWrap);
+
+    // Insert at the very top of <body>
+    document.body.prepend(bar);
+
+    return { el: bar };
+  }
+
   // ── Expose public API ──────────────────────────────────────
   return {
     button, card, statCard,
-    modal, sidebar, topbar,
+    modal, sidebar, topbar, navbar,
     badge, alert, toast,
     input, textarea, select, formGroup,
     table, avatar, dropdown,
@@ -813,4 +872,3 @@ function button(text, {
   };
 
 })();
-//window.UI = UI;
