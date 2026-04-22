@@ -56,76 +56,80 @@ const UI = (() => {
     return parent;
   }
 
+  // ── applyColor ─────────────────────────────────────────────
+  // Used by every component that accepts a color option.
+  // color can be:
+  //   'primary'  → uses the CSS class (default behaviour, unchanged)
+  //   { base, hover, text, border }  → applies inline styles + hover swap
+  //     base:   background color
+  //     hover:  background color on mouse over  (optional)
+  //     text:   text / foreground color         (optional)
+  //     border: border color                    (optional)
+  //
+  // Returns true when a custom object was applied so the caller
+  // can skip adding a variant class that would conflict.
+  function applyColor(element, color) {
+    if (!color || typeof color === 'string') return false; // let CSS handle it
+
+    const { base, hover, text, border } = color;
+    if (base)   element.style.background = base;
+    if (text)   element.style.color      = text;
+    if (border) element.style.border     = `1.5px solid ${border}`;
+
+    if (hover) {
+      element.addEventListener('mouseenter', () => element.style.background = hover);
+      element.addEventListener('mouseleave', () => element.style.background = base || '');
+    }
+    return true;
+  }
+
   // ════════════════════════════════════════════════════════
   //  BUTTON
-  //  UI.button('Save', { variant, size, icon, block, disabled, onClick })
+  //  UI.button('Save', { variant, size, icon, block, disabled, onClick, color })
   //
   //  variant: 'primary' | 'success' | 'danger' | 'warning' |
   //           'outline' | 'ghost' | 'link'         (default: 'primary')
   //  size:    'xs' | 'sm' | 'md' | 'lg' | 'xl'    (default: 'md')
+  //  color:   'primary' | { base, hover, text, border }
   //  icon:    emoji or HTML string prepended to text
   //  block:   true → full width
   //  onClick: function
   // ════════════════════════════════════════════════════════
-function button(text, {
-  variant  = 'primary',
-  size     = 'md',
-  icon     = '',
-  block    = false,
-  disabled = false,
-  type     = 'button',
-  id       = '',
-  color    = null, // 👈 NEW
-  onClick  = null,
-} = {}) {
+  function button(text, {
+    variant  = 'primary',
+    size     = 'md',
+    icon     = '',
+    block    = false,
+    disabled = false,
+    type     = 'button',
+    id       = '',
+    color    = null,
+    onClick  = null,
+  } = {}) {
+    // When a custom color object is passed, skip the variant CSS class
+    // so there's no background conflict with the preset styles.
+    const isCustom  = color && typeof color === 'object';
+    const variantCls = isCustom ? '' : `cui-btn-${variant}`;
+    const btn = el('button', `cui-btn ${variantCls} cui-btn-${size}${block ? ' cui-btn-block' : ''}`.trim(), { type });
 
-  const btn = el(
-    'button',
-    `cui-btn cui-btn-${variant} cui-btn-${size}${block ? ' cui-btn-block' : ''}`,
-    { type }
-  );
+    if (id)       btn.id       = id;
+    if (icon)     btn.appendChild(el('span', '', { text: icon }));
+    btn.appendChild(document.createTextNode(text));
+    if (disabled) btn.disabled = true;
+    if (onClick)  btn.addEventListener('click', onClick);
+    if (isCustom) applyColor(btn, color);
 
-  if (id) btn.id = id;
-
-  if (icon) {
-    const iconSpan = el('span', '', { text: icon });
-    btn.appendChild(iconSpan);
+    return btn;
   }
-
-  btn.appendChild(document.createTextNode(text));
-
-  if (disabled) btn.disabled = true;
-  if (onClick) btn.addEventListener('click', onClick);
-
-  // 🔥 ADVANCED COLOR SYSTEM
-  if (color) {
-    btn.classList.add('cui-btn-custom');
-
-    // support string OR object
-    if (typeof color === 'string') {
-      btn.style.setProperty('--btn-bg', color);
-      btn.style.setProperty('--btn-hover', color);
-      btn.style.setProperty('--btn-text', '#fff');
-    } else {
-      if (color.base)  btn.style.setProperty('--btn-bg', color.base);
-      if (color.hover) btn.style.setProperty('--btn-hover', color.hover);
-      if (color.text)  btn.style.setProperty('--btn-text', color.text);
-    }
-  }
-
-  return btn;
-}
 
   // ════════════════════════════════════════════════════════
   //  CARD
-  //  UI.card({ title, subtitle, body, footer, hoverable, id })
+  //  UI.card({ title, subtitle, body, footer, hoverable, id, color })
   //
-  //  title:    string or element for card header
-  //  subtitle: small text under title
-  //  body:     string, HTML, or DOM element for the card body
-  //  footer:   array of elements appended to card footer
-  //  headerActions: element(s) placed right side of header
-  //  hoverable: true → hover lift effect
+  //  color: { base, text, border }
+  //    base   → card background
+  //    text   → card text color
+  //    border → left border accent (e.g. a colored stripe)
   // ════════════════════════════════════════════════════════
   function card({
     title         = '',
@@ -136,9 +140,16 @@ function button(text, {
     hoverable     = false,
     id            = '',
     padding       = true,
+    color         = null,
   } = {}) {
     const wrap = el('div', `cui-card${hoverable ? ' cui-card-hover' : ''}`);
     if (id) wrap.id = id;
+
+    if (color && typeof color === 'object') {
+      if (color.base)   wrap.style.background  = color.base;
+      if (color.text)   wrap.style.color        = color.text;
+      if (color.border) wrap.style.borderLeft   = `4px solid ${color.border}`;
+    }
 
     // Header
     if (title) {
@@ -170,14 +181,20 @@ function button(text, {
   // ════════════════════════════════════════════════════════
   //  STAT CARD
   //  UI.statCard('128', 'Total Hours', '🕐', 'primary')
+  //  UI.statCard('128', 'Total Hours', '🕐', { base:'#fce7f3', text:'#9d174d' })
   //
-  //  color: 'primary' | 'success' | 'danger' | 'warning' | 'info'
+  //  color: preset string OR { base, text } for icon background
   // ════════════════════════════════════════════════════════
   function statCard(value, label, icon = '📊', color = 'primary') {
-    const wrap = el('div', 'cui-stat-card');
-    const iconEl = el('div', `cui-stat-icon cui-stat-icon-${color}`, { text: icon });
+    const wrap   = el('div', 'cui-stat-card');
+    const isCustom = color && typeof color === 'object';
+    const iconEl = el('div', isCustom ? 'cui-stat-icon' : `cui-stat-icon cui-stat-icon-${color}`, { text: icon });
+    if (isCustom) {
+      if (color.base) iconEl.style.background = color.base;
+      if (color.text) iconEl.style.color      = color.text;
+    }
     const info = el('div');
-    info.appendChild(el('div', 'cui-stat-value', { text: value }));
+    info.appendChild(el('div', 'cui-stat-value', { text: String(value) }));
     info.appendChild(el('div', 'cui-stat-label', { text: label }));
     append(wrap, iconEl, info);
     return wrap;
@@ -379,30 +396,46 @@ function button(text, {
   // ════════════════════════════════════════════════════════
   //  BADGE
   //  UI.badge('Pending', 'warning')
+  //  UI.badge('Custom', { base:'#fce7f3', text:'#9d174d' })
   //  UI.badge('Active', 'success', { dot: true })
   //
-  //  color: 'primary' | 'success' | 'danger' | 'warning' | 'info' | 'gray'
+  //  color: preset string OR { base, text, border }
   // ════════════════════════════════════════════════════════
   function badge(text, color = 'primary', { dot = false } = {}) {
-    const b = el('span', `cui-badge cui-badge-${color}${dot ? ' cui-badge-dot' : ''}`, { text });
+    const isCustom = color && typeof color === 'object';
+    const cls = `cui-badge${isCustom ? '' : ' cui-badge-' + color}${dot ? ' cui-badge-dot' : ''}`;
+    const b = el('span', cls, { text });
+    if (isCustom) {
+      if (color.base)   b.style.background = color.base;
+      if (color.text)   b.style.color      = color.text;
+      if (color.border) b.style.border     = `1px solid ${color.border}`;
+    }
     return b;
   }
 
   // ════════════════════════════════════════════════════════
   //  ALERT
   //  UI.alert('Saved!', 'success', { title, icon, closeable })
+  //  UI.alert('Note', 'info', { color: { base:'#f0fdf4', text:'#166534' } })
   //
   //  type:     'success' | 'danger' | 'warning' | 'info'
+  //  color:    { base, text } — overrides the type color
   //  closeable: true → adds an X button that removes the alert
   // ════════════════════════════════════════════════════════
   function alert(message, type = 'info', {
     title     = '',
     icon      = '',
     closeable = true,
+    color     = null,
     onClose   = null,
   } = {}) {
-    const icons = { success: '✅', danger: '❌', warning: '⚠️', info: 'ℹ️' };
-    const wrap = el('div', `cui-alert cui-alert-${type}`);
+    const icons   = { success: '✅', danger: '❌', warning: '⚠️', info: 'ℹ️' };
+    const isCustom = color && typeof color === 'object';
+    const wrap  = el('div', `cui-alert${isCustom ? '' : ' cui-alert-' + type}`);
+    if (isCustom) {
+      if (color.base) wrap.style.background = color.base;
+      if (color.text) wrap.style.color      = color.text;
+    }
 
     wrap.appendChild(el('span', 'cui-alert-icon', { text: icon || icons[type] }));
 
@@ -413,10 +446,7 @@ function button(text, {
 
     if (closeable) {
       const closeBtn = el('button', 'cui-alert-close', { text: '×' });
-      closeBtn.addEventListener('click', () => {
-        wrap.remove();
-        if (onClose) onClose();
-      });
+      closeBtn.addEventListener('click', () => { wrap.remove(); if (onClose) onClose(); });
       wrap.appendChild(closeBtn);
     }
 
@@ -582,26 +612,6 @@ function button(text, {
   //  rows:    array of objects
   //  options: { hoverable, emptyText, onRowClick }
   // ════════════════════════════════════════════════════════
-  /*
-
-    Example usage:
-    const columns = [
-  { key: 'name', label: 'Name' },
-  { key: 'hours', label: 'Hours', align: 'center' },
-  { key: 'status', label: 'Status', align: 'center' }
-];
-
-const rows = [
-  { name: 'Juan Dela Cruz', hours: 120, status: 'Active' },
-  { name: 'Maria Santos', hours: 95, status: 'Pending' },
-  { name: 'Pedro Reyes', hours: 150, status: 'Completed' }
-];
-
-const myTable = table(columns, rows);
-
-// append to page
-document.getElementById('table-container').appendChild(myTable);
-*/
   function table(columns = [], rows = [], {
     hoverable  = true,
     emptyText  = 'No records found.',
@@ -659,15 +669,20 @@ document.getElementById('table-container').appendChild(myTable);
   // ════════════════════════════════════════════════════════
   //  AVATAR
   //  UI.avatar('JD', 'md', 'primary')
+  //  UI.avatar('JD', 'md', { base:'#fce7f3', text:'#9d174d' })
   //
-  //  initials: 1–2 characters
   //  size:  'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  //  color: 'primary' | 'success' | 'danger' | 'warning' | 'gray'
+  //  color: preset string OR { base, text }
   // ════════════════════════════════════════════════════════
   function avatar(initials = '?', size = 'md', color = '') {
-    return el('div', `cui-avatar cui-avatar-${size}${color ? ' cui-avatar-' + color : ''}`, {
-      text: initials.toUpperCase().slice(0, 2)
-    });
+    const isCustom = color && typeof color === 'object';
+    const cls = `cui-avatar cui-avatar-${size}${!isCustom && color ? ' cui-avatar-' + color : ''}`;
+    const a = el('div', cls, { text: initials.toUpperCase().slice(0, 2) });
+    if (isCustom) {
+      if (color.base) a.style.background = color.base;
+      if (color.text) a.style.color      = color.text;
+    }
+    return a;
   }
 
   // ════════════════════════════════════════════════════════
@@ -739,9 +754,9 @@ document.getElementById('table-container').appendChild(myTable);
   // ════════════════════════════════════════════════════════
   //  PROGRESS BAR
   //  UI.progress(75, { color, size, striped, label })
+  //  UI.progress(75, { color: { base:'#fce7f3', text:'#9d174d' } })
   //
-  //  value: 0–100
-  //  color: 'primary' | 'success' | 'danger' | 'warning'
+  //  color: preset string OR { base } for bar fill color
   //  size:  'sm' | '' | 'lg'
   // ════════════════════════════════════════════════════════
   function progress(value = 0, {
@@ -750,10 +765,13 @@ document.getElementById('table-container').appendChild(myTable);
     striped = false,
     label   = false,
   } = {}) {
-    const pct = Math.min(100, Math.max(0, value));
+    const pct      = Math.min(100, Math.max(0, value));
+    const isCustom = color && typeof color === 'object';
     const wrap = el('div', `cui-progress${size ? ' cui-progress-' + size : ''}${striped ? ' cui-progress-striped' : ''}`);
-    const bar  = el('div', `cui-progress-bar${color !== 'primary' ? ' cui-progress-bar-' + color : ''}`);
+    const barCls = isCustom ? 'cui-progress-bar' : `cui-progress-bar${color !== 'primary' ? ' cui-progress-bar-' + color : ''}`;
+    const bar = el('div', barCls);
     bar.style.width = pct + '%';
+    if (isCustom && color.base) bar.style.background = color.base;
     if (label) bar.textContent = pct + '%';
     wrap.appendChild(bar);
     return wrap;
@@ -808,11 +826,17 @@ document.getElementById('table-container').appendChild(myTable);
 
   // ════════════════════════════════════════════════════════
   //  CHIP / TAG
-  //  UI.chip('BSCS')                   → static chip
-  //  UI.chip('Math', () => remove())   → dismissible chip
+  //  UI.chip('BSCS')
+  //  UI.chip('Math', () => remove())
+  //  UI.chip('Custom', null, { base:'#fce7f3', text:'#9d174d', border:'#fbcfe8' })
   // ════════════════════════════════════════════════════════
-  function chip(text, onClose = null) {
+  function chip(text, onClose = null, color = null) {
     const c = el('span', 'cui-chip', { text });
+    if (color && typeof color === 'object') {
+      if (color.base)   c.style.background = color.base;
+      if (color.text)   c.style.color      = color.text;
+      if (color.border) c.style.border     = `1px solid ${color.border}`;
+    }
     if (onClose) {
       const x = el('button', 'cui-chip-close', { text: '×' });
       x.addEventListener('click', () => { c.remove(); onClose(); });

@@ -112,16 +112,7 @@
   font-size: 1rem;
 }
 .cui-btn-icon.cui-btn-lg { width: 44px; height: 44px; font-size: 1.2rem; }
-.cui-btn-custom {
-  background: var(--btn-bg);
-  color: var(--btn-text, #fff);
-}
 
-.cui-btn-custom:hover {
-  background: var(--btn-hover, var(--btn-bg));
-  transform: translateY(-1px);
-  box-shadow: var(--c-shadow-md);
-}
 /* ══════════════════════════════════════════════════════════════
    CARDS
 ══════════════════════════════════════════════════════════════ */

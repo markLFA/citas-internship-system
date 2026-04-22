@@ -7,69 +7,12 @@
   <link rel="stylesheet" href="../assets/uiParts.css">
 </head>
 <body>
-
-<div id="app"></div>
-<div id="my-table" style="width: 70%;;"></div>
-</div>
-
 <script src="../assets/uiParts.js"></script>
-<script>
+  <div id="meh"></div>
 
+  <div id="my-table"></div>
 
-// open it
-/*
-const nav = UI.sidebar({
-  brand: 'CITAS',
-  brandIcon: '🎓',
-  links: [
-    { label: 'Dashboard', href: '/dashboard.php', icon: '🏠', active: true },
-    { label: 'Interns', href: '/interns.php', icon: '👨‍🎓' },
-    { label: 'Reports', href: '/reports.php', icon: '📊' }
-  ]
-});
-//document.getElementById("app").appendChild(nav);
-nav.open();
-*/
-// create sidebar first
-// create sidebar first
-const nav = UI.sidebar({
-  brand: 'CITAS',
-  links: [
-    { label: 'Dashboard', icon: '🏠', active: true },
-    { label: 'Reports', icon: '📊' }
-  ]
-});
-
-
-// 2. Pass it into navbar — hamburger is auto-wired
-UI.navbar({
-  brand: 'CITAS Internship',
-  sidebar: nav,          // ← this connects the button
-  right: [UI.button('Profile', { variant: 'ghost', size: 'sm' }), UI.button('Logout', { variant: 'ghost', size: 'sm' })],
-});
-const btn2 = UI.button('Soft', {
-  color: {
-    base: '#fef3c7',
-    hover: '#fde68a',
-    text: '#92400e'
-  }
-});
-  document.getElementById("app").appendChild(btn2);
-
-const btn = UI.button('Soft', {
-  color: {
-    base: '#33f0c1',
-    hover: '#29b8a0',
-    text: '#064e3b'
-  }
-});
-  document.getElementById("app").appendChild(btn);
-
-
-
-</script>
-
-<script>
+  <script>
 
     // 1. Define your columns
     const columns = [
@@ -108,6 +51,10 @@ const btn = UI.button('Soft', {
     });
 
     document.getElementById('my-table').appendChild(table);
+    const alert = UI.alert('Heads up!', 'info', { color: { base:'#fffbeb', text:'#78350f' } })
+        document.getElementById('meh').appendChild(alert);
+    const statCard = UI.statCard('42', 'Custom Stat', '', { base:'#fdf2f8', text:'#9d174d' })
+        document.getElementById('meh').appendChild(statCard);
 
   </script>
 </body>
