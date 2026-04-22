@@ -27,6 +27,23 @@
 </div>
 <script src="../assets/uiParts.js"></script>
 <script>
+function navigationBar () {
+  const nav = UI.sidebar({
+    brand: 'CITAS',
+    links: [
+      { label: 'Dashboard', icon: '🏠', active: true },
+      { label: 'Reports', icon: '📊' }
+    ]
+  });
+
+
+  UI.navbar({
+    brand: 'CITAS Internship',
+    sidebar: nav,        
+    right: [UI.button('Profile', { variant: 'ghost', size: 'sm' }), UI.button('Logout', { variant: 'ghost', size: 'sm' })],
+  });
+}
+navigationBar();
   function statsPanel () {
     const hoursStat = UI.statCard('0.1', 'Total Hours Rendered', '🕐', { base:'#fdf2f8', text:'#9d174d' })
     document.getElementById('stats-panel').appendChild(hoursStat);
@@ -50,30 +67,7 @@
   }
   anouncementPanel();
 
-
-const nav = UI.sidebar({
-  brand: 'CITAS',
-  links: [
-    { label: 'Dashboard', icon: '🏠', active: true },
-    { label: 'Reports', icon: '📊' }
-  ]
-});
-
-
-// 2. Pass it into navbar — hamburger is auto-wired
-UI.navbar({
-  brand: 'CITAS Internship',
-  sidebar: nav,          // ← this connects the button
-  right: [UI.button('Profile', { variant: 'ghost', size: 'sm' }), UI.button('Logout', { variant: 'ghost', size: 'sm' })],
-});
-
-
-
-</script>
-
-<script>
 function renderTable() { 
-    // 1. Define your columns
     const columns = [
       { key: 'date',   label: 'Date' },
       { key: 'timein',   label: 'Time In' },
@@ -95,14 +89,12 @@ function renderTable() {
       },
     ];
 
-    // 2. Define your data rows
     const rows = [
       { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
       { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
       { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
     ];
 
-    // 3. Build the table and insert it into the page
     const table = UI.table(columns, rows, {
       hoverable:  true,
       emptyText:  'No interns found.',
