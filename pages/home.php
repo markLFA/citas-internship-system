@@ -10,7 +10,7 @@
 
 <div id="app"></div>
 
-<script src="citas-ui.js"></script>
+<script src="../assets/uiParts.js"></script>
 <script>
 
 
