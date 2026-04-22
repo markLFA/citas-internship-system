@@ -104,7 +104,7 @@ button:hover {
 </div>
 
 <div class="footer">
-    <p>Developed by BSIT Students | Capstone Project 2026</p>
+    <p>Developed by Samar College BSIT Students | Capstone Project 2026</p>
     <p>CITAS Internship Monitoring System</p>
 </div>
 
