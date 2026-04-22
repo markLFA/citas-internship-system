@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../assets/uiParts.css">
   <style> 
     .app {
-      padding: 1rem;
+      padding: 0.2rem;
     }
     .stats-grid {
       display: grid;
