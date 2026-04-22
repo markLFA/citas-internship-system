@@ -36,10 +36,11 @@
   <div class="dashboard-layout">
 
     <div id="announcement-panel" class="announcement">
-      <h2>📢 Announcements</h2>
+      <h3>📢 Announcements</h3>
     </div>
 
     <div id="table-panel">
+      <h3>📋 Attendance Records</h3>
     </div>
 
   </div>
