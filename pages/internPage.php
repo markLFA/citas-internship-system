@@ -5,33 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CITAS UI — Component Reference</title>
   <link rel="stylesheet" href="../assets/uiParts.css">
+  <style> 
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
 </head>
 <body>
-
-<div id="app"></div>
-<div id="my-table" style="width: 70%;;"></div>
+<div id = "stats-panel" class="stats-grid"></div>
+<div id = "main" class="stats-grid">
+  <div id="announcement" >
+    <h2>📢 Announcements</h2></br>
+  </div>
 </div>
 
+<div id="app"></div>
+<div id="my-table" style="width: 70%;"></div>
+</div>
 <script src="../assets/uiParts.js"></script>
 <script>
+  function statsPanel () {
+    const hoursStat = UI.statCard('0.1', 'Total Hours Rendered', '🕐', { base:'#fdf2f8', text:'#9d174d' })
+    document.getElementById('stats-panel').appendChild(hoursStat);
+    const daysStats = UI.statCard('1', 'Days Present', '📅', { base:'#fdf2f8', text:'#9d174d' })
+    document.getElementById('stats-panel').appendChild(daysStats  );
+    const submisionStats = UI.statCard('2', 'Reports Submited', '📄', { base:'#fdf2f8', text:'#9d174d' })
+    document.getElementById('stats-panel').appendChild(submisionStats);
+    const statusStats = UI.statCard('Out', 'Today\'s Status', '🔴', { base:'#fdf2f8', text:'#9d174d' })
+    document.getElementById('stats-panel').appendChild(statusStats);
+  }
+  statsPanel();
+  function anouncementPanel () {
+
+    card = UI.card({
+      title: 'jdnfjfj',
+      body: '📭',
+      subtitle: 'No announcements yet',
+      color: { base:'#fef3c7', text:'#92400e' }
+    });
+    document.getElementById('announcement').appendChild(card);
+  }
+  anouncementPanel();
 
 
-// open it
-/*
-const nav = UI.sidebar({
-  brand: 'CITAS',
-  brandIcon: '🎓',
-  links: [
-    { label: 'Dashboard', href: '/dashboard.php', icon: '🏠', active: true },
-    { label: 'Interns', href: '/interns.php', icon: '👨‍🎓' },
-    { label: 'Reports', href: '/reports.php', icon: '📊' }
-  ]
-});
-//document.getElementById("app").appendChild(nav);
-nav.open();
-*/
-// create sidebar first
-// create sidebar first
 const nav = UI.sidebar({
   brand: 'CITAS',
   links: [
@@ -47,36 +66,19 @@ UI.navbar({
   sidebar: nav,          // ← this connects the button
   right: [UI.button('Profile', { variant: 'ghost', size: 'sm' }), UI.button('Logout', { variant: 'ghost', size: 'sm' })],
 });
-const btn2 = UI.button('Soft', {
-  color: {
-    base: '#fef3c7',
-    hover: '#fde68a',
-    text: '#92400e'
-  }
-});
-  document.getElementById("app").appendChild(btn2);
-
-const btn = UI.button('Soft', {
-  color: {
-    base: '#33f0c1',
-    hover: '#29b8a0',
-    text: '#064e3b'
-  }
-});
-  document.getElementById("app").appendChild(btn);
 
 
 
 </script>
 
 <script>
-
+function renderTable() { 
     // 1. Define your columns
     const columns = [
-      { key: 'name',   label: 'Name' },
-      { key: 'dept',   label: 'Department' },
-      { key: 'hours',  label: 'Hours', align: 'center' },
-      { key: 'status', label: 'Status', align: 'center',
+      { key: 'date',   label: 'Date' },
+      { key: 'timein',   label: 'Time In' },
+      { key: 'timeout',  label: 'Time Out', align: 'center' },
+      { key: 'hours', label: 'Hours', align: 'center',
         // render() lets you customize how a cell looks
         render: (value) => UI.badge(value, {
           Approved: 'success',
@@ -95,9 +97,9 @@ const btn = UI.button('Soft', {
 
     // 2. Define your data rows
     const rows = [
-      { name: 'Juan dela Cruz', dept: 'BSCS', hours: '128h', status: 'Approved' },
-      { name: 'Maria Santos',   dept: 'BSIT', hours: '96h',  status: 'Pending'  },
-      { name: 'Pedro Reyes',    dept: 'BSBA', hours: '64h',  status: 'Revision' },
+      { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
+      { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
+      { date: 'april 32', timein: '9:00 am', timeout: '5: pm', hours: '8' },
     ];
 
     // 3. Build the table and insert it into the page
@@ -107,8 +109,11 @@ const btn = UI.button('Soft', {
       onRowClick: (row) => console.log('Row clicked:', row),
     });
 
-    document.getElementById('my-table').appendChild(table);
+    document.getElementById('main').appendChild(table);
+  }
+  renderTable();
+</script>
 
-  </script>
+
 </body>
 </html>

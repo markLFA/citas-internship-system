@@ -5,10 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CITAS UI — Component Reference</title>
   <link rel="stylesheet" href="../assets/uiParts.css">
+  <style> 
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
 </head>
 <body>
 <script src="../assets/uiParts.js"></script>
-  <div id="meh"></div>
+  <div id="meh" class ="stats-grid"></div>
 
   <div id="my-table"></div>
 
@@ -55,7 +63,10 @@
         document.getElementById('meh').appendChild(alert);
     const statCard = UI.statCard('42', 'Custom Stat', '', { base:'#fdf2f8', text:'#9d174d' })
         document.getElementById('meh').appendChild(statCard);
-
+    const statCard1 = UI.statCard('42', 'eee Stat', '', { base:'#fdf2f8', text:'#9d174d' })
+        document.getElementById('meh').appendChild(statCard1 );
+    const statCard2 = UI.statCard('42', 'Custom Stat', '', { base:'#fdf2f8', text:'#9d174d' })
+        document.getElementById('meh').appendChild(statCard2);
   </script>
 </body>
 </html>
