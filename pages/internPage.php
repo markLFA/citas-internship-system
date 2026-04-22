@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CITAS UI — Component Reference</title>
-  <link rel="stylesheet" href="citas-ui.css">
+  <link rel="stylesheet" href="../assets/uiParts.css">
 </head>
 <body>
 
