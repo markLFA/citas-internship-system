@@ -66,7 +66,7 @@ function navigationBar () {
 }
 navigationBar();
   function statsPanel () {
-    const hoursStat = UI.statCard('0.1', 'Total Hours Rendered', '🕐', { base:'#fdf2f8', text:'#9d174d' })
+    const hoursStat = UI.statCard('0.1', 'Total Hours', '🕐', { base:'#fdf2f8', text:'#9d174d' })
     document.getElementById('stats-panel').appendChild(hoursStat);
     const daysStats = UI.statCard('1', 'Days Present', '📅', { base:'#fdf2f8', text:'#9d174d' })
     document.getElementById('stats-panel').appendChild(daysStats  );
