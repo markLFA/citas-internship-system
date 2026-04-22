@@ -6,25 +6,45 @@
   <title>CITAS UI — Component Reference</title>
   <link rel="stylesheet" href="../assets/uiParts.css">
   <style> 
+    .app {
+      padding: 1rem;
+    }
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 1rem;
       margin-bottom: 1.5rem;
     }
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr; /* mobile default */
+      gap: 1rem;
+    }
+
+    /* PC layout */
+    @media (min-width: 768px) {
+      .dashboard-layout {
+        grid-template-columns: 300px 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-<div id = "stats-panel" class="stats-grid"></div>
-<div id = "main" class="stats-grid">
-  <div id="announcement" >
-    <h2>📢 Announcements</h2></br>
+<div id="app" class="app">
+  <div id = "stats-panel" class="stats-grid"></div>
+
+  <div class="dashboard-layout">
+
+    <div id="announcement-panel" class="announcement">
+      <h2>📢 Announcements</h2>
+    </div>
+
+    <div id="table-panel">
+    </div>
+
   </div>
 </div>
 
-<div id="app"></div>
-<div id="my-table" style="width: 70%;"></div>
-</div>
 <script src="../assets/uiParts.js"></script>
 <script>
 function navigationBar () {
@@ -63,7 +83,7 @@ navigationBar();
       subtitle: 'No announcements yet',
       color: { base:'#fef3c7', text:'#92400e' }
     });
-    document.getElementById('announcement').appendChild(card);
+    document.getElementById('announcement-panel').appendChild(card);
   }
   anouncementPanel();
 
@@ -101,7 +121,7 @@ function renderTable() {
       onRowClick: (row) => console.log('Row clicked:', row),
     });
 
-    document.getElementById('main').appendChild(table);
+    document.getElementById('table-panel').appendChild(table);
   }
   renderTable();
 </script>
