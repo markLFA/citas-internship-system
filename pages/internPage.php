@@ -54,6 +54,22 @@ const btn2 = UI.button('Soft', {
 });
   document.getElementById("app").appendChild(btn2);
 
+const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'hours', label: 'Hours', align: 'center' },
+  { key: 'status', label: 'Status', align: 'center' }
+];
+
+const rows = [
+  { name: 'Juan Dela Cruz', hours: 120, status: 'Active' },
+  { name: 'Maria Santos', hours: 95, status: 'Pending' },
+  { name: 'Pedro Reyes', hours: 150, status: 'Completed' }
+];
+
+const myTable = table(columns, rows);
+
+// append to page
+document.getElementById('app').appendChild(myTable);
 
 
 </script>

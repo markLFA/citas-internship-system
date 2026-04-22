@@ -582,6 +582,26 @@ function button(text, {
   //  rows:    array of objects
   //  options: { hoverable, emptyText, onRowClick }
   // ════════════════════════════════════════════════════════
+  /*
+
+    Example usage:
+    const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'hours', label: 'Hours', align: 'center' },
+  { key: 'status', label: 'Status', align: 'center' }
+];
+
+const rows = [
+  { name: 'Juan Dela Cruz', hours: 120, status: 'Active' },
+  { name: 'Maria Santos', hours: 95, status: 'Pending' },
+  { name: 'Pedro Reyes', hours: 150, status: 'Completed' }
+];
+
+const myTable = table(columns, rows);
+
+// append to page
+document.getElementById('table-container').appendChild(myTable);
+*/
   function table(columns = [], rows = [], {
     hoverable  = true,
     emptyText  = 'No records found.',
