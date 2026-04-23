@@ -37,8 +37,5 @@
 
 <script type="module" src="pages.js"></script>
 
-
-
-
 </body>
 </html>
