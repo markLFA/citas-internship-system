@@ -14,16 +14,25 @@ function navbar2 () {
     items: [
       { section: true, label: 'Main' },
       { label: 'Dashboard',  icon: '🏠', active: true, onClick: () => {
-        DashboardPage () 
+        DashboardPage ()
+        nav.close() 
       } },
-      { label: 'Attendance', icon: '🕐', onClick: () => {} },
+      { label: 'Attendance', icon: '🕐', onClick: () => {
+       nav.close()  
+      } },
       { label: 'Reports',    icon: '📄', badge: 3, onClick: () => {
        ReportsPage ()
+       nav.close()  
       } },
 
       { section: true, label: 'Account' },
-      { label: 'Profile',  icon: '👤', onClick: () => {} },
-      { label: 'Sign Out', icon: '🚪', onClick: () => {} },
+      { label: 'Profile',  icon: '👤', onClick: () => {
+       nav.close()  
+
+      } },
+      { label: 'Sign Out', icon: '🚪', onClick: () => {
+         nav.close()
+      } },
     ],
     footer: (() => {
       const f = document.createElement('div');
