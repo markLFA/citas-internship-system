@@ -1,0 +1,35 @@
+name: Deploy to AwardSpace (FTP)
+
+on:
+  push:
+    branches:
+      - main   # change if your branch is different
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+
+          # since your FTP points directly to:
+          # /home/www/capstone.atwebpages.com/
+          server-dir: /
+
+          # optional but recommended
+          exclude: |
+            **/.git*
+            **/.github*
+            node_modules/**
+
+          # optional: clean old files before upload
+          # (ONLY enable if you want full overwrite)
+          # dangerous-clean-slate: true
