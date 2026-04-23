@@ -35,7 +35,7 @@
  * ============================================================
  */
 
-const UI = (() => {
+export const UI = (() => {
 
   // ── Internal helpers ───────────────────────────────────────
 
@@ -904,10 +904,122 @@ const UI = (() => {
     return { el: bar };
   }
 
+  // ════════════════════════════════════════════════════════
+  //  SIDEBAR PANEL  (button-based, orange gradient — CITAS theme)
+  //  const nav = UI.sidebarPanel({ brand, brandIcon, items, footer, id })
+  //  nav.open()    → slides in
+  //  nav.close()   → slides out
+  //  nav.toggle()  → toggles — pass this instance to UI.navbar({ sidebar: nav })
+  //  nav.el        → the <aside> DOM element
+  //
+  //  items: [{ label, icon, onClick, active, section, badge }]
+  //    section:  true  → renders as a section divider label
+  //    active:   true  → highlights the button as the current page
+  //    badge:    string/number shown as a small pill on the right
+  //    onClick:  function called when button is clicked
+  // ════════════════════════════════════════════════════════
+  function sidebarPanel({
+    brand     = 'CITAS',
+    brandIcon = '🎓',
+    items     = [],
+    footer    = null,
+    id        = 'cui-sidebar-panel',
+  } = {}) {
+
+    // ── dim overlay (closes on click) ──────────────────────
+    const bgOverlay = el('div', 'cui-sidebar-overlay');
+    bgOverlay.addEventListener('click', close);
+    document.body.appendChild(bgOverlay);
+
+    // ── panel ──────────────────────────────────────────────
+    const panel = el('aside', 'cui-sp cui-sp-hidden');
+    if (id) panel.id = id;
+
+    // ── brand header ───────────────────────────────────────
+    const brandWrap = el('div', 'cui-sp-brand');
+    const brandIconEl = el('span', 'cui-sp-brand-icon', { text: brandIcon });
+    const brandNameEl = el('span', 'cui-sp-brand-name', { text: brand });
+    brandWrap.appendChild(brandIconEl);
+    brandWrap.appendChild(brandNameEl);
+    panel.appendChild(brandWrap);
+
+    // ── nav buttons ────────────────────────────────────────
+    const nav = el('nav', 'cui-sp-nav');
+    const btnMap = {};   // label → button element, for setActive()
+
+    items.forEach(item => {
+      // Section divider label
+      if (item.section) {
+        nav.appendChild(el('div', 'cui-sp-section', { text: item.label }));
+        return;
+      }
+
+      const btn = el('button', `cui-sp-btn${item.active ? ' active' : ''}`, {
+        type: 'button',
+      });
+
+      // Icon
+      if (item.icon) btn.appendChild(el('span', 'cui-sp-btn-icon', { text: item.icon }));
+
+      // Label
+      btn.appendChild(el('span', 'cui-sp-btn-label', { text: item.label }));
+
+      // Optional badge pill on the right
+      if (item.badge !== undefined && item.badge !== null) {
+        btn.appendChild(el('span', 'cui-sp-btn-badge', { text: String(item.badge) }));
+      }
+
+      // Auto-highlight the clicked button
+      btn.addEventListener('click', () => {
+        setActive(item.label);
+        if (item.onClick) item.onClick(btn);
+      });
+
+      btnMap[item.label] = btn;
+      nav.appendChild(btn);
+    });
+
+    panel.appendChild(nav);
+
+    // ── footer slot ────────────────────────────────────────
+    if (footer) {
+      const footerWrap = el('div', 'cui-sp-footer');
+      if (footer instanceof Node) footerWrap.appendChild(footer);
+      else footerWrap.innerHTML = String(footer);
+      panel.appendChild(footerWrap);
+    }
+
+    document.body.appendChild(panel);
+
+    // ── open / close / toggle ──────────────────────────────
+    function open() {
+      panel.classList.remove('cui-sp-hidden');
+      bgOverlay.classList.add('cui-open');
+    }
+    function close() {
+      panel.classList.add('cui-sp-hidden');
+      bgOverlay.classList.remove('cui-open');
+    }
+    function toggle() {
+      panel.classList.contains('cui-sp-hidden') ? open() : close();
+    }
+
+    // ── setActive(label) ───────────────────────────────────
+    // Moves the highlight to whichever button matches the label.
+    // Called automatically on click, or manually whenever you need
+    // to change the selection from outside the sidebar.
+    function setActive(label) {
+      Object.values(btnMap).forEach(b => b.classList.remove('active'));
+      if (btnMap[label]) btnMap[label].classList.add('active');
+    }
+
+    return { el: panel, open, close, toggle, setActive };
+  }
+
   // ── Expose public API ──────────────────────────────────────
   return {
     button, card, statCard,
-    modal, sidebar, topbar, navbar,
+    modal, sidebar, topbar, navbar, sidebarPanel,
     badge, alert, toast,
     input, textarea, select, formGroup,
     table, avatar, dropdown,
