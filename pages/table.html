@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CITAS — Intern Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/uiParts.css">
+
+  <style>
+    /* ── Global page font ─────────────────────────────────── */
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #FFF7ED;
+      margin: 0;
+    }
+    h1, h2, h3, .cui-page-title, .cui-card-title {
+      font-family: 'Sora', sans-serif;
+    }
+
+    /* ── Navbar orange accent ─────────────────────────────── */
+    .cui-navbar {
+      border-bottom-color: #FED7AA;
+      background: #fff;
+    }
+    .cui-navbar-name { color: #EA580C; }
+
+    /* ── Submit button inside form — orange ──────────────── */
+    .btn-orange {
+      background: linear-gradient(135deg, #FF6B00, #EA580C);
+      color: #fff;
+      font-family: 'Sora', sans-serif;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(234,88,12,.35);
+      border: none;
+      border-radius: 10px;
+      padding: .7rem 1.4rem;
+      cursor: pointer;
+      font-size: .9rem;
+      transition: filter .15s, transform .12s;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .btn-orange:hover  { filter: brightness(1.07); transform: translateY(-1px); }
+    .btn-orange:active { transform: none; }
+
+    /* ── Announcement empty slot ──────────────────────────── */
+    .ann-empty {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: #9A6647;
+      font-size: .875rem;
+    }
+    .ann-empty-icon { font-size: 2rem; margin-bottom: .5rem; }
+
+    /* ── Status pill colors for reports ─────────────────── */
+    .status-pending  { background:#FEF3C7; color:#92400E; }
+    .status-approved { background:#D1FAE5; color:#065F46; }
+    .status-revision { background:#FEE2E2; color:#991B1B; }
+    .status-reviewed { background:#DBEAFE; color:#1E40AF; }
+
+    /* ── Time-in status indicator dot ────────────────────── */
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: .35rem;
+    }
+    .dot-green { background: #10B981; box-shadow: 0 0 5px #10B981; }
+    .dot-red   { background: #EF4444; }
+    .dot-gray  { background: #9CA3AF; }
+
+    /* ── Grid helpers ─────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div id="app" class="app">
+
+</div>
+
+<script type="module" src="internHomePage.js"></script>
+
+</body>
+</html>

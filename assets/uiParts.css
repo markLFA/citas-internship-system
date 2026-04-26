@@ -262,31 +262,30 @@
   gap: .75rem;
 }
 
-/* Left side: hamburger + brand */
+/* Left side: hamburger only */
 .cui-navbar-left {
   display: flex;
   align-items: center;
-  gap: .65rem;
   flex-shrink: 0;
 }
 
-/* Hamburger button — three spans drawn as lines */
+/* Hamburger */
 .cui-navbar-menu {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  width: 36px;
-  height: 36px;
-  padding: 6px;
+  width: 38px;
+  height: 38px;
+  padding: 7px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background .15s;
 }
-.cui-navbar-menu:hover { background: #F3F4F6; }
+.cui-navbar-menu:hover { background: #FFF7ED; }
 
 .cui-navbar-bar {
   display: block;
@@ -302,20 +301,17 @@
 .cui-navbar-menu.open .cui-navbar-bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
 .cui-navbar-menu.open .cui-navbar-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Brand */
-.cui-navbar-brand {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  text-decoration: none;
-  user-select: none;
-}
-.cui-navbar-icon { font-size: 1.25rem; line-height: 1; }
-.cui-navbar-name {
+/* Center: current page name */
+.cui-navbar-center {
+  flex: 1;
+  font-family: 'Sora', 'Segoe UI', sans-serif;
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
-  letter-spacing: -.3px;
+  color: #1A0A00;
+  padding-left: .5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Right side */
@@ -323,8 +319,9 @@
   display: flex;
   align-items: center;
   gap: .5rem;
-  margin-left: auto;
+  flex-shrink: 0;
 }
+
 
 /* ══════════════════════════════════════════════════════════════
    SIDEBAR
@@ -997,3 +994,684 @@
 .cui-sp::-webkit-scrollbar-track  { background: transparent; }
 .cui-sp::-webkit-scrollbar-thumb  { background: rgba(255,255,255,.25); border-radius: 4px; }
 .cui-sp::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.4); }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE LAYOUT  (sidebar + main content, used by intern/coordinator pages)
+══════════════════════════════════════════════════════════════ */
+
+/* Wrapper that holds sidebar + page content side by side */
+.cui-page-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #FFF7ED;      /* warm orange-tinted page bg */
+}
+
+/* The scrollable main area sits to the right of the sidebar */
+.cui-page-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticky topbar inside page main */
+.cui-page-main .cui-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Content padding */
+.cui-page-content {
+  padding: 1.75rem 1.75rem 3rem;
+  flex: 1;
+}
+
+/* Section — one per "page" in the SPA; hidden by default */
+.cui-section { display: none; }
+.cui-section.active { display: block; }
+
+/* Animate section entry */
+.cui-section.active {
+  animation: cuiSectionIn .2s ease;
+}
+@keyframes cuiSectionIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE SIDEBAR  (persistent desktop / drawer mobile)
+══════════════════════════════════════════════════════════════ */
+
+/* Mobile dim overlay */
+.cui-ps-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 199;
+}
+.cui-ps-overlay.cui-ps-overlay-open { display: block; }
+
+/* Sidebar panel — always a fixed drawer, hidden until opened */
+.cui-ps {
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,.13) 0%, transparent 55%),
+    radial-gradient(circle at 85% 90%, rgba(0,0,0,.07) 0%,   transparent 55%),
+    linear-gradient(175deg, #FF6B00 0%, #EA580C 40%, #C2410C 100%);
+  color: #fff;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  height: 100%;
+  z-index: 200;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform: translateX(-100%);
+  transition: transform .26s cubic-bezier(.4, 0, .2, 1);
+}
+
+.cui-ps.cui-ps-open {
+  transform: translateX(0);
+  box-shadow: 6px 0 32px rgba(194,65,12,.28);
+}
+
+/* Page layout is always full-width since sidebar is a drawer */
+.cui-page-layout {
+  display: block;
+  min-height: 100vh;
+  background: #FFF7ED;
+}
+.cui-page-main { width: 100%; }
+
+/* Brand */
+.cui-ps-brand {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: 1.4rem 1.25rem 1.1rem;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  flex-shrink: 0;
+}
+.cui-ps-brand-icon {
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,.18);
+  border: 1.5px solid rgba(255,255,255,.28);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.35rem; flex-shrink: 0;
+}
+.cui-ps-brand-name {
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -.4px;
+  color: #fff;
+}
+
+/* Nav */
+.cui-ps-nav {
+  flex: 1;
+  padding: .65rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cui-ps-section {
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,.4);
+  padding: .85rem 1.25rem .3rem;
+  user-select: none;
+}
+
+/* Nav button */
+.cui-ps-btn {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  width: 100%;
+  padding: .62rem 1.1rem .62rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: rgba(255,255,255,.72);
+  font-size: .875rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.cui-ps-btn:hover {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  border-left-color: rgba(255,255,255,.45);
+}
+.cui-ps-btn.active {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  font-weight: 700;
+  border-left-color: #fff;
+}
+.cui-ps-btn-icon  { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+.cui-ps-btn-label { flex: 1; }
+.cui-ps-btn-badge {
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: .15rem .45rem;
+  border-radius: 20px;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.cui-ps-btn.active .cui-ps-btn-badge { background: rgba(255,255,255,.38); }
+
+/* Footer */
+.cui-ps-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255,255,255,.18);
+  flex-shrink: 0;
+  background: rgba(0,0,0,.08);
+}
+
+/* Scrollbar */
+.cui-ps::-webkit-scrollbar        { width: 4px; }
+.cui-ps::-webkit-scrollbar-track  { background: transparent; }
+.cui-ps::-webkit-scrollbar-thumb  { background: rgba(255,255,255,.22); border-radius: 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE HEADER  (section title row at top of each view)
+══════════════════════════════════════════════════════════════ */
+.cui-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.cui-page-title {
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1A0A00;
+  letter-spacing: -.4px;
+  line-height: 1.2;
+}
+.cui-page-subtitle {
+  font-size: .82rem;
+  color: #9A6647;
+  margin-top: .2rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STAT CARDS GRID
+══════════════════════════════════════════════════════════════ */
+.cui-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Override statCard styles to use orange theme */
+.cui-stat-card {
+  border: 1px solid #FED7AA;
+}
+.cui-stat-icon-orange { background: #FFF7ED; }
+.cui-stat-value       { color: #1A0A00; }
+
+/* ══════════════════════════════════════════════════════════════
+   PROFILE CARD
+══════════════════════════════════════════════════════════════ */
+.cui-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: #fff;
+  border: 1px solid #FED7AA;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(234,88,12,.07);
+}
+
+.cui-profile-avatar {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF6B00, #EA580C);
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(234,88,12,.3);
+}
+
+.cui-profile-info { flex: 1; min-width: 0; }
+
+.cui-profile-name {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1A0A00;
+  letter-spacing: -.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cui-profile-role-badge {
+  display: inline-block;
+  background: #FFF7ED;
+  color: #EA580C;
+  border: 1px solid #FED7AA;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .18rem .55rem;
+  border-radius: 20px;
+  margin-top: .3rem;
+  text-transform: capitalize;
+}
+
+.cui-profile-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .9rem;
+  margin-top: .5rem;
+}
+
+.cui-profile-detail-row {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .78rem;
+  color: #9A6647;
+}
+.cui-profile-detail-icon { font-size: .8rem; opacity: .7; }
+
+@media (max-width: 540px) {
+  .cui-profile-card    { flex-direction: column; align-items: flex-start; }
+  .cui-profile-details { flex-direction: column; gap: .25rem; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STAT ROW  (horizontal strip of numbers)
+══════════════════════════════════════════════════════════════ */
+.cui-stat-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid #FED7AA;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.cui-stat-row-item {
+  flex: 1;
+  padding: .75rem .5rem;
+  text-align: center;
+}
+.cui-stat-row-div {
+  width: 1px;
+  background: #FED7AA;
+  flex-shrink: 0;
+}
+.cui-stat-row-value {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #EA580C;
+  line-height: 1;
+}
+.cui-stat-row-label {
+  font-size: .7rem;
+  color: #9A6647;
+  margin-top: .3rem;
+  font-weight: 500;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UPLOAD ZONE  (drag-and-drop)
+══════════════════════════════════════════════════════════════ */
+.cui-upload-zone {
+  border: 2px dashed #FED7AA;
+  border-radius: 12px;
+  background: #FFF7ED;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  position: relative;
+}
+.cui-upload-zone:hover,
+.cui-upload-zone.cui-upload-zone-over {
+  border-color: #EA580C;
+  background: #FFEDD5;
+}
+.cui-upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  font-size: 0;     /* hides file picker text in some browsers */
+}
+.cui-upload-icon  { font-size: 2rem; margin-bottom: .5rem; }
+.cui-upload-label { font-size: .875rem; font-weight: 600; color: #6B3A1F; }
+.cui-upload-hint  { font-size: .78rem; color: #9A6647; margin-top: .3rem; }
+
+/* ══════════════════════════════════════════════════════════════
+   ANNOUNCEMENT CARD  (for intern dashboard + coordinator list)
+══════════════════════════════════════════════════════════════ */
+.cui-announcement {
+  background: #fff;
+  border: 1px solid #FED7AA;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: .75rem;
+  transition: box-shadow .15s;
+  position: relative;
+}
+.cui-announcement:hover { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
+.cui-announcement.pinned {
+  border-color: #EA580C;
+  background: #FFF7ED;
+}
+.cui-announcement-pin {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #EA580C;
+  margin-bottom: .35rem;
+  display: block;
+}
+.cui-announcement-title {
+  font-family: 'Sora', sans-serif;
+  font-size: .95rem;
+  font-weight: 700;
+  color: #1A0A00;
+  margin-bottom: .3rem;
+}
+.cui-announcement-body {
+  font-size: .85rem;
+  color: #6B3A1F;
+  line-height: 1.6;
+}
+.cui-announcement-meta {
+  font-size: .75rem;
+  color: #9A6647;
+  margin-top: .5rem;
+}
+.cui-announcement-actions {
+  position: absolute;
+  top: .9rem; right: .9rem;
+  display: flex; gap: .4rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CLOCK WIDGET  (for attendance page)
+══════════════════════════════════════════════════════════════ */
+.cui-clock {
+  text-align: center;
+  padding: 1.75rem 1.5rem;
+}
+.cui-clock-time {
+  font-family: 'Sora', sans-serif;
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1A0A00;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.cui-clock-date {
+  font-size: .875rem;
+  color: #9A6647;
+  margin-top: .4rem;
+}
+.cui-clock-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: 1rem;
+  font-size: .82rem;
+  font-weight: 700;
+  padding: .4rem 1rem;
+  border-radius: 20px;
+}
+.cui-clock-status-in   { background: #D1FAE5; color: #065F46; }
+.cui-clock-status-out  { background: #FEE2E2; color: #991B1B; }
+.cui-clock-status-idle { background: #F3F4F6; color: #6B7280; }
+.cui-clock-actions {
+  display: flex;
+  gap: .75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE-LEVEL CARD overrides (softer orange border theme)
+══════════════════════════════════════════════════════════════ */
+.cui-page-content .cui-card {
+  border: 1px solid #FED7AA;
+  box-shadow: 0 2px 8px rgba(234,88,12,.06);
+}
+.cui-page-content .cui-card-header {
+  border-bottom-color: #FED7AA;
+  background: #FFFAF5;
+}
+.cui-page-content .cui-card-footer {
+  border-top-color: #FED7AA;
+  background: #FFFAF5;
+}
+.cui-page-content table th {
+  background: #FFFAF5;
+  color: #9A6647;
+  border-bottom-color: #FED7AA;
+}
+.cui-page-content table td {
+  border-bottom-color: #FFF0E0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FILTER BAR  (search + selects in a row)
+══════════════════════════════════════════════════════════════ */
+.cui-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin-bottom: 1.1rem;
+  align-items: center;
+}
+.cui-filter-bar .cui-input { background: #fff; border-color: #FED7AA; flex: 1; min-width: 180px; }
+.cui-filter-bar .cui-input:focus { border-color: #EA580C; }
+
+/* ══════════════════════════════════════════════════════════════
+   INFO ROW
+══════════════════════════════════════════════════════════════ */
+.cui-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid #FFF0E0;
+}
+.cui-info-row:last-child { border-bottom: none; }
+.cui-info-row-icon  { font-size: .95rem; margin-top: .1rem; flex-shrink: 0; opacity: .7; }
+.cui-info-row-label { font-size: .72rem; font-weight: 700; color: #9A6647; text-transform: uppercase; letter-spacing: .04em; }
+.cui-info-row-value { font-size: .875rem; color: #1A0A00; margin-top: .1rem; line-height: 1.4; }
+
+/* ══════════════════════════════════════════════════════════════
+   COMPANY INFO CARD
+══════════════════════════════════════════════════════════════ */
+.cui-company-card {
+  background: #fff;
+  border: 1px solid #FED7AA;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(234,88,12,.06);
+}
+
+.cui-company-header {
+  background: linear-gradient(135deg, #FF6B00 0%, #EA580C 60%, #C2410C 100%);
+  padding: 1.1rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cui-company-logo {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.22);
+  border: 1.5px solid rgba(255,255,255,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  flex-shrink: 0;
+}
+
+.cui-company-name {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -.2px;
+}
+
+.cui-company-position {
+  font-size: .78rem;
+  color: rgba(255,255,255,.75);
+  margin-top: .2rem;
+}
+
+.cui-company-grid {
+  padding: .5rem 1.4rem 1rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION TABS (pill style, orange theme — used on profile page)
+══════════════════════════════════════════════════════════════ */
+.cui-page-tabs {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.4rem;
+  padding-bottom: .9rem;
+  border-bottom: 2px solid #FED7AA;
+}
+.cui-page-tab {
+  padding: .45rem 1rem;
+  background: transparent;
+  border: 1.5px solid #FED7AA;
+  border-radius: 20px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: #9A6647;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.cui-page-tab:hover  { border-color: #EA580C; color: #EA580C; background: #FFF7ED; }
+.cui-page-tab.active { background: #EA580C; border-color: #EA580C; color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════
+   LOG TABLE  (attendance day rows with stripe)
+══════════════════════════════════════════════════════════════ */
+.cui-log-row-today td { background: #FFF7ED !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   REPORT STATUS BADGE VARIANTS
+══════════════════════════════════════════════════════════════ */
+.rs-pending  { background:#FEF3C7; color:#92400E; }
+.rs-approved { background:#D1FAE5; color:#065F46; }
+.rs-revision { background:#FEE2E2; color:#991B1B; }
+.rs-reviewed { background:#DBEAFE; color:#1E40AF; }
+
+/* ══════════════════════════════════════════════════════════════
+   FORM SECTION DIVIDER LABEL
+══════════════════════════════════════════════════════════════ */
+.cui-form-section {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #EA580C;
+  border-bottom: 1px solid #FED7AA;
+  padding-bottom: .4rem;
+  margin: 1.1rem 0 .85rem;
+}
+.cui-form-section:first-child { margin-top: 0; }
+
+/* ══════════════════════════════════════════════════════════════
+   TWO-COLUMN FORM ROW
+══════════════════════════════════════════════════════════════ */
+.cui-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+@media (max-width: 540px) { .cui-form-row { grid-template-columns: 1fr; } }
+
+/* ══════════════════════════════════════════════════════════════
+   TOPBAR  override — orange accent for CITAS brand
+══════════════════════════════════════════════════════════════ */
+.cui-navbar { border-bottom: 1.5px solid #FED7AA; }
+.cui-navbar-name { color: #EA580C !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   ORANGE PRIMARY BUTTON  (utility class for non-UI-lib buttons)
+══════════════════════════════════════════════════════════════ */
+.citas-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .6rem 1.2rem;
+  background: linear-gradient(135deg, #FF6B00, #EA580C);
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: .875rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(234,88,12,.3);
+  transition: filter .15s, transform .1s;
+  white-space: nowrap;
+}
+.citas-btn:hover  { filter: brightness(1.08); transform: translateY(-1px); }
+.citas-btn:active { transform: none; filter: brightness(.97); }
+.citas-btn-sm     { padding: .38rem .85rem; font-size: .8rem; }
+
+/* ══════════════════════════════════════════════════════════════
+   PAGE-LEVEL GRID HELPERS
+══════════════════════════════════════════════════════════════ */
+.pg-grid-2 { display: grid; grid-template-columns: 1fr 1fr;     gap: 1.1rem; }
+.pg-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;   }
+.pg-grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
+@media (max-width: 1000px) { .pg-grid-4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px)  { .pg-grid-2, .pg-grid-3 { grid-template-columns: 1fr; } }
+@media (max-width: 540px)  { .pg-grid-4 { grid-template-columns: 1fr; } }
+
+/* Gap utility */
+.mt-lg { margin-top: 1.4rem; }

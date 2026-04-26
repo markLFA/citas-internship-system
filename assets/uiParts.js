@@ -35,7 +35,7 @@
  * ============================================================
  */
 
-export const UI = (() => {
+const UI = (() => {
 
   // ── Internal helpers ───────────────────────────────────────
 
@@ -857,50 +857,54 @@ export const UI = (() => {
   //  Returns { el }  — the <header> element (already in the DOM)
   // ════════════════════════════════════════════════════════
   function navbar({
-    brand     = 'CITAS',
-    brandIcon = '🎓',
     sidebar   = null,
+    pageTitle = '',
     right     = [],
     id        = 'cui-navbar',
   } = {}) {
 
-    // ── bar ────────────────────────────────────────────────
     const bar = el('header', 'cui-navbar');
     if (id) bar.id = id;
 
-    // ── left section ───────────────────────────────────────
+    // ── Left: hamburger ─────────────────────────────────────
     const left = el('div', 'cui-navbar-left');
 
-    // Hamburger — only rendered when a sidebar instance is passed
     if (sidebar && typeof sidebar.toggle === 'function') {
       const menuBtn = el('button', 'cui-navbar-menu', {
         'aria-label': 'Toggle navigation',
         'type': 'button',
       });
-      // Three-line icon drawn with spans (works in every font)
       for (let i = 0; i < 3; i++) menuBtn.appendChild(el('span', 'cui-navbar-bar'));
-      menuBtn.addEventListener('click', () => sidebar.toggle());
+
+      menuBtn.addEventListener('click', () => {
+        sidebar.toggle();
+        menuBtn.classList.toggle('open',
+          sidebar.el.classList.contains('cui-ps-open'));
+      });
+
+      sidebar.el.addEventListener('transitionend', () => {
+        menuBtn.classList.toggle('open',
+          sidebar.el.classList.contains('cui-ps-open'));
+      });
+
       left.appendChild(menuBtn);
     }
 
-    // Brand
-    const brandWrap = el('div', 'cui-navbar-brand');
-    brandWrap.appendChild(el('span', 'cui-navbar-icon', { text: brandIcon }));
-    brandWrap.appendChild(el('span', 'cui-navbar-name', { text: brand }));
-    left.appendChild(brandWrap);
+    // ── Center: current page name ────────────────────────────
+    const center = el('div', 'cui-navbar-center');
+    if (pageTitle) center.textContent = pageTitle;
 
-    // ── right section ──────────────────────────────────────
+    // ── Right: actions ───────────────────────────────────────
     const rightWrap = el('div', 'cui-navbar-right');
     right.forEach(item => {
       if (item instanceof Node) rightWrap.appendChild(item);
     });
 
     bar.appendChild(left);
+    bar.appendChild(center);
     bar.appendChild(rightWrap);
 
-    // Insert at the very top of <body>
-    document.body.prepend(bar);
-
+    // Caller inserts: document.getElementById('page-main').prepend(nav.el)
     return { el: bar };
   }
 
@@ -1016,14 +1020,302 @@ export const UI = (() => {
     return { el: panel, open, close, toggle, setActive };
   }
 
+  // ════════════════════════════════════════════════════════
+  //  PAGE SIDEBAR  (persistent on desktop, drawer on mobile)
+  //  const nav = UI.pageSidebar({ brand, brandIcon, items, footer })
+  //  nav.toggle()   → use with UI.navbar({ sidebar: nav })
+  //  nav.setActive(label) → highlight a nav button
+  //
+  //  items: [{ label, icon, onClick, active, section, badge }]
+  //
+  //  On desktop (>= 900px): always visible, content shifts right.
+  //  On mobile  (<  900px): hidden drawer, hamburger opens it.
+  // ════════════════════════════════════════════════════════
+  function pageSidebar({
+    brand     = 'CITAS',
+    brandIcon = '🎓',
+    items     = [],
+    footer    = null,
+    id        = 'cui-page-sidebar',
+  } = {}) {
+
+    // Mobile dim overlay — appended to body so it covers everything
+    const overlay = el('div', 'cui-ps-overlay');
+    overlay.addEventListener('click', close);
+    document.body.appendChild(overlay);
+
+    // Sidebar panel
+    const panel = el('aside', 'cui-ps');
+    if (id) panel.id = id;
+
+    // Brand
+    const brandWrap = el('div', 'cui-ps-brand');
+    brandWrap.appendChild(el('span', 'cui-ps-brand-icon', { text: brandIcon }));
+    brandWrap.appendChild(el('span', 'cui-ps-brand-name', { text: brand }));
+    panel.appendChild(brandWrap);
+
+    // Nav
+    const nav    = el('nav', 'cui-ps-nav');
+    const btnMap = {};
+
+    items.forEach(item => {
+      if (item.section) {
+        nav.appendChild(el('div', 'cui-ps-section', { text: item.label }));
+        return;
+      }
+      const btn = el('button', `cui-ps-btn${item.active ? ' active' : ''}`, { type: 'button' });
+      if (item.icon)  btn.appendChild(el('span', 'cui-ps-btn-icon',  { text: item.icon }));
+      btn.appendChild(el('span', 'cui-ps-btn-label', { text: item.label }));
+      if (item.badge != null) btn.appendChild(el('span', 'cui-ps-btn-badge', { text: String(item.badge) }));
+
+      btn.addEventListener('click', () => {
+        setActive(item.label);
+        if (window.innerWidth < 900) close();
+        if (item.onClick) item.onClick(btn);
+      });
+
+      btnMap[item.label] = btn;
+      nav.appendChild(btn);
+    });
+
+    panel.appendChild(nav);
+
+    if (footer) {
+      const footerWrap = el('div', 'cui-ps-footer');
+      if (footer instanceof Node) footerWrap.appendChild(footer);
+      else footerWrap.innerHTML = String(footer);
+      panel.appendChild(footerWrap);
+    }
+
+    // ── Key fix: insert sidebar as first child of .cui-page-layout ──
+    // This keeps it inside the flex row so desktop layout works.
+    // Falls back to body prepend if the layout div isn't found yet.
+    function mountPanel() {
+      const layout = document.querySelector('.cui-page-layout');
+      if (layout) {
+        layout.insertBefore(panel, layout.firstChild);
+      } else {
+        document.body.prepend(panel);
+      }
+    }
+
+    // Mount immediately if DOM is ready, else wait
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountPanel);
+    } else {
+      mountPanel();
+    }
+
+    function open() {
+      panel.classList.add('cui-ps-open');
+      overlay.classList.add('cui-ps-overlay-open');
+    }
+    function close() {
+      panel.classList.remove('cui-ps-open');
+      overlay.classList.remove('cui-ps-overlay-open');
+    }
+    function toggle() {
+      panel.classList.contains('cui-ps-open') ? close() : open();
+    }
+    function setActive(label) {
+      Object.values(btnMap).forEach(b => b.classList.remove('active'));
+      if (btnMap[label]) btnMap[label].classList.add('active');
+    }
+
+    return { el: panel, open, close, toggle, setActive };
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  PROFILE CARD
+  //  UI.profileCard({ name, role, email, dept, school, joined, avatar })
+  //
+  //  Renders a horizontal card with avatar + user details.
+  //  avatar: emoji or initials string (shown as circle if 1–2 chars)
+  // ════════════════════════════════════════════════════════
+  function profileCard({
+    name   = 'User',
+    role   = '',
+    email  = '',
+    dept   = '',
+    school = '',
+    joined = '',
+    avatar = '',
+  } = {}) {
+    const wrap = el('div', 'cui-profile-card');
+
+    // Avatar
+    const avi = el('div', 'cui-profile-avatar');
+    avi.textContent = avatar || name.slice(0, 2).toUpperCase();
+    wrap.appendChild(avi);
+
+    // Info
+    const info = el('div', 'cui-profile-info');
+    info.appendChild(el('div', 'cui-profile-name',  { text: name }));
+    if (role)   info.appendChild(el('span', 'cui-profile-role-badge', { text: role }));
+
+    const details = el('div', 'cui-profile-details');
+    if (email)  details.appendChild(_profileDetail('✉️', email));
+    if (dept)   details.appendChild(_profileDetail('🏫', dept));
+    if (school) details.appendChild(_profileDetail('🎓', school));
+    if (joined) details.appendChild(_profileDetail('📅', 'Joined ' + joined));
+    info.appendChild(details);
+
+    wrap.appendChild(info);
+    return wrap;
+  }
+  function _profileDetail(icon, text) {
+    const row = el('div', 'cui-profile-detail-row');
+    row.appendChild(el('span', 'cui-profile-detail-icon', { text: icon }));
+    row.appendChild(el('span', '', { text }));
+    return row;
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  UPLOAD ZONE  (drag-and-drop file input)
+  //  UI.uploadZone({ label, hint, accept, onFile })
+  //
+  //  onFile(file, input) → called when user picks or drops a file
+  //  Returns the wrapper element; access the <input> via .querySelector('input')
+  // ════════════════════════════════════════════════════════
+  function uploadZone({
+    label  = 'Click to browse or drag & drop',
+    hint   = 'PDF, DOC, DOCX, PNG, JPG — max 10 MB',
+    accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg',
+    id     = '',
+    name   = 'file',
+    onFile = null,
+  } = {}) {
+    const wrap = el('div', 'cui-upload-zone');
+
+    const inp = el('input', 'cui-upload-input');
+    inp.type   = 'file';
+    inp.accept = accept;
+    inp.name   = name;
+    if (id) inp.id = id;
+
+    const icon    = el('div', 'cui-upload-icon',  { text: '📁' });
+    const labelEl = el('div', 'cui-upload-label', { text: label });
+    const hintEl  = el('div', 'cui-upload-hint',  { text: hint });
+
+    append(wrap, inp, icon, labelEl, hintEl);
+
+    // Click to open file picker
+    wrap.addEventListener('click', () => inp.click());
+
+    // Drag events
+    wrap.addEventListener('dragover',  e => { e.preventDefault(); wrap.classList.add('cui-upload-zone-over'); });
+    wrap.addEventListener('dragleave', ()  => wrap.classList.remove('cui-upload-zone-over'));
+    wrap.addEventListener('drop', e => {
+      e.preventDefault();
+      wrap.classList.remove('cui-upload-zone-over');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        _updateUploadLabel(labelEl, file.name);
+        if (onFile) onFile(file, inp);
+      }
+    });
+
+    // File picker change
+    inp.addEventListener('change', () => {
+      if (inp.files[0]) {
+        _updateUploadLabel(labelEl, inp.files[0].name);
+        if (onFile) onFile(inp.files[0], inp);
+      }
+    });
+
+    return wrap;
+  }
+  function _updateUploadLabel(labelEl, filename) {
+    labelEl.textContent = '📎 ' + filename;
+    labelEl.style.color = '#EA580C';
+    labelEl.style.fontWeight = '600';
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  STAT ROW  (horizontal mini-stats strip, fits inside a card)
+  //  UI.statRow([ { value, label, color } ])
+  //
+  //  Lighter alternative to a grid of statCards — sits inline.
+  //  color: 'orange' | 'green' | 'blue' | 'red' | hex string
+  // ════════════════════════════════════════════════════════
+  function statRow(stats = []) {
+    const wrap = el('div', 'cui-stat-row');
+    stats.forEach((s, i) => {
+      if (i > 0) wrap.appendChild(el('div', 'cui-stat-row-div'));
+      const item = el('div', 'cui-stat-row-item');
+      const val  = el('div', 'cui-stat-row-value', { text: String(s.value) });
+      if (s.color) val.style.color = s.color;
+      item.appendChild(val);
+      item.appendChild(el('div', 'cui-stat-row-label', { text: s.label }));
+      wrap.appendChild(item);
+    });
+    return wrap;
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  INFO ROW  (icon + label + value — one detail line)
+  //  UI.infoRow('🏢', 'Company', 'Acme Corp')
+  // ════════════════════════════════════════════════════════
+  function infoRow(icon, label, value) {
+    const row = el('div', 'cui-info-row');
+    row.appendChild(el('span', 'cui-info-row-icon', { text: icon }));
+    const body = el('div', 'cui-info-row-body');
+    body.appendChild(el('div', 'cui-info-row-label', { text: label }));
+    body.appendChild(el('div', 'cui-info-row-value', { text: value || '—' }));
+    row.appendChild(body);
+    return row;
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  COMPANY INFO CARD
+  //  UI.companyInfoCard({ company, address, supervisor, phone,
+  //                       email, startDate, endDate, position })
+  //
+  //  Displays an internship host company's details in a card.
+  // ════════════════════════════════════════════════════════
+  function companyInfoCard({
+    company    = '',
+    address    = '',
+    supervisor = '',
+    phone      = '',
+    email      = '',
+    startDate  = '',
+    endDate    = '',
+    position   = '',
+  } = {}) {
+    const wrap = el('div', 'cui-company-card');
+
+    // Header strip
+    const header = el('div', 'cui-company-header');
+    const logoCircle = el('div', 'cui-company-logo', { text: company.charAt(0).toUpperCase() || '🏢' });
+    const headerInfo = el('div');
+    headerInfo.appendChild(el('div', 'cui-company-name',     { text: company  || 'Company Name' }));
+    headerInfo.appendChild(el('div', 'cui-company-position', { text: position || 'Intern' }));
+    append(header, logoCircle, headerInfo);
+    wrap.appendChild(header);
+
+    // Info rows
+    const grid = el('div', 'cui-company-grid');
+    if (address)    grid.appendChild(infoRow('📍', 'Address',    address));
+    if (supervisor) grid.appendChild(infoRow('👤', 'Supervisor', supervisor));
+    if (phone)      grid.appendChild(infoRow('📞', 'Phone',      phone));
+    if (email)      grid.appendChild(infoRow('✉️', 'Email',      email));
+    if (startDate)  grid.appendChild(infoRow('📅', 'Start Date', startDate));
+    if (endDate)    grid.appendChild(infoRow('🏁', 'End Date',   endDate));
+    wrap.appendChild(grid);
+
+    return wrap;
+  }
+
   // ── Expose public API ──────────────────────────────────────
   return {
-    button, card, statCard,
-    modal, sidebar, topbar, navbar, sidebarPanel,
+    button, card, statCard, statRow,
+    modal, sidebar, topbar, navbar, sidebarPanel, pageSidebar,
     badge, alert, toast,
     input, textarea, select, formGroup,
     table, avatar, dropdown,
     tabs, progress, divider,
+    profileCard, uploadZone, companyInfoCard, infoRow,
     empty, spinner, skeleton, chip,
   };
 
