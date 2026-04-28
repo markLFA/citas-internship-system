@@ -9,7 +9,7 @@
 // ── 1. CONFIG ────────────────────────────────────────────────
 // Edit these four values to match your server setup.
 
-define('DB_HOST', 'fdb1034.awardspace.net);
+define('DB_HOST', 'fdb1034.awardspace.net');
 define('DB_NAME', '4753482_capstone');
 define('DB_USER', '4753482_capstone');
 define('DB_PASS', '787898;');
