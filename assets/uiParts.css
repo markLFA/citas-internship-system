@@ -266,6 +266,30 @@
 .cui-navbar-left {
   display: flex;
   align-items: center;
+  gap: .6rem;
+  flex-shrink: 0;
+}
+
+/* Brand in navbar */
+.cui-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #EA580C;
+  letter-spacing: -.3px;
+  user-select: none;
+  text-decoration: none;
+}
+.cui-navbar-brand-icon { font-size: 1.2rem; line-height: 1; }
+
+/* Divider between brand and page title */
+.cui-navbar-divider {
+  width: 1px;
+  height: 18px;
+  background: #FED7AA;
   flex-shrink: 0;
 }
 
