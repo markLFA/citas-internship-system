@@ -11,8 +11,15 @@
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
     .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
   </style>
+  <script>
+    window.onerror = function (msg, url, line, col, error) {
+    const el = document.getElementById("error-log");
+    el.textContent += `Error: ${msg} at ${line}:${col}\n`;
+    };
+  </script>
 </head>
 <body>
+  <p id="error-log" style="color:red; font-size:12px;"></p>
 
 <!-- Page shell — sidebar + main injected by JS -->
 <div class="cui-page-layout">
