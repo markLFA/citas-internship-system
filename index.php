@@ -1,3 +1,157 @@
+<?php
+// ============================================================
+//  login.php — Login page + validation
+//  Connects to citas_db, checks credentials, starts session,
+//  then redirects to the correct dashboard based on role.
+// ============================================================
+
+
+// ── 1. CONFIG ────────────────────────────────────────────────
+// Edit these four values to match your server setup.
+
+define('DB_HOST', 'fdb1034.awardspace.net);
+define('DB_NAME', '4753482_capstone');
+define('DB_USER', '4753482_capstone');
+define('DB_PASS', '787898;');
+
+
+// ── 2. SESSION ───────────────────────────────────────────────
+session_start();
+
+// Already logged in? Send straight to dashboard.
+if (isset($_SESSION['user'])) {
+    redirect_to_dashboard($_SESSION['user']['role']);
+}
+
+
+// ── 3. HELPERS ───────────────────────────────────────────────
+
+/**
+ * Returns a PDO connection (singleton — one connection per request).
+ */
+function db(): PDO {
+    static $pdo = null;
+    if ($pdo === null) {
+        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+    }
+    return $pdo;
+}
+
+/**
+ * Sanitise a string for safe HTML output.
+ */
+function h(string $str): string {
+    return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Redirect user to the correct dashboard for their role.
+ */
+function redirect_to_dashboard(string $role): void {
+    $map = [
+        'intern'      => 'intern.html',
+        'coordinator' => 'coordinator.html',
+        'admin'       => 'coordinator.html',
+    ];
+    header('Location: ' . ($map[$role] ?? 'login.php'));
+    exit;
+}
+
+
+// ── 4. VALIDATION ────────────────────────────────────────────
+
+/**
+ * Validate the submitted login form.
+ * Returns an array of error strings, empty array if all good.
+ */
+function validate_input(array $post): array {
+    $errors = [];
+
+    if (empty(trim($post['email'] ?? ''))) {
+        $errors[] = 'Email address is required.';
+    } elseif (!filter_var($post['email'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Please enter a valid email address.';
+    }
+
+    if (empty($post['password'] ?? '')) {
+        $errors[] = 'Password is required.';
+    } elseif (strlen($post['password']) < 6) {
+        $errors[] = 'Password must be at least 6 characters.';
+    }
+
+    return $errors;
+}
+
+/**
+ * Look up the user by email and verify password hash.
+ * Returns the user row on success, null on any failure.
+ */
+function attempt_login(string $email, string $password): ?array {
+    $stmt = db()->prepare(
+        'SELECT id, name, email, password, role, is_active
+         FROM   users
+         WHERE  email = :email
+         LIMIT  1'
+    );
+    $stmt->execute([':email' => $email]);
+    $user = $stmt->fetch();
+
+    if (!$user)                                    return null; // no account
+    if (!$user['is_active'])                       return null; // account disabled
+    if (!password_verify($password, $user['password'])) return null; // wrong password
+
+    return $user;
+}
+
+/**
+ * Store safe user data in the session.
+ * Never stores the password hash.
+ */
+function start_user_session(array $user): void {
+    session_regenerate_id(true); // prevent session fixation
+    $_SESSION['user'] = [
+        'id'    => $user['id'],
+        'name'  => $user['name'],
+        'email' => $user['email'],
+        'role'  => $user['role'],
+    ];
+}
+
+
+// ── 5. HANDLE POST ───────────────────────────────────────────
+
+$errors    = [];
+$old_email = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $email     = trim($_POST['email']    ?? '');
+    $password  =      $_POST['password'] ?? '';
+    $old_email = $email;
+
+    // Step A — validate format
+    $errors = validate_input($_POST);
+
+    // Step B — check credentials only if format is clean
+    if (empty($errors)) {
+        $user = attempt_login($email, $password);
+
+        if ($user === null) {
+            // Deliberately vague so attackers can't tell which field was wrong
+            $errors[] = 'Incorrect email or password. Please try again.';
+        } else {
+            // Step C — success: session + redirect
+            start_user_session($user);
+            redirect_to_dashboard($user['role']);
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,362 +159,178 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CITAS — Sign In</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    /* ── Tokens ─────────────────────────────────────────── */
     :root {
-      --orange-1: #FF6B00;
-      --orange-2: #EA580C;
-      --orange-3: #C2410C;
-      --orange-pale: #FFF7ED;
-      --orange-ring: rgba(234,88,12,.25);
-      --text-dark: #1A0A00;
-      --text-mid:  #6B3A1F;
-      --text-muted:#9A6647;
-      --white:     #FFFFFF;
-      --card-shadow: 0 24px 64px rgba(194,65,12,.18), 0 4px 16px rgba(0,0,0,.08);
+      --o1: #FF6B00; --o2: #EA580C; --o3: #C2410C;
+      --pale: #FFF7ED; --ring: rgba(234,88,12,.2);
     }
-
-    /* ── Reset ───────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Page ────────────────────────────────────────────── */
     body {
-      min-height: 100vh;
       font-family: 'DM Sans', sans-serif;
-      background: var(--orange-3);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      min-height: 100vh;
+      background: var(--o3);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       padding: 1.5rem 1rem 2rem;
-      position: relative;
       overflow-x: hidden;
     }
-
-    /* Decorative background circles */
     body::before, body::after {
-      content: '';
-      position: fixed;
-      border-radius: 50%;
-      pointer-events: none;
+      content: ''; position: fixed; border-radius: 50%; pointer-events: none;
     }
     body::before {
-      width: 520px; height: 520px;
-      top: -180px; right: -140px;
+      width: 520px; height: 520px; top: -180px; right: -140px;
       background: radial-gradient(circle, rgba(255,140,0,.35) 0%, transparent 70%);
     }
     body::after {
-      width: 400px; height: 400px;
-      bottom: -130px; left: -100px;
+      width: 400px; height: 400px; bottom: -130px; left: -100px;
       background: radial-gradient(circle, rgba(255,100,0,.2) 0%, transparent 70%);
     }
 
-    /* Subtle noise texture overlay */
-    .bg-texture {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      opacity: .5;
+    /* ── Capstone banner ──────────────────────────────────── */
+    .banner {
+      width: 100%; max-width: 440px;
+      background: rgba(255,255,255,.12); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.2); border-radius: 10px;
+      padding: .6rem 1rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .6rem;
+      animation: slideDown .4s ease both;
     }
+    .banner-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: #FCD34D; box-shadow: 0 0 6px #FCD34D;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.6; transform:scale(.85); }
+    }
+    .banner p { font-size: .78rem; color: rgba(255,255,255,.9); line-height: 1.4; }
+    .banner strong { color: #FCD34D; }
 
-    /* ── Capstone banner ─────────────────────────────────── */
-    .capstone-banner {
-      width: 100%;
-      max-width: 440px;
-      background: rgba(255,255,255,.12);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 10px;
-      padding: .6rem 1rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-      animation: slideDown .5s ease both;
-    }
-    .capstone-banner-dot {
-      width: 8px; height: 8px;
-      background: #FCD34D;
-      border-radius: 50%;
-      flex-shrink: 0;
-      box-shadow: 0 0 6px #FCD34D;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: .6; transform: scale(.85); }
-    }
-    .capstone-banner p {
-      font-size: .78rem;
-      color: rgba(255,255,255,.9);
-      font-weight: 500;
-      line-height: 1.4;
-    }
-    .capstone-banner strong { color: #FCD34D; }
-
-    /* ── Card ────────────────────────────────────────────── */
+    /* ── Card ─────────────────────────────────────────────── */
     .card {
-      width: 100%;
-      max-width: 440px;
-      background: var(--white);
-      border-radius: 20px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-      animation: slideUp .5s .1s ease both;
-      position: relative;
-      z-index: 1;
+      width: 100%; max-width: 440px;
+      background: #fff; border-radius: 20px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(194,65,12,.18), 0 4px 16px rgba(0,0,0,.08);
+      animation: slideUp .4s .1s ease both;
     }
 
-    /* Orange header stripe inside card */
-    .card-header {
-      background: linear-gradient(135deg, var(--orange-1) 0%, var(--orange-2) 60%, var(--orange-3) 100%);
+    .card-head {
+      background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 60%, var(--o3) 100%);
       padding: 2rem 2rem 1.75rem;
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
     }
-    .card-header::before {
-      content: '';
-      position: absolute;
-      width: 180px; height: 180px;
-      border-radius: 50%;
+    .card-head::before {
+      content: ''; position: absolute; border-radius: 50%;
+      width: 180px; height: 180px; top: -60px; right: -40px;
       background: rgba(255,255,255,.08);
-      top: -60px; right: -40px;
     }
-    .card-header::after {
-      content: '';
-      position: absolute;
-      width: 100px; height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.06);
-      bottom: -30px; left: 30px;
-    }
-
     .logo-row {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-      margin-bottom: 1rem;
-      position: relative;
-      z-index: 1;
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 1rem; position: relative; z-index: 1;
     }
     .logo-icon {
       width: 46px; height: 46px;
-      background: rgba(255,255,255,.2);
-      border: 1.5px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35);
       border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
     }
-    .logo-text { color: #fff; }
-    .logo-text .system-name {
-      font-family: 'Sora', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: -.3px;
-      line-height: 1;
+    .logo-name { font-family: 'Sora',sans-serif; font-size: 1.15rem; font-weight: 800; color: #fff; }
+    .logo-sub  { font-size: .72rem; opacity: .8; color: #fff; margin-top: .1rem; }
+    .card-head h1 {
+      font-family: 'Sora',sans-serif; font-size: 1.5rem; font-weight: 800;
+      color: #fff; letter-spacing: -.4px; position: relative; z-index: 1;
     }
-    .logo-text .system-sub {
-      font-size: .72rem;
-      opacity: .8;
-      margin-top: .2rem;
-      font-weight: 400;
-    }
+    .card-head p { color: rgba(255,255,255,.75); font-size: .85rem; margin-top: .3rem; position: relative; z-index: 1; }
 
-    .card-header h1 {
-      font-family: 'Sora', sans-serif;
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #fff;
-      line-height: 1.2;
-      position: relative;
-      z-index: 1;
-      letter-spacing: -.4px;
-    }
-    .card-header p {
-      color: rgba(255,255,255,.75);
-      font-size: .85rem;
-      margin-top: .3rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Card body */
     .card-body { padding: 1.75rem 2rem 2rem; }
 
-    /* ── Form ────────────────────────────────────────────── */
+    /* ── Error box ────────────────────────────────────────── */
+    .errors {
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1.25rem;
+    }
+    .errors ul { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
+    .errors li {
+      font-size: .83rem; font-weight: 500; color: #991B1B;
+      display: flex; align-items: flex-start; gap: .4rem;
+    }
+    .errors li::before { content: '⚠'; flex-shrink: 0; }
+
+    /* ── Form ─────────────────────────────────────────────── */
     .field { margin-bottom: 1.1rem; }
+    label  { display: block; font-size: .8rem; font-weight: 600; color: #6B3A1F; margin-bottom: .4rem; }
 
-    label {
-      display: block;
-      font-size: .8rem;
-      font-weight: 600;
-      color: var(--text-mid);
-      margin-bottom: .4rem;
-      letter-spacing: .01em;
+    .inp-wrap { position: relative; }
+    .inp-icon {
+      position: absolute; left: .85rem; top: 50%;
+      transform: translateY(-50%); font-size: 1rem; pointer-events: none; opacity: .4;
     }
-
-    .input-wrap { position: relative; }
-    .input-icon {
-      position: absolute;
-      left: .85rem;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 1rem;
-      pointer-events: none;
-      opacity: .45;
-    }
-
-    input[type="email"],
-    input[type="password"],
-    input[type="text"],
-    select {
-      display: block;
-      width: 100%;
+    input[type="email"], input[type="password"] {
+      display: block; width: 100%;
       padding: .7rem .85rem .7rem 2.5rem;
-      font-size: .9rem;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--text-dark);
-      background: var(--orange-pale);
-      border: 1.5px solid #FED7AA;
-      border-radius: 10px;
-      outline: none;
+      font-size: .9rem; font-family: 'DM Sans',sans-serif;
+      color: #1A0A00; background: var(--pale);
+      border: 1.5px solid #FED7AA; border-radius: 10px; outline: none;
       transition: border-color .15s, box-shadow .15s, background .15s;
-      -webkit-appearance: none;
     }
     input::placeholder { color: #C4845A; opacity: .7; }
-    input:focus, select:focus {
-      border-color: var(--orange-2);
-      background: #fff;
-      box-shadow: 0 0 0 3px var(--orange-ring);
-    }
+    input:focus        { border-color: var(--o2); background: #fff; box-shadow: 0 0 0 3px var(--ring); }
+    input.err          { border-color: #EF4444; background: #FEF2F2; }
+    input.err:focus    { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
 
-    /* No icon version */
-    .no-icon input,
-    .no-icon select {
-      padding-left: .85rem;
-    }
-
-    .submit-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .5rem;
-      width: 100%;
-      padding: .8rem;
-      margin-top: 1.5rem;
-      background: linear-gradient(135deg, var(--orange-1) 0%, var(--orange-2) 100%);
-      color: #fff;
-      font-family: 'Sora', sans-serif;
-      font-size: .95rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      letter-spacing: .01em;
-      transition: filter .15s, transform .12s, box-shadow .15s;
+    /* ── Submit ───────────────────────────────────────────── */
+    .btn-submit {
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      width: 100%; padding: .8rem; margin-top: 1.5rem;
+      background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 100%);
+      color: #fff; font-family: 'Sora',sans-serif; font-size: .95rem; font-weight: 700;
+      border: none; border-radius: 10px; cursor: pointer;
       box-shadow: 0 4px 14px rgba(234,88,12,.4);
+      transition: filter .15s, transform .12s;
     }
-    .submit-btn:hover  { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(234,88,12,.45); }
-    .submit-btn:active { transform: translateY(0); filter: brightness(.97); }
+    .btn-submit:hover  { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-submit:active { transform: none; }
 
-    /* ── Error / alert ───────────────────────────────────── */
-    .alert-error {
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
-      color: #991B1B;
-      border-radius: 8px;
-      padding: .65rem .9rem;
-      font-size: .82rem;
-      font-weight: 500;
-      margin-bottom: 1.1rem;
-    }
+    .card-link { text-align: center; margin-top: 1.25rem; font-size: .83rem; color: #9A6647; }
+    .card-link a { color: var(--o2); font-weight: 600; text-decoration: none; }
+    .card-link a:hover { text-decoration: underline; }
 
-    /* ── Footer link ─────────────────────────────────────── */
-    .card-footer-link {
-      text-align: center;
-      margin-top: 1.25rem;
-      font-size: .83rem;
-      color: var(--text-muted);
-    }
-    .card-footer-link a {
-      color: var(--orange-2);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .card-footer-link a:hover { text-decoration: underline; }
+    .page-foot { margin-top: 1.5rem; text-align: center; animation: fadeIn .6s .3s ease both; }
+    .page-foot p { font-size: .73rem; color: rgba(255,255,255,.5); line-height: 1.9; }
+    .page-foot strong { color: rgba(255,255,255,.75); }
 
-    /* Divider */
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-      margin: 1.25rem 0;
-      color: #D6B8A4;
-      font-size: .75rem;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #FFE0CC;
-    }
-
-    /* ── Bottom footer ───────────────────────────────────── */
-    .page-footer {
-      margin-top: 1.5rem;
-      text-align: center;
-      animation: fadeIn .6s .3s ease both;
-    }
-    .page-footer p {
-      font-size: .73rem;
-      color: rgba(255,255,255,.5);
-      line-height: 1.8;
-    }
-    .page-footer strong { color: rgba(255,255,255,.75); }
-
-    /* ── Animations ──────────────────────────────────────── */
     @keyframes slideUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
-    @keyframes slideDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
-    @keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-12px);} to { opacity:1; transform:none; } }
+    @keyframes fadeIn    { from { opacity:0; }                             to { opacity:1; } }
 
-    /* ── Responsive ──────────────────────────────────────── */
-    @media (max-width: 480px) {
-      .card-header { padding: 1.5rem 1.5rem 1.35rem; }
-      .card-body   { padding: 1.5rem; }
+    @media (max-width:480px) {
+      .card-head { padding: 1.5rem 1.5rem 1.35rem; }
+      .card-body { padding: 1.4rem 1.5rem 1.5rem; }
     }
   </style>
 </head>
 <body>
-<div class="bg-texture"></div>
 
-<!-- Capstone notice above the card -->
-<div class="capstone-banner">
-  <div class="capstone-banner-dot"></div>
+<div class="banner">
+  <div class="banner-dot"></div>
   <p>
-    <strong>Academic Project Notice —</strong>
-    This system is a <strong>Capstone Project</strong> developed by BSIT students of Samar College.
+    <strong>Academic Project — </strong>
+    CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students.
     For academic use only.
   </p>
 </div>
 
-<!-- Login card -->
 <div class="card">
 
-  <!-- Orange header -->
-  <div class="card-header">
+  <div class="card-head">
     <div class="logo-row">
       <div class="logo-icon">🎓</div>
-      <div class="logo-text">
-        <div class="system-name">CITAS</div>
-        <div class="system-sub">Internship Monitoring System</div>
+      <div>
+        <div class="logo-name">CITAS</div>
+        <div class="logo-sub">Internship Monitoring System</div>
       </div>
     </div>
     <h1>Welcome back</h1>
@@ -369,61 +339,57 @@
 
   <div class="card-body">
 
-    <!-- Error message (PHP) -->
-    <?php if (!empty($error)): ?>
-      <div class="alert-error">
-        <span>⚠️</span>
-        <?php echo htmlspecialchars($error); ?>
+    <?php if (!empty($errors)): ?>
+      <div class="errors" role="alert">
+        <ul>
+          <?php foreach ($errors as $e): ?>
+            <li><?= h($e) ?></li>
+          <?php endforeach; ?>
+        </ul>
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="">
+    <form method="POST" action="" novalidate>
 
       <div class="field">
         <label for="email">School Email Address</label>
-        <div class="input-wrap">
-          <span class="input-icon">✉️</span>
+        <div class="inp-wrap">
+          <span class="inp-icon">✉️</span>
           <input
-            type="email"
-            id="email"
-            name="email"
+            type="email" id="email" name="email"
             placeholder="you@samar.edu.ph"
-            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-            required
-            autofocus
-          >
+            value="<?= h($old_email) ?>"
+            class="<?= !empty($errors) ? 'err' : '' ?>"
+            autocomplete="email"
+            required autofocus>
         </div>
       </div>
 
       <div class="field">
         <label for="password">Password</label>
-        <div class="input-wrap">
-          <span class="input-icon">🔒</span>
+        <div class="inp-wrap">
+          <span class="inp-icon">🔒</span>
           <input
-            type="password"
-            id="password"
-            name="password"
+            type="password" id="password" name="password"
             placeholder="Enter your password"
-            required
-          >
+            class="<?= !empty($errors) ? 'err' : '' ?>"
+            autocomplete="current-password"
+            required>
         </div>
       </div>
 
-      <button class="submit-btn" type="submit">
-        Sign In →
-      </button>
+      <button class="btn-submit" type="submit">Sign In &nbsp;→</button>
 
     </form>
 
-    <div class="card-footer-link">
-      Don't have an account? <a href="signup.php">Register here</a>
+    <div class="card-link">
+      Don't have an account? <a href="register.php">Register here</a>
     </div>
 
   </div>
 </div>
 
-<!-- Page footer -->
-<div class="page-footer">
+<div class="page-foot">
   <p>
     <strong>CITAS Internship Monitoring System</strong><br>
     Capstone Project 2025–2026 &nbsp;·&nbsp; Samar College BSIT Students<br>
