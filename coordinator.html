@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+j<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -176,7 +176,7 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('announcements') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = '/'; } },
   ],
   footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
 });
