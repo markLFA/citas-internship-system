@@ -169,7 +169,7 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('reports') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'index.html'; } },
   ],
   footer: Helpers.sidebarFooter(INTERN.name, INTERN.course),
 });
