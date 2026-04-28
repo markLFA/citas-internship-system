@@ -6,10 +6,10 @@ error_reporting(E_ALL);
 ?>
 <?php
 
-$host = "sql100.infinityfree.com";
-$user = "if0_41728051";
-$pass = "zLjyoCjh9Yub9J"; 
-$db   = "if0_41728051_citas_internship"; 
+$host = "fdb1034.awardspace.net";
+$user = "4753482_capstone";
+$pass = "787898;"; 
+$db   = "4753482_capstone"; 
 
 $conn = new mysqli($host, $user, $pass, $db);
 
