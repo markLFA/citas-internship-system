@@ -6,17 +6,18 @@
   <title>CITAS — Intern Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/uiParts.css">
+  <link rel="stylesheet" href="citas-ui.css">
   <style>
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
-    h1, h2, .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
+    .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
   </style>
 </head>
 <body>
 
+<!-- Page shell — sidebar + main injected by JS -->
 <div class="cui-page-layout">
   <div class="cui-page-main" id="page-main">
-    <div class="cui-page-content" id="page-content">
+    <div class="cui-page-content">
       <section class="cui-section active" id="sec-dashboard"></section>
       <section class="cui-section"        id="sec-profile"></section>
       <section class="cui-section"        id="sec-attendance"></section>
@@ -25,27 +26,39 @@
   </div>
 </div>
 
-<script src="assets/uiParts.js"></script>
+<script src="citas-ui.js"></script>
 <script>
 'use strict';
 
-// ════════════════════════════════════════════════════════════
-//  DATA  (PHP: replace with json_encode output)
-// ════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+//  DATA
+//  PHP: replace with const INTERN = <?= json_encode($intern) ?>;
+// ─────────────────────────────────────────────────────────────
 const INTERN = {
-  name:'Juan dela Cruz', email:'juan@samar.edu.ph', phone:'+63 912 345 6789',
-  school:'Samar College', course:'BSIT', yearLevel:'4th Year', joined:'January 13, 2026',
-  company:'TechHub Innovations Inc.', position:'IT Intern',
-  address:'123 Bonifacio St., Catbalogan City, Samar',
-  supervisor:'Engr. Romeo Santos',
-  companyEmail:'hr@techhubinnovations.ph', companyPhone:'+63 55 123 4567',
-  startDate:'January 13, 2026', endDate:'May 30, 2026',
-  reqHours:500, totalHours:128, daysPresent:24, reportsSubmitted:6,
+  name:          'Juan dela Cruz',
+  email:         'juan@samar.edu.ph',
+  phone:         '+63 912 345 6789',
+  school:        'Samar College',
+  course:        'BSIT',
+  yearLevel:     '4th Year',
+  joined:        'January 13, 2026',
+  company:       'TechHub Innovations Inc.',
+  position:      'IT Intern',
+  address:       '123 Bonifacio St., Catbalogan City, Samar',
+  supervisor:    'Engr. Romeo Santos',
+  companyEmail:  'hr@techhubinnovations.ph',
+  companyPhone:  '+63 55 123 4567',
+  startDate:     'January 13, 2026',
+  endDate:       'May 30, 2026',
+  reqHours:      500,
+  totalHours:    128,
+  daysPresent:   24,
+  reportsSubmitted: 6,
 };
 
 const ANNOUNCEMENTS = [
   { id:1, pinned:true,  title:'Required Documents Reminder',
-    body:"Submit your MOA and endorsement letter to the coordinator's office on or before April 30.",
+    body:"Submit your MOA and endorsement letter on or before April 30.",
     author:'Dr. Santos', date:'Apr 20, 2026' },
   { id:2, pinned:false, title:'Weekly Report Deadline',
     body:'Week 14 reports must be submitted no later than Friday 5:00 PM.',
@@ -67,518 +80,670 @@ const ATTENDANCE_LOG = [
 const REPORTS = [
   { week:'Week 14 (Apr 21–25)', file:'week14_report.pdf', status:'pending',  date:'Apr 23, 2026', feedback:'' },
   { week:'Week 13 (Apr 14–18)', file:'week13_report.pdf', status:'approved', date:'Apr 18, 2026', feedback:'Great work this week!' },
-  { week:'Week 12 (Apr 7–11)',  file:'week12_report.pdf', status:'revision', date:'Apr 11, 2026', feedback:'Add more detail on your daily tasks.' },
+  { week:'Week 12 (Apr 7–11)',  file:'week12_report.pdf', status:'revision', date:'Apr 11, 2026', feedback:'Add more detail on daily tasks.' },
   { week:'Week 11 (Mar 31–Apr 4)', file:'week11_report.pdf', status:'reviewed', date:'Apr 4, 2026', feedback:'' },
 ];
 
-// Attendance state
+
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
 let clockState  = 'none'; // 'none' | 'in' | 'done'
 let timeInStamp = null;
 
 
-// ════════════════════════════════════════════════════════════
-//  NAV
-// ════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────────────────────
+const SECTIONS = {
+  dashboard:  'Dashboard',
+  profile:    'Profile',
+  attendance: 'Attendance',
+  reports:    'Weekly Reports',
+};
+// ─────────────────────────────────────────────────────────────
+//  SHARED HELPERS
+//  Utility functions used by multiple sections
+// ─────────────────────────────────────────────────────────────
+const Helpers = {
+
+  // Page header row with optional action button
+  pageHeader(title, subtitle = '', action = null) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cui-page-header';
+    const left = document.createElement('div');
+    left.innerHTML = `
+      <div class="cui-page-title">${title}</div>
+      ${subtitle ? `<div class="cui-page-subtitle">${subtitle}</div>` : ''}`;
+    wrap.appendChild(left);
+    if (action) wrap.appendChild(action);
+    return wrap;
+  },
+
+  // Single announcement item element
+  annItem(ann) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cui-announcement' + (ann.pinned ? ' pinned' : '');
+    wrap.innerHTML = `
+      ${ann.pinned ? '<span class="cui-announcement-pin">📌 Pinned</span>' : ''}
+      <div class="cui-announcement-title">${ann.title}</div>
+      <div class="cui-announcement-body">${ann.body}</div>
+      <div class="cui-announcement-meta">By ${ann.author} · ${ann.date}</div>`;
+    return wrap;
+  },
+
+  // Sidebar footer with avatar + name/role
+  sidebarFooter(name, role) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:.65rem';
+    const av = UI.avatar(name, 'sm');
+    av.style.cssText = 'background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.35)';
+    const info = document.createElement('div');
+    info.style.minWidth = '0';
+    info.innerHTML = `
+      <div style="font-size:.85rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.6)">${role}</div>`;
+    wrap.append(av, info);
+    return wrap;
+  },
+
+  // Refresh a card container with a new element
+  refreshCard(containerId, buildFn) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '';
+    el.appendChild(buildFn());
+  },
+};
+  
 const sidebar = UI.pageSidebar({
-  brand:'Intern', brandIcon:'🎓',
-  items:[
-    { section:true, label:'Menus' },
-    { label:'Dashboard',      icon:'📋', active:true,  onClick:()=>navigate('dashboard') },
-    { label:'Profile',        icon:'👤',               onClick:()=>navigate('profile') },
-    { label:'Attendance',     icon:'🕐',               onClick:()=>navigate('attendance') },
+  brand:     'Intern Portal',    // role-specific label
+  brandIcon: '🎒',
+  items: [
+    { section:true, label:'Menu' },
+    { label:'Dashboard',      icon:'📋', active:true,  onClick: () => navigate('dashboard')  },
+    { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
+    { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
     { label:'Weekly Reports', icon:'📄',
-      badge: REPORTS.filter(r=>r.status==='revision').length || null,
-      onClick:()=>navigate('reports') },
+      badge: REPORTS.filter(r => r.status === 'revision').length || null,
+      onClick: () => navigate('reports') },
     { section:true, label:'Account' },
-    { label:'Sign Out', icon:'🚪', onClick:()=>{ if(confirm('Sign out?')) location.href='login.php'; } },
+    { label:'Sign Out', icon:'🚪',
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
   ],
-  footer: makeSidebarFooter(),
+  footer: Helpers.sidebarFooter(INTERN.name, INTERN.course),
 });
 
-const navbarCenterEl = document.querySelector('.cui-navbar-center');
 const topbar = UI.navbar({
+  brand:     'CITAS',            // system brand on navbar
+  brandIcon: '🎓',
   sidebar,
   pageTitle: 'Dashboard',
-  right:[
+  right: [
     UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
-    (() => { const av=UI.avatar(INTERN.name,'sm'); av.style.background='linear-gradient(135deg,#FF6B00,#EA580C)'; return av; })(),
+    (() => {
+      const av = UI.avatar(INTERN.name, 'sm');
+      av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+      return av;
+    })(),
   ],
 });
 document.getElementById('page-main').prepend(topbar.el);
 
 function navigate(name) {
-  document.querySelectorAll('.cui-section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-'+name).classList.add('active');
-  const label = { dashboard:'Dashboard', profile:'Profile', attendance:'Attendance', reports:'Weekly Reports' }[name];
-  sidebar.setActive(label);
+  document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  sidebar.setActive(SECTIONS[name]);
   const center = document.querySelector('.cui-navbar-center');
-  if (center) center.textContent = label;
+  if (center) center.textContent = SECTIONS[name];
 }
 
 
-// ════════════════════════════════════════════════════════════
-//  SECTION: DASHBOARD
-// ════════════════════════════════════════════════════════════
-function buildDashboard() {
-  const sec = document.getElementById('sec-dashboard');
-
-  // Page header
-  const hour  = new Date().getHours();
-  const greet = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
-  sec.appendChild(makePageHeader(`${greet}, ${INTERN.name.split(' ')[0]}! 👋`,
-    new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})));
-
-  // Compact stat strip + progress in one card
-  const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
-
-  // Stat strip (horizontal, smaller)
-  sec.appendChild(UI.statRow([
-    { value: INTERN.totalHours+'h',      label:'Hours Rendered',    color:'#EA580C' },
-    { value: INTERN.daysPresent,          label:'Days Present',      color:'#10B981' },
-    { value: INTERN.reportsSubmitted,     label:'Reports Submitted', color:'#6366F1' },
-    { value: pct+'%',                     label:'Completion',        color:'#EA580C' },
-  ]));
-
-  // Progress bar inline under stats
-  const progWrap = document.createElement('div');
-  progWrap.style.cssText = 'margin-bottom:1.25rem';
-  const progBar = UI.progress(pct, { color:{ base:'#EA580C' }, label:true });
-  const progSub = document.createElement('p');
-  progSub.style.cssText = 'font-size:.75rem;color:#9A6647;margin-top:.35rem';
-  progSub.textContent = INTERN.totalHours+'h of '+INTERN.reqHours+'h required · '+(INTERN.reqHours-INTERN.totalHours)+'h remaining';
-  progWrap.appendChild(progBar);
-  progWrap.appendChild(progSub);
-  sec.appendChild(progWrap);
-
-  // Two column: announcements + recent attendance
-  const row = document.createElement('div');
-  row.className = 'pg-grid-3 mt-lg';
-
-  // Announcements
-  const annBody = document.createElement('div');
-  [...ANNOUNCEMENTS].sort((a,b)=>b.pinned-a.pinned).forEach(a => annBody.appendChild(makeAnnItem(a)));
-  if (!ANNOUNCEMENTS.length) annBody.appendChild(UI.empty('📭','No announcements','Check back later.'));
-
-  row.appendChild(UI.card({
-    title:'📢 Announcements',
-    headerActions: UI.badge(ANNOUNCEMENTS.filter(a=>a.pinned).length+' pinned','warning'),
-    body: annBody,
-  }));
-
-  // Recent attendance
-  // Profile preview card — company + supervisor + view button
-  const profPreviewBody = document.createElement('div');
-  [
-    ['🏢', INTERN.company],
-    ['📍', INTERN.address.split(',').slice(-2).join(',').trim()],
-    ['👤', 'Supervisor: '+INTERN.supervisor],
-    ['📅', INTERN.startDate+' → '+INTERN.endDate],
-  ].forEach(([icon, text]) => {
-    const row2 = document.createElement('div');
-    row2.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem;color:#6B3A1F';
-    row2.innerHTML = `<span style="opacity:.6;flex-shrink:0">${icon}</span><span>${text}</span>`;
-    profPreviewBody.appendChild(row2);
-  });
-  const viewProfBtn = UI.button('View Full Profile →', {
-    block: true,
-    color:{ base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
-    onClick:()=>navigate('profile'),
-  });
-  viewProfBtn.style.marginTop = '.85rem';
-  profPreviewBody.appendChild(viewProfBtn);
-
-  row.appendChild(UI.card({ title:'🏢 My Internship', body: profPreviewBody }));
-
-  row.appendChild(UI.card({
-    title:'🕐 Recent Attendance',
-    padding: false,
-    headerActions: UI.button('View all',{
-      variant:'ghost', size:'sm',
-      color:{ base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
-      onClick:()=>navigate('attendance'),
-    }),
-    body: UI.table([
-      { key:'date',    label:'Date',    render:v=>`<strong>${v}</strong>` },
-      { key:'timeIn',  label:'In' },
-      { key:'timeOut', label:'Out' },
-      { key:'hours',   label:'Hrs',    align:'center',
-        render:v=>`<span style="color:#EA580C;font-weight:700">${v}h</span>` },
-    ], ATTENDANCE_LOG.slice(0,4), { hoverable:true }),
-  }));
-
-  sec.appendChild(row);
-}
 
 
-// ════════════════════════════════════════════════════════════
-//  SECTION: PROFILE
-// ════════════════════════════════════════════════════════════
-function buildProfile() {
-  const sec = document.getElementById('sec-profile');
-  sec.appendChild(makePageHeader('My Profile', 'Personal and internship information'));
+// ─────────────────────────────────────────────────────────────
+//  DASHBOARD
+// ─────────────────────────────────────────────────────────────
+const Dashboard = {
 
-  const grid = document.createElement('div');
-  grid.className = 'pg-grid-2';
-  grid.style.alignItems = 'start';
+  build() {
+    const sec  = document.getElementById('sec-dashboard');
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  // LEFT column
-  const left = document.createElement('div');
-  left.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+    sec.appendChild(Helpers.pageHeader(
+      `${greeting}, ${INTERN.name.split(' ')[0]}! 👋`,
+      new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
+    ));
 
-  // Profile card (UI library)
-  left.appendChild(UI.profileCard({
-    name:   INTERN.name,
-    role:   `${INTERN.course} · ${INTERN.yearLevel}`,
-    email:  INTERN.email,
-    dept:   INTERN.course,
-    school: INTERN.school,
-    joined: INTERN.joined,
-  }));
+    sec.appendChild( this.statStrip()    );
+    sec.appendChild( this.progressBar()  );
+    sec.appendChild( this.bottomRow()    );
+  },
 
-  // Personal details card using infoRow (UI library)
-  const personalBody = document.createElement('div');
-  [
-    ['📱','Phone',      INTERN.phone],
-    ['🏫','School',     INTERN.school],
-    ['📚','Course',     INTERN.course],
-    ['🎓','Year Level', INTERN.yearLevel],
-    ['📅','Joined',     INTERN.joined],
-  ].forEach(([i,l,v]) => personalBody.appendChild(UI.infoRow(i,l,v)));
-  left.appendChild(UI.card({ title:'📋 Personal Details', body:personalBody }));
+  // Horizontal 4-number stat strip
+  statStrip() {
+    const pct = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    return UI.statRow([
+      { value: INTERN.totalHours + 'h',   label: 'Hours Rendered',    color: '#EA580C' },
+      { value: INTERN.daysPresent,          label: 'Days Present',      color: '#10B981' },
+      { value: INTERN.reportsSubmitted,     label: 'Reports Submitted', color: '#6366F1' },
+      { value: pct + '%',                   label: 'Completion',        color: '#EA580C' },
+    ]);
+  },
 
-  // Edit profile button
-  left.appendChild(UI.button('✏️ Edit Profile',{
-    block:true,
-    color:{ base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
-    onClick: openEditProfileModal,
-  }));
+  // Slim progress bar with label underneath
+  progressBar() {
+    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '1rem';
+    wrap.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+    const sub = document.createElement('p');
+    sub.style.cssText = 'font-size:.75rem;color:#9A6647;margin-top:.35rem';
+    sub.textContent   = `${INTERN.totalHours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
+    wrap.appendChild(sub);
+    return wrap;
+  },
 
-  grid.appendChild(left);
+  // 3-column row: announcements · profile preview · recent attendance
+  bottomRow() {
+    const row = document.createElement('div');
+    row.className = 'pg-grid-3 mt-lg';
+    row.appendChild( this.announcementsCard()   );
+    row.appendChild( this.profilePreviewCard()  );
+    row.appendChild( this.recentAttendanceCard());
+    return row;
+  },
 
-  // RIGHT column
-  const right = document.createElement('div');
-  right.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+  // Pinned-first announcement list
+  announcementsCard() {
+    const body = document.createElement('div');
+    [...ANNOUNCEMENTS]
+      .sort((a, b) => b.pinned - a.pinned)
+      .forEach(a => body.appendChild(Helpers.annItem(a)));
+    if (!ANNOUNCEMENTS.length)
+      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
 
-  // Company card (UI library)
-  right.appendChild(UI.companyInfoCard({
-    company:    INTERN.company,
-    position:   INTERN.position,
-    address:    INTERN.address,
-    supervisor: INTERN.supervisor,
-    phone:      INTERN.companyPhone,
-    email:      INTERN.companyEmail,
-    startDate:  INTERN.startDate,
-    endDate:    INTERN.endDate,
-  }));
+    return UI.card({
+      title: '📢 Announcements',
+      headerActions: UI.badge(
+        ANNOUNCEMENTS.filter(a => a.pinned).length + ' pinned', 'warning'
+      ),
+      body,
+    });
+  },
 
-  // Hours summary
-  const pct   = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
-  const hBody = document.createElement('div');
-  hBody.appendChild(UI.statRow([
-    { value:INTERN.totalHours+'h',                      label:'Rendered',  color:'#EA580C' },
-    { value:(INTERN.reqHours-INTERN.totalHours)+'h',    label:'Remaining', color:'#6B3A1F' },
-    { value:pct+'%',                                    label:'Complete',  color:'#10B981' },
-  ]));
-  const pLabel = document.createElement('p');
-  pLabel.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
-  pLabel.textContent   = 'Progress toward '+INTERN.reqHours+'h requirement';
-  hBody.appendChild(pLabel);
-  hBody.appendChild(UI.progress(pct,{ color:{ base:'#EA580C' }, label:true }));
-  right.appendChild(UI.card({ title:'⏳ Hours Summary', body:hBody }));
+  // Quick company + supervisor snapshot with "View Profile" button
+  profilePreviewCard() {
+    const body = document.createElement('div');
+    [
+      ['🏢', INTERN.company],
+      ['📍', INTERN.address.split(',').slice(-2).join(',').trim()],
+      ['👤', 'Supervisor: ' + INTERN.supervisor],
+      ['📅', INTERN.startDate + ' → ' + INTERN.endDate],
+    ].forEach(([icon, text]) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem;color:#6B3A1F';
+      row.innerHTML = `<span style="opacity:.55;flex-shrink:0">${icon}</span><span>${text}</span>`;
+      body.appendChild(row);
+    });
 
-  grid.appendChild(right);
-  sec.appendChild(grid);
-}
+    const btn = UI.button('View Full Profile →', {
+      block: true,
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => navigate('profile'),
+    });
+    btn.style.marginTop = '.85rem';
+    body.appendChild(btn);
 
-function openEditProfileModal() {
-  const body = document.createElement('div');
-  const sec  = t => { const d=document.createElement('div'); d.className='cui-form-section'; d.textContent=t; body.appendChild(d); };
-  const row  = () => { const d=document.createElement('div'); d.className='cui-form-row'; body.appendChild(d); return d; };
+    return UI.card({ title: '🏢 My Internship', body });
+  },
 
-  sec('Personal Information');
-  body.appendChild(UI.formGroup('Full Name',  UI.input({ value:INTERN.name,      placeholder:'Full name' })));
-  body.appendChild(UI.formGroup('Phone',      UI.input({ value:INTERN.phone,     placeholder:'+63 9xx xxx xxxx' })));
-  const r1 = row();
-  r1.appendChild(UI.formGroup('Course',      UI.input({ value:INTERN.course,     placeholder:'e.g. BSIT' })));
-  r1.appendChild(UI.formGroup('Year Level',  UI.input({ value:INTERN.yearLevel,  placeholder:'e.g. 4th Year' })));
-  
-
-  sec('Internship / Company');
-  body.appendChild(UI.formGroup('Company Name', UI.input({ value:INTERN.company,    placeholder:'Company name' })));
-  body.appendChild(UI.formGroup('Position',     UI.input({ value:INTERN.position,   placeholder:'e.g. IT Intern' })));
-  body.appendChild(UI.formGroup('Address',      UI.textarea({ value:INTERN.address, rows:2, placeholder:'Full address' })));
-  body.appendChild(UI.formGroup('Supervisor',   UI.input({ value:INTERN.supervisor, placeholder:'Supervisor name' })));
-  const r2 = row();
-  r2.appendChild(UI.formGroup('Start Date', UI.input({ type:'date', value:'2026-01-13' })));
-  r2.appendChild(UI.formGroup('End Date',   UI.input({ type:'date', value:'2026-05-30' })));
-
-  const m = UI.modal({
-    title:'✏️ Edit Profile', body, size:'lg',
-    footer:[
-      UI.button('Cancel', { variant:'ghost', size:'sm', onClick:()=>m.close() }),
-      UI.button('Save Changes', { size:'sm',
-        color:{ base:'#EA580C', hover:'#C2410C', text:'#fff' },
-        onClick:()=>{ UI.toast('Profile saved! (Demo)', 'success'); m.close(); } }),
-    ],
-  });
-  m.open();
-}
-
-
-// ════════════════════════════════════════════════════════════
-//  SECTION: ATTENDANCE
-// ════════════════════════════════════════════════════════════
-function buildAttendance() {
-  const sec = document.getElementById('sec-attendance');
-  sec.appendChild(makePageHeader('Attendance','Track your daily time in and out'));
-
-  const grid = document.createElement('div');
-  grid.className = 'pg-grid-2';
-  grid.style.alignItems = 'start';
-
-  // Clock card body (built manually, inserted into UI.card)
-  const clockBody = document.createElement('div');
-  clockBody.className = 'cui-clock';
-  clockBody.innerHTML = `
-    <div class="cui-clock-time" id="clock-display">--:--:--</div>
-    <div class="cui-clock-date" id="clock-date-display"></div>
-    <div id="clock-status-wrap" style="margin-top:.75rem"></div>
-    <div class="cui-clock-actions" id="clock-btn-wrap"></div>
-    <div id="clock-summary" style="display:none;padding:.75rem 0 0;text-align:center;font-size:.85rem;color:#9A6647"></div>
-  `;
-  grid.appendChild(UI.card({ title:'🕐 Time Tracker', body:clockBody }));
-
-  // Hours summary card
-  const pct   = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
-  const hBody = document.createElement('div');
-
-  const big = document.createElement('div');
-  big.style.cssText = 'text-align:center;padding:1rem 0';
-  big.innerHTML = `
-    <div style="font-family:Sora,sans-serif;font-size:2.75rem;font-weight:800;color:#EA580C;line-height:1">${INTERN.totalHours}h</div>
-    <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${INTERN.reqHours}h required</div>`;
-  hBody.appendChild(big);
-
-  hBody.appendChild(UI.statRow([
-    { value:INTERN.daysPresent,                           label:'Days Present', color:'#EA580C' },
-    { value:(INTERN.reqHours-INTERN.totalHours)+'h',      label:'Hours Left',   color:'#6B3A1F' },
-    { value:pct+'%',                                      label:'Complete',     color:'#10B981' },
-  ]));
-  const pl = document.createElement('p');
-  pl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.8rem 0 .4rem';
-  pl.textContent   = 'Progress toward completion';
-  hBody.appendChild(pl);
-  hBody.appendChild(UI.progress(pct, { color:{ base:'#EA580C' }, label:true }));
-
-  grid.appendChild(UI.card({ title:'📊 My Hours', body:hBody }));
-  sec.appendChild(grid);
-
-  // Attendance log table card
-  sec.appendChild(UI.card({
-    title:'📋 Attendance Log',
-    padding: false,
-    body: UI.table([
-      { key:'date',    label:'Date',    render:v=>`<strong>${v}</strong>` },
-      { key:'timeIn',  label:'Time In' },
-      { key:'timeOut', label:'Time Out' },
-      { key:'hours',   label:'Hours',   align:'center',
-        render:v=>`<span style="color:#EA580C;font-weight:700">${v}h</span>` },
-    ], ATTENDANCE_LOG, { hoverable:true }),
-  }));
-
-  // Start clock + render buttons
-  startClock();
-  renderClock();
-}
-
-function startClock() {
-  const tick = () => {
-    const n   = new Date();
-    const dEl = document.getElementById('clock-display');
-    const dtEl= document.getElementById('clock-date-display');
-    if (dEl)  dEl.textContent  = n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    if (dtEl) dtEl.textContent = n.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  };
-  tick();
-  setInterval(tick, 1000);
-}
-
-function renderClock() {
-  const statusWrap = document.getElementById('clock-status-wrap');
-  const btnWrap    = document.getElementById('clock-btn-wrap');
-  if (!statusWrap) return;
-  statusWrap.innerHTML = '';
-  btnWrap.innerHTML    = '';
-
-  // Status badge
-  const badge = document.createElement('div');
-  badge.className = 'cui-clock-status ' + { none:'cui-clock-status-idle', in:'cui-clock-status-in', done:'cui-clock-status-idle' }[clockState];
-  badge.innerHTML = {
-    none: '<span style="opacity:.5">⭕</span> Not yet timed in today',
-    in:   `<span style="color:#10B981">●</span> Timed in at ${timeInStamp?.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) ?? ''}`,
-    done: '✅ Completed for today',
-  }[clockState];
-  statusWrap.appendChild(badge);
-
-  // Time-in button
-  btnWrap.appendChild(UI.button('⏱ Time In', {
-    variant:'success', size:'lg',
-    disabled: clockState !== 'none',
-    onClick:() => {
-      timeInStamp = new Date();
-      clockState  = 'in';
-      renderClock();
-      UI.toast('Timed in at '+timeInStamp.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), 'success');
-    },
-  }));
-
-  // Time-out button
-  btnWrap.appendChild(UI.button('🔴 Time Out', {
-    variant:'danger', size:'lg',
-    disabled: clockState !== 'in',
-    onClick:() => {
-      const out = new Date();
-      const hrs = ((out-timeInStamp)/3600000).toFixed(2);
-      clockState  = 'done';
-      renderClock();
-      const summary = document.getElementById('clock-summary');
-      summary.style.display = 'block';
-      summary.innerHTML = `
-        <strong style="color:#EA580C">${timeInStamp.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</strong>
-        &nbsp;→&nbsp;
-        <strong style="color:#EA580C">${out.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</strong>
-        &nbsp;·&nbsp; <strong>${hrs}h</strong> rendered`;
-      UI.toast(`Timed out · ${hrs}h logged today`, 'success');
-    },
-  }));
-}
+  // Last 4 attendance rows
+  recentAttendanceCard() {
+    return UI.card({
+      title: '🕐 Recent Attendance',
+      padding: false,
+      headerActions: UI.button('View all', {
+        variant: 'ghost', size: 'sm',
+        color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+        onClick: () => navigate('attendance'),
+      }),
+      body: UI.table([
+        { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
+        { key:'timeIn',  label:'In'   },
+        { key:'timeOut', label:'Out'  },
+        { key:'hours',   label:'Hrs', align:'center',
+          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
+      ], ATTENDANCE_LOG.slice(0, 4), { hoverable: true }),
+    });
+  },
+};
 
 
-// ════════════════════════════════════════════════════════════
-//  SECTION: REPORTS
-// ════════════════════════════════════════════════════════════
-function buildReports() {
-  const sec = document.getElementById('sec-reports');
-  sec.appendChild(makePageHeader('Weekly Reports','Submit and track your internship reports'));
+// ─────────────────────────────────────────────────────────────
+//  PROFILE
+// ─────────────────────────────────────────────────────────────
+const Profile = {
 
-  const grid = document.createElement('div');
-  grid.className = 'pg-grid-2';
-  grid.style.alignItems = 'start';
+  build() {
+    const sec = document.getElementById('sec-profile');
+    sec.appendChild(Helpers.pageHeader('My Profile', 'Personal and internship information'));
 
-  // Upload form
-  const formBody = document.createElement('div');
-  formBody.appendChild(UI.formGroup('Week Label',
-    UI.input({ id:'rpt-week', placeholder:'e.g. Week 14 (Apr 21–25)', required:true }), '', { required:true }));
-  formBody.appendChild(UI.formGroup('Week Start Date',
-    UI.input({ type:'date', id:'rpt-date', required:true })));
-  formBody.appendChild(UI.formGroup('Description (optional)',
-    UI.textarea({ id:'rpt-desc', placeholder:'What tasks did you accomplish this week?', rows:3 })));
-  formBody.appendChild(UI.formGroup('Report File',
-    UI.uploadZone({
-      label:'Click to browse or drag & drop',
-      hint:'PDF, DOC, DOCX, PNG, JPG — max 10 MB',
-      accept:'.pdf,.doc,.docx,.png,.jpg,.jpeg',
-      name:'report_file',
-      onFile: f => UI.toast('Selected: '+f.name, 'info'),
-    })
-  ));
-  formBody.appendChild(UI.button('📤 Submit Report',{
-    block:true, size:'lg',
-    color:{ base:'#EA580C', hover:'#C2410C', text:'#fff' },
-    onClick:() => {
-      const w = document.getElementById('rpt-week').value.trim();
-      if (!w) { UI.toast('Please enter a week label.','danger'); return; }
-      UI.toast('Report submitted! (Connect to PHP to save)','success');
-    },
-  }));
+    const grid = document.createElement('div');
+    grid.className = 'pg-grid-2';
+    grid.style.alignItems = 'start';
+    grid.appendChild( this.leftColumn()  );
+    grid.appendChild( this.rightColumn() );
+    sec.appendChild(grid);
+  },
 
-  grid.appendChild(UI.card({ title:'📤 Submit New Report', body:formBody }));
+  leftColumn() {
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+    col.appendChild( this.personalCard()   );
+    col.appendChild( this.detailsCard()    );
+    col.appendChild( this.editButton()     );
+    return col;
+  },
 
-  // Reports table
-  const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
-  const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+  rightColumn() {
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+    col.appendChild( this.companyCard()  );
+    col.appendChild( this.hoursCard()   );
+    return col;
+  },
 
-  const tbl = UI.table([
-    { key:'week',   label:'Week',     render:v=>`<strong>${v}</strong>` },
-    { key:'file',   label:'File',     render:v=>`<a href="#" style="color:#EA580C;font-size:.8rem;text-decoration:none">📄 ${v}</a>` },
-    { key:'status', label:'Status',   align:'center',
-      render:v=>{ const b=document.createElement('span'); b.className='cui-badge '+sl[v]; b.textContent=tl[v]; return b; } },
-    { key:'date',   label:'Uploaded', render:v=>`<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
-  ], REPORTS, { hoverable:true });
+  // Avatar + name + role using UI.profileCard
+  personalCard() {
+    return UI.profileCard({
+      name:   INTERN.name,
+      role:   `${INTERN.course} · ${INTERN.yearLevel}`,
+      email:  INTERN.email,
+      dept:   INTERN.course,
+      school: INTERN.school,
+      joined: INTERN.joined,
+    });
+  },
 
-  // Inject feedback rows
-  const tbody = tbl.querySelector('tbody');
-  let off=0;
-  REPORTS.forEach((r,i) => {
-    if (!r.feedback) return;
-    const fr = tbody.insertRow(i+1+off++);
-    fr.innerHTML = `<td colspan="4" style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">💬 <strong>Feedback:</strong> ${r.feedback}</td>`;
-  });
+  // Phone / school / course / year / joined using UI.infoRow
+  detailsCard() {
+    const body = document.createElement('div');
+    [
+      ['📱', 'Phone',      INTERN.phone],
+      ['🏫', 'School',     INTERN.school],
+      ['📚', 'Course',     INTERN.course],
+      ['🎓', 'Year Level', INTERN.yearLevel],
+      ['📅', 'Joined',     INTERN.joined],
+    ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v)));
+    return UI.card({ title: '📋 Personal Details', body });
+  },
 
-  grid.appendChild(UI.card({
-    title:'📋 Submitted Reports',
-    padding: false,
-    headerActions: UI.badge(REPORTS.length+' submitted','warning'),
-    body: tbl,
-  }));
+  editButton() {
+    return UI.button('✏️ Edit Profile', {
+      block: true,
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => this.openEditModal(),
+    });
+  },
 
-  sec.appendChild(grid);
+  // Company header + detail rows using UI.companyInfoCard
+  companyCard() {
+    return UI.companyInfoCard({
+      company:    INTERN.company,
+      position:   INTERN.position,
+      address:    INTERN.address,
+      supervisor: INTERN.supervisor,
+      phone:      INTERN.companyPhone,
+      email:      INTERN.companyEmail,
+      startDate:  INTERN.startDate,
+      endDate:    INTERN.endDate,
+    });
+  },
 
-  // Set default date
-  const mon = new Date();
-  mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
-  const d = document.getElementById('rpt-date');
-  if (d) d.value = mon.toISOString().split('T')[0];
-}
+  // Total hours with progress bar
+  hoursCard() {
+    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const body = document.createElement('div');
+    body.appendChild(UI.statRow([
+      { value: INTERN.totalHours + 'h',                      label: 'Rendered',  color: '#EA580C' },
+      { value: (INTERN.reqHours - INTERN.totalHours) + 'h',  label: 'Remaining', color: '#6B3A1F' },
+      { value: pct + '%',                                     label: 'Complete',  color: '#10B981' },
+    ]));
+    const lbl = document.createElement('p');
+    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
+    lbl.textContent   = `Progress toward ${INTERN.reqHours}h requirement`;
+    body.appendChild(lbl);
+    body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+    return UI.card({ title: '⏳ Hours Summary', body });
+  },
+
+  // Edit profile modal with sections
+  openEditModal() {
+    const body = document.createElement('div');
+
+    const section = label => {
+      const d = document.createElement('div');
+      d.className = 'cui-form-section';
+      d.textContent = label;
+      body.appendChild(d);
+    };
+    const twoCol = () => {
+      const d = document.createElement('div');
+      d.className = 'cui-form-row';
+      body.appendChild(d);
+      return d;
+    };
+
+    section('Personal Information');
+    body.appendChild(UI.formGroup('Full Name',
+      UI.input({ value: INTERN.name,      placeholder: 'Full name' })));
+    body.appendChild(UI.formGroup('Phone',
+      UI.input({ value: INTERN.phone,     placeholder: '+63 9xx xxx xxxx' })));
+    const r1 = twoCol();
+    r1.appendChild(UI.formGroup('Course',
+      UI.input({ value: INTERN.course,    placeholder: 'e.g. BSIT' })));
+    r1.appendChild(UI.formGroup('Year Level',
+      UI.input({ value: INTERN.yearLevel, placeholder: 'e.g. 4th Year' })));
+
+    section('Internship / Company');
+    body.appendChild(UI.formGroup('Company Name',
+      UI.input({ value: INTERN.company,    placeholder: 'Company name' })));
+    body.appendChild(UI.formGroup('Position',
+      UI.input({ value: INTERN.position,   placeholder: 'e.g. IT Intern' })));
+    body.appendChild(UI.formGroup('Address',
+      UI.textarea({ value: INTERN.address, rows: 2, placeholder: 'Full address' })));
+    body.appendChild(UI.formGroup('Supervisor',
+      UI.input({ value: INTERN.supervisor, placeholder: 'Supervisor name' })));
+    const r2 = twoCol();
+    r2.appendChild(UI.formGroup('Start Date', UI.input({ type: 'date', value: '2026-01-13' })));
+    r2.appendChild(UI.formGroup('End Date',   UI.input({ type: 'date', value: '2026-05-30' })));
+
+    const m = UI.modal({
+      title: '✏️ Edit Profile', body, size: 'lg',
+      footer: [
+        UI.button('Cancel',      { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        UI.button('Save Changes', { size:'sm',
+          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+          onClick: () => { UI.toast('Profile saved! (Connect to PHP)', 'success'); m.close(); } }),
+      ],
+    });
+    m.open();
+  },
+};
 
 
-// ════════════════════════════════════════════════════════════
-//  SHARED HELPERS
-// ════════════════════════════════════════════════════════════
-function makePageHeader(title, subtitle='') {
-  const wrap = document.createElement('div');
-  wrap.className = 'cui-page-header';
-  wrap.innerHTML = `
-    <div>
-      <div class="cui-page-title">${title}</div>
-      ${subtitle ? `<div class="cui-page-subtitle">${subtitle}</div>` : ''}
-    </div>`;
-  return wrap;
-}
+// ─────────────────────────────────────────────────────────────
+//  ATTENDANCE
+// ─────────────────────────────────────────────────────────────
+const Attendance = {
 
-function makeAnnItem(ann) {
-  const wrap = document.createElement('div');
-  wrap.className = 'cui-announcement' + (ann.pinned?' pinned':'');
-  wrap.innerHTML = `
-    ${ann.pinned?'<span class="cui-announcement-pin">📌 Pinned</span>':''}
-    <div class="cui-announcement-title">${ann.title}</div>
-    <div class="cui-announcement-body">${ann.body}</div>
-    <div class="cui-announcement-meta">By ${ann.author} · ${ann.date}</div>`;
-  return wrap;
-}
+  build() {
+    const sec = document.getElementById('sec-attendance');
+    sec.appendChild(Helpers.pageHeader('Attendance', 'Track your daily time in and out'));
 
-function makeSidebarFooter() {
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;align-items:center;gap:.65rem';
-  const av = UI.avatar(INTERN.name,'sm');
-  av.style.cssText = 'background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.35)';
-  const info = document.createElement('div');
-  info.style.minWidth = '0';
-  info.innerHTML = `
-    <div style="font-size:.85rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${INTERN.name}</div>
-    <div style="font-size:.72rem;color:rgba(255,255,255,.6)">${INTERN.course}</div>`;
-  wrap.append(av, info);
-  return wrap;
-}
+    const grid = document.createElement('div');
+    grid.className = 'pg-grid-2';
+    grid.style.alignItems = 'start';
+    grid.appendChild( this.clockCard()    );
+    grid.appendChild( this.hoursCard()    );
+    sec.appendChild(grid);
+
+    sec.appendChild( this.logCard() );
+
+    this.startClock();
+    this.renderClockState();
+  },
+
+  // Live clock + time in/out buttons
+  clockCard() {
+    const body = document.createElement('div');
+    body.className = 'cui-clock';
+    body.innerHTML = `
+      <div class="cui-clock-time" id="clock-display">--:--:--</div>
+      <div class="cui-clock-date" id="clock-date-display"></div>
+      <div id="clock-status-wrap" style="margin-top:.75rem"></div>
+      <div class="cui-clock-actions" id="clock-btn-wrap"></div>
+      <div id="clock-summary"
+        style="display:none;padding:.75rem 0 0;text-align:center;font-size:.85rem;color:#9A6647"></div>
+    `;
+    return UI.card({ title: '🕐 Time Tracker', body });
+  },
+
+  // Big hours number + stat strip + progress bar
+  hoursCard() {
+    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const body = document.createElement('div');
+
+    const big = document.createElement('div');
+    big.style.cssText = 'text-align:center;padding:1rem 0';
+    big.innerHTML = `
+      <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">
+        ${INTERN.totalHours}h
+      </div>
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${INTERN.reqHours}h required</div>`;
+    body.appendChild(big);
+
+    body.appendChild(UI.statRow([
+      { value: INTERN.daysPresent,                           label: 'Days Present', color: '#EA580C' },
+      { value: (INTERN.reqHours - INTERN.totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
+      { value: pct + '%',                                    label: 'Complete',     color: '#10B981' },
+    ]));
+
+    const lbl = document.createElement('p');
+    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.8rem 0 .4rem';
+    lbl.textContent   = 'Progress toward completion';
+    body.appendChild(lbl);
+    body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+
+    return UI.card({ title: '📊 My Hours', body });
+  },
+
+  // Full attendance log table
+  logCard() {
+    return UI.card({
+      title: '📋 Attendance Log',
+      padding: false,
+      body: UI.table([
+        { key:'date',    label:'Date',     render: v => `<strong>${v}</strong>` },
+        { key:'timeIn',  label:'Time In'  },
+        { key:'timeOut', label:'Time Out' },
+        { key:'hours',   label:'Hours',   align: 'center',
+          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
+      ], ATTENDANCE_LOG, { hoverable: true }),
+    });
+  },
+
+  // Tick every second
+  startClock() {
+    const tick = () => {
+      const n   = new Date();
+      const dEl = document.getElementById('clock-display');
+      const dtEl= document.getElementById('clock-date-display');
+      if (dEl)  dEl.textContent  = n.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      if (dtEl) dtEl.textContent = n.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    };
+    tick();
+    setInterval(tick, 1000);
+  },
+
+  // Rebuild status badge + buttons based on current clockState
+  renderClockState() {
+    const statusWrap = document.getElementById('clock-status-wrap');
+    const btnWrap    = document.getElementById('clock-btn-wrap');
+    if (!statusWrap) return;
+    statusWrap.innerHTML = '';
+    btnWrap.innerHTML    = '';
+
+    // Status badge
+    const badge = document.createElement('div');
+    badge.className = 'cui-clock-status ' + {
+      none: 'cui-clock-status-idle',
+      in:   'cui-clock-status-in',
+      done: 'cui-clock-status-idle',
+    }[clockState];
+    badge.innerHTML = {
+      none: '<span style="opacity:.5">⭕</span> Not yet timed in today',
+      in:   `<span style="color:#10B981">●</span> Timed in at ${timeInStamp?.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })}`,
+      done: '✅ Completed for today',
+    }[clockState];
+    statusWrap.appendChild(badge);
+
+    // Time In button
+    btnWrap.appendChild(UI.button('⏱ Time In', {
+      variant: 'success', size: 'lg',
+      disabled: clockState !== 'none',
+      onClick: () => {
+        timeInStamp = new Date();
+        clockState  = 'in';
+        Attendance.renderClockState();
+        UI.toast('Timed in at ' + timeInStamp.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }), 'success');
+      },
+    }));
+
+    // Time Out button
+    btnWrap.appendChild(UI.button('🔴 Time Out', {
+      variant: 'danger', size: 'lg',
+      disabled: clockState !== 'in',
+      onClick: () => {
+        const out = new Date();
+        const hrs = ((out - timeInStamp) / 3600000).toFixed(2);
+        clockState  = 'done';
+        Attendance.renderClockState();
+        const summary = document.getElementById('clock-summary');
+        summary.style.display = 'block';
+        summary.innerHTML = `
+          <strong style="color:#EA580C">
+            ${timeInStamp.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })}
+          </strong>
+          &nbsp;→&nbsp;
+          <strong style="color:#EA580C">
+            ${out.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })}
+          </strong>
+          &nbsp;·&nbsp;<strong>${hrs}h</strong> rendered`;
+        UI.toast(`Timed out · ${hrs}h logged today`, 'success');
+      },
+    }));
+  },
+};
 
 
-// ════════════════════════════════════════════════════════════
-//  BOOT
-// ════════════════════════════════════════════════════════════
-buildDashboard();
-buildProfile();
-buildAttendance();
-buildReports();
+// ─────────────────────────────────────────────────────────────
+//  REPORTS
+// ─────────────────────────────────────────────────────────────
+const Reports = {
+
+  build() {
+    const sec = document.getElementById('sec-reports');
+    sec.appendChild(Helpers.pageHeader('Weekly Reports', 'Submit and track your internship reports'));
+
+    const grid = document.createElement('div');
+    grid.className = 'pg-grid-2';
+    grid.style.alignItems = 'start';
+    grid.appendChild( this.submitCard()  );
+    grid.appendChild( this.tableCard()   );
+    sec.appendChild(grid);
+
+    this.setDefaultDate();
+  },
+
+  // Upload form card
+  submitCard() {
+    const body = document.createElement('div');
+
+    body.appendChild(UI.formGroup('Week Label',
+      UI.input({ id:'rpt-week', placeholder:'e.g. Week 14 (Apr 21–25)', required: true }),
+      '', { required: true }));
+
+    body.appendChild(UI.formGroup('Week Start Date',
+      UI.input({ type:'date', id:'rpt-date', required: true })));
+
+    body.appendChild(UI.formGroup('Description (optional)',
+      UI.textarea({ id:'rpt-desc', placeholder:'What tasks did you accomplish this week?', rows: 3 })));
+
+    body.appendChild(UI.formGroup('Report File',
+      UI.uploadZone({
+        label:  'Click to browse or drag & drop',
+        hint:   'PDF, DOC, DOCX, PNG, JPG — max 10 MB',
+        accept: '.pdf,.doc,.docx,.png,.jpg,.jpeg',
+        name:   'report_file',
+        onFile: f => UI.toast('Selected: ' + f.name, 'info'),
+      })
+    ));
+
+    body.appendChild(UI.button('📤 Submit Report', {
+      block: true, size: 'lg',
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick: () => {
+        const w = document.getElementById('rpt-week').value.trim();
+        if (!w) { UI.toast('Please enter a week label.', 'danger'); return; }
+        UI.toast('Report submitted! (Connect to PHP to save)', 'success');
+      },
+    }));
+
+    return UI.card({ title: '📤 Submit New Report', body });
+  },
+
+  // Submitted reports table with status badges + feedback rows
+  tableCard() {
+    const statusClass = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+    const statusLabel = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+
+    const tbl = UI.table([
+      { key:'week',   label:'Week',
+        render: v => `<strong>${v}</strong>` },
+      { key:'file',   label:'File',
+        render: v => `<a href="#" style="color:#EA580C;font-size:.8rem;text-decoration:none">📄 ${v}</a>` },
+      { key:'status', label:'Status', align:'center',
+        render: v => {
+          const b = document.createElement('span');
+          b.className   = 'cui-badge ' + statusClass[v];
+          b.textContent = statusLabel[v];
+          return b;
+        }},
+      { key:'date', label:'Uploaded',
+        render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
+    ], REPORTS, { hoverable: true });
+
+    // Inject feedback rows beneath rows that have feedback
+    const tbody = tbl.querySelector('tbody');
+    let offset  = 0;
+    REPORTS.forEach((r, i) => {
+      if (!r.feedback) return;
+      const fr = tbody.insertRow(i + 1 + offset++);
+      fr.innerHTML = `
+        <td colspan="4"
+          style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">
+          💬 <strong>Feedback:</strong> ${r.feedback}
+        </td>`;
+    });
+
+    return UI.card({
+      title: '📋 Submitted Reports',
+      padding: false,
+      headerActions: UI.badge(REPORTS.length + ' submitted', 'warning'),
+      body: tbl,
+    });
+  },
+
+  // Default week-start to the most recent Monday
+  setDefaultDate() {
+    const mon = new Date();
+    mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+    const d = document.getElementById('rpt-date');
+    if (d) d.value = mon.toISOString().split('T')[0];
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  BOOT  — build every section once on page load
+// ─────────────────────────────────────────────────────────────
+Dashboard .build();
+Profile   .build();
+Attendance.build();
+Reports   .build();
 </script>
 </body>
 </html>
