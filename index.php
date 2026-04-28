@@ -12,7 +12,7 @@
 define('DB_HOST', 'fdb1034.awardspace.net');
 define('DB_NAME', '4753482_capstone');
 define('DB_USER', '4753482_capstone');
-define('DB_PASS', '787898;');
+define('DB_PASS', 'Pw_787898_;');
 
 
 // ── 2. SESSION ───────────────────────────────────────────────
