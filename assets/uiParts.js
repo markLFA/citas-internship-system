@@ -857,6 +857,8 @@ const UI = (() => {
   //  Returns { el }  — the <header> element (already in the DOM)
   // ════════════════════════════════════════════════════════
   function navbar({
+    brand     = 'CITAS',
+    brandIcon = '🎓',
     sidebar   = null,
     pageTitle = '',
     right     = [],
@@ -866,29 +868,36 @@ const UI = (() => {
     const bar = el('header', 'cui-navbar');
     if (id) bar.id = id;
 
-    // ── Left: hamburger ─────────────────────────────────────
+    // ── Left: hamburger + CITAS brand ────────────────────────
     const left = el('div', 'cui-navbar-left');
 
+    // Hamburger
     if (sidebar && typeof sidebar.toggle === 'function') {
       const menuBtn = el('button', 'cui-navbar-menu', {
         'aria-label': 'Toggle navigation',
         'type': 'button',
       });
       for (let i = 0; i < 3; i++) menuBtn.appendChild(el('span', 'cui-navbar-bar'));
-
       menuBtn.addEventListener('click', () => {
         sidebar.toggle();
         menuBtn.classList.toggle('open',
           sidebar.el.classList.contains('cui-ps-open'));
       });
-
       sidebar.el.addEventListener('transitionend', () => {
         menuBtn.classList.toggle('open',
           sidebar.el.classList.contains('cui-ps-open'));
       });
-
       left.appendChild(menuBtn);
     }
+
+    // Brand
+    const brandWrap = el('div', 'cui-navbar-brand');
+    brandWrap.appendChild(el('span', 'cui-navbar-brand-icon', { text: brandIcon }));
+    brandWrap.appendChild(document.createTextNode(brand));
+    left.appendChild(brandWrap);
+
+    // Divider
+    left.appendChild(el('div', 'cui-navbar-divider'));
 
     // ── Center: current page name ────────────────────────────
     const center = el('div', 'cui-navbar-center');
@@ -904,7 +913,6 @@ const UI = (() => {
     bar.appendChild(center);
     bar.appendChild(rightWrap);
 
-    // Caller inserts: document.getElementById('page-main').prepend(nav.el)
     return { el: bar };
   }
 
