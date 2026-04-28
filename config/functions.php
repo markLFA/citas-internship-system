@@ -3,7 +3,8 @@ require 'db.php';
 
 function getUsers() {
   global $conn;
-
-  $stmt = $conn->query("SELECT id, username FROM users");
+  $user = $_SESSION['user'];
+  $userId = $user['id'];
+  $stmt = $conn->query("SELECT id, username FROM intern_profiles");
   return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
