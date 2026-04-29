@@ -8,8 +8,8 @@ $data = json_decode(file_get_contents("php://input"), true);
 $action = $data['action'] ?? '';
 
 switch ($action) {
-  case 'getUsers':
-    echo json_encode(getUsers());
+  case 'getInternProfile':
+    echo json_encode(getInternProfile());
     break;
 
   default:
