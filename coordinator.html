@@ -443,6 +443,9 @@ const Approvals = {
     // Action buttons
     const actions = document.createElement('div');
     actions.className = 'approval-actions';
+    actions.style.display = 'flex';
+    actions.style.gap = '10px';
+    actions.style.flexWrap = 'wrap';
 
     actions.appendChild(UI.button('👁 View', {
       variant: 'ghost', size: 'sm',
