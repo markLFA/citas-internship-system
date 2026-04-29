@@ -6,7 +6,7 @@
   <title>CITAS — Coordinator Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/uiParts.css">
+  <link rel="stylesheet" href="citas-ui.css">
   <style>
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
     .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
@@ -26,19 +26,35 @@
     .ann-item-meta    { font-size:.74rem; color:#9A6647; margin-top:.4rem; }
     .ann-item-actions { display:flex; flex-direction:column; gap:.4rem; flex-shrink:0; }
 
-    /* Pending approval card */
+    /* Pending approval card — stacks vertically on small screens */
     .approval-card {
       background: #fff; border: 1px solid #FED7AA; border-radius: 12px;
       padding: 1.1rem 1.25rem; margin-bottom: .75rem;
       display: flex; align-items: center; gap: 1rem;
+      flex-wrap: wrap;                        /* allows wrapping on narrow screens */
       transition: box-shadow .15s;
     }
     .approval-card:hover { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
-    .approval-info  { flex: 1; min-width: 0; }
+    .approval-info  { flex: 1; min-width: 180px; }  /* won't shrink below 180px */
     .approval-name  { font-family: Sora,sans-serif; font-weight:700; color:#1A0A00; font-size:.95rem; }
     .approval-meta  { font-size:.78rem; color:#9A6647; margin-top:.2rem; }
     .approval-badge { flex-shrink: 0; }
-    .approval-actions { display:flex; gap:.5rem; flex-wrap: wrap; }
+    .approval-actions {
+      display: flex; gap: .5rem; flex-shrink: 0;
+      flex-wrap: wrap;                        /* buttons themselves also wrap if needed */
+    }
+    /* On very narrow screens hide the badge (redundant with card context) */
+    @media (max-width: 480px) {
+      .approval-badge { display: none; }
+      .approval-actions { width: 100%; justify-content: flex-end; }
+      .approval-card { align-items: flex-start; }
+    }
+
+    /* Report status pills */
+    .rs-pending  { background:#FEF3C7; color:#92400E; }
+    .rs-approved { background:#D1FAE5; color:#065F46; }
+    .rs-revision { background:#FEE2E2; color:#991B1B; }
+    .rs-reviewed { background:#DBEAFE; color:#1E40AF; }
   </style>
 </head>
 <body>
@@ -49,12 +65,13 @@
       <section class="cui-section active" id="sec-dashboard"></section>
       <section class="cui-section"        id="sec-approvals"></section>
       <section class="cui-section"        id="sec-interns"></section>
+      <section class="cui-section"        id="sec-reports"></section>
       <section class="cui-section"        id="sec-announcements"></section>
     </div>
   </div>
 </div>
 
-<script src="assets/uiParts.js"></script>
+<script src="citas-ui.js"></script>
 <script>
 'use strict';
 
@@ -103,6 +120,19 @@ let filterSearch = '';
 let filterDept   = '';
 let filterSort   = 'name';
 
+// Weekly reports submitted by interns
+// PHP: SELECT r.*, u.name AS intern_name FROM weekly_reports r JOIN users u ON u.id = r.intern_id
+let REPORTS = [
+  { id:1, internId:1, internName:'Juan dela Cruz',  dept:'BSIT', week:'Week 14 (Apr 21–25)', file:'week14_juan.pdf',   status:'pending',  date:'Apr 23, 2026', feedback:'' },
+  { id:2, internId:2, internName:'Maria Reyes',     dept:'BSCS', week:'Week 14 (Apr 21–25)', file:'week14_maria.pdf',  status:'pending',  date:'Apr 23, 2026', feedback:'' },
+  { id:3, internId:1, internName:'Juan dela Cruz',  dept:'BSIT', week:'Week 13 (Apr 14–18)', file:'week13_juan.pdf',   status:'approved', date:'Apr 18, 2026', feedback:'Good work this week!' },
+  { id:4, internId:3, internName:'Pedro Santos',    dept:'BSIT', week:'Week 14 (Apr 21–25)', file:'week14_pedro.pdf',  status:'revision', date:'Apr 22, 2026', feedback:'' },
+  { id:5, internId:4, internName:'Ana Villanueva',  dept:'BSBA', week:'Week 14 (Apr 21–25)', file:'week14_ana.pdf',    status:'reviewed', date:'Apr 23, 2026', feedback:'' },
+  { id:6, internId:5, internName:'Carlo Mendoza',   dept:'BSCS', week:'Week 13 (Apr 14–18)', file:'week13_carlo.pdf',  status:'approved', date:'Apr 18, 2026', feedback:'Nicely done.' },
+];
+
+let reportFilterStatus = ''; // '' | 'pending' | 'reviewed' | 'approved' | 'revision'
+
 
 // ─────────────────────────────────────────────────────────────
 //  SECTION MAP
@@ -111,6 +141,7 @@ const SECTIONS = {
   dashboard:     'Dashboard',
   approvals:     'Pending Approvals',
   interns:       'Interns',
+  reports:       'Weekly Reports',
   announcements: 'Announcements',
 };
 
@@ -218,12 +249,15 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('approvals') },
     { label:'Interns',          icon:'👥',
       onClick: () => navigate('interns') },
+    { label:'Weekly Reports',   icon:'📄',
+      badge: REPORTS.filter(r => r.status === 'pending').length || null,
+      onClick: () => navigate('reports') },
     { label:'Announcements',    icon:'📢',
       badge: ANNOUNCEMENTS.filter(a => a.pinned).length || null,
       onClick: () => navigate('announcements') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = '/'; } },
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
   ],
   footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
 });
@@ -280,18 +314,19 @@ const Dashboard = {
   // 4-number horizontal stat strip
   statStrip() {
     return UI.statRow([
-      { value: INTERNS.length,       label: 'Total Interns',     color: '#EA580C' },
-      { value: PENDING.length,        label: 'Pending Approval',  color: '#F59E0B' },
-      { value: 3,                     label: 'Pending Reports',   color: '#6366F1' },
-      { value: ANNOUNCEMENTS.length, label: 'Announcements',     color: '#10B981' },
+      { value: INTERNS.length,                                    label: 'Total Interns',    color: '#EA580C' },
+      { value: PENDING.length,                                    label: 'Pending Approval', color: '#F59E0B' },
+      { value: REPORTS.filter(r => r.status === 'pending').length,label: 'Pending Reports',  color: '#6366F1' },
+      { value: ANNOUNCEMENTS.length,                              label: 'Announcements',    color: '#10B981' },
     ]);
   },
 
-  // Two-column bottom row
+  // Three-column bottom row
   bottomRow() {
     const row = document.createElement('div');
-    row.className = 'pg-grid-2 mt-lg';
+    row.className = 'pg-grid-3 mt-lg';
     row.appendChild( this.pendingApprovalsCard()    );
+    row.appendChild( this.recentReportsCard()        );
     row.appendChild( this.recentAnnouncementsCard() );
     return row;
   },
@@ -331,6 +366,41 @@ const Dashboard = {
       footer: PENDING.length ? [
         Helpers.ghostBtn('View all →', () => navigate('approvals')),
       ] : [],
+    });
+  },
+
+  // Quick view of 3 most recent reports on dashboard
+  recentReportsCard() {
+    const pending = REPORTS.filter(r => r.status === 'pending');
+    const recent  = REPORTS.slice(0, 3);
+    const body    = document.createElement('div');
+    const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+    const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+
+    if (!REPORTS.length) {
+      body.appendChild(UI.empty('📭', 'No reports yet', ''));
+    } else {
+      recent.forEach(r => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.6rem 0;border-bottom:1px solid #FFF0E0';
+        const left = document.createElement('div');
+        left.style.flex = '1';
+        left.innerHTML = `
+          <div style="font-weight:700;font-size:.82rem;color:#1A0A00">${r.internName}</div>
+          <div style="font-size:.73rem;color:#9A6647">${r.week}</div>`;
+        const badge = document.createElement('span');
+        badge.className   = 'cui-badge ' + sl[r.status];
+        badge.textContent = tl[r.status];
+        item.append(left, badge);
+        body.appendChild(item);
+      });
+    }
+
+    return UI.card({
+      title: '📄 Weekly Reports',
+      headerActions: UI.badge(pending.length + ' pending', { base:'#FEF3C7', text:'#92400E' }),
+      body,
+      footer: REPORTS.length ? [Helpers.ghostBtn('View all →', () => navigate('reports'))] : [],
     });
   },
 
@@ -443,9 +513,6 @@ const Approvals = {
     // Action buttons
     const actions = document.createElement('div');
     actions.className = 'approval-actions';
-    actions.style.display = 'flex';
-    actions.style.gap = '10px';
-    actions.style.flexWrap = 'wrap';
 
     actions.appendChild(UI.button('👁 View', {
       variant: 'ghost', size: 'sm',
@@ -845,11 +912,231 @@ const Announcements = {
 
 
 // ─────────────────────────────────────────────────────────────
+//  REPORTS  (weekly reports from all interns)
+// ─────────────────────────────────────────────────────────────
+const Reports = {
+
+  build() {
+    const sec = document.getElementById('sec-reports');
+    sec.appendChild(Helpers.pageHeader(
+      'Weekly Reports',
+      'Review and give feedback on intern submissions'
+    ));
+
+    sec.appendChild( this.statusTabs()     );
+    sec.appendChild( this.tableContainer() );
+    this.renderTable();
+  },
+
+  // Status filter pill tabs
+  statusTabs() {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem';
+
+    const tabs = [
+      { value:'',         label:'All' },
+      { value:'pending',  label:'⏳ Pending'  },
+      { value:'reviewed', label:'👁 Reviewed' },
+      { value:'approved', label:'✅ Approved' },
+      { value:'revision', label:'🔁 Revision' },
+    ];
+
+    tabs.forEach(t => {
+      const count = t.value === '' ? REPORTS.length : REPORTS.filter(r => r.status === t.value).length;
+      const btn   = document.createElement('button');
+      btn.style.cssText = 'display:flex;align-items:center;gap:.35rem;padding:.4rem .9rem;border-radius:20px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1.5px solid #FED7AA;background:#fff;color:#9A6647';
+      btn.innerHTML     = `${t.label} <span style="opacity:.65">(${count})</span>`;
+      btn.dataset.value = t.value;
+
+      if (reportFilterStatus === t.value) {
+        btn.style.background = '#EA580C';
+        btn.style.borderColor= '#EA580C';
+        btn.style.color      = '#fff';
+      }
+
+      btn.addEventListener('click', () => {
+        reportFilterStatus = t.value;
+        // Update tab styles
+        wrap.querySelectorAll('button').forEach(b => {
+          const active = b.dataset.value === t.value;
+          b.style.background  = active ? '#EA580C' : '#fff';
+          b.style.borderColor = active ? '#EA580C' : '#FED7AA';
+          b.style.color       = active ? '#fff' : '#9A6647';
+        });
+        this.renderTable();
+      });
+
+      wrap.appendChild(btn);
+    });
+
+    return wrap;
+  },
+
+  tableContainer() {
+    const wrap = document.createElement('div');
+    wrap.id = 'reports-table-wrap';
+    return wrap;
+  },
+
+  filteredList() {
+    return REPORTS.filter(r => !reportFilterStatus || r.status === reportFilterStatus);
+  },
+
+  renderTable() {
+    const wrap = document.getElementById('reports-table-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+
+    const list = this.filteredList();
+    const sl   = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+    const tl   = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+
+    const tbl = UI.table([
+      { key:'internName', label:'Intern',
+        render: (v, row) => {
+          const cell = document.createElement('div');
+          cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+          const info = document.createElement('div');
+          info.innerHTML = `
+            <div style="font-weight:700;color:#1A0A00">${v}</div>
+            <div style="font-size:.75rem;color:#9A6647">${row.dept}</div>`;
+          cell.append(Helpers.internAvatar(v), info);
+          return cell;
+        }},
+      { key:'week',   label:'Week',     render: v => `<span style="font-size:.82rem">${v}</span>` },
+      { key:'file',   label:'File',
+        render: v => `<a href="#" style="color:#EA580C;font-size:.8rem;text-decoration:none">📄 ${v}</a>` },
+      { key:'date',   label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
+      { key:'status', label:'Status', align:'center',
+        render: v => {
+          const b = document.createElement('span');
+          b.className   = 'cui-badge ' + sl[v];
+          b.textContent = tl[v];
+          return b;
+        }},
+      { key:'id', label:'', align:'center',
+        render: (_, row) => Helpers.orangeBtn('Review', () => this.openReviewModal(row)) },
+    ], list, {
+      hoverable: true,
+      emptyText: 'No reports match this filter.',
+    });
+
+    wrap.appendChild(UI.card({
+      title:   `${list.length} report${list.length !== 1 ? 's' : ''} ${reportFilterStatus ? '— ' + reportFilterStatus : ''}`,
+      padding: false,
+      body:    tbl,
+    }));
+  },
+
+  // Review modal — read report + set status + write feedback
+  openReviewModal(report) {
+    const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+    const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+    let   selectedStatus = report.status;
+
+    const body = document.createElement('div');
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid #FED7AA';
+    hdr.innerHTML = `
+      <div style="flex:1">
+        <div style="font-family:Sora,sans-serif;font-weight:800;color:#1A0A00;font-size:1rem">${report.internName}</div>
+        <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${report.week} · ${report.dept}</div>
+        <div style="font-size:.8rem;color:#9A6647">Submitted: ${report.date}</div>
+      </div>`;
+    const badge = document.createElement('span');
+    badge.className   = 'cui-badge ' + sl[report.status];
+    badge.textContent = tl[report.status];
+    hdr.appendChild(badge);
+    body.appendChild(hdr);
+
+    // File link
+    const fileLink = document.createElement('a');
+    fileLink.href   = '#';
+    fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem;margin-bottom:1.25rem';
+    fileLink.innerHTML = `📄 ${report.file} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
+    body.appendChild(fileLink);
+
+    // Status selector buttons
+    const statusLabel = document.createElement('div');
+    statusLabel.style.cssText = 'font-size:.8rem;font-weight:700;color:#6B3A1F;margin-bottom:.5rem';
+    statusLabel.textContent   = 'Set Status';
+    body.appendChild(statusLabel);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1.25rem';
+
+    const statusOptions = [
+      { value:'reviewed', label:'👁 Mark Reviewed', base:'#DBEAFE', text:'#1E40AF', activeBg:'#1E40AF' },
+      { value:'approved', label:'✅ Approve',        base:'#D1FAE5', text:'#065F46', activeBg:'#10B981' },
+      { value:'revision', label:'🔁 Needs Revision', base:'#FEE2E2', text:'#991B1B', activeBg:'#EF4444' },
+      { value:'pending',  label:'⏳ Keep Pending',   base:'#FEF3C7', text:'#92400E', activeBg:'#F59E0B' },
+    ];
+
+    statusOptions.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.style.cssText = `padding:.55rem .75rem;border-radius:8px;font-size:.82rem;font-weight:600;font-family:inherit;cursor:pointer;border:2px solid transparent;transition:all .15s;background:${opt.base};color:${opt.text}`;
+      btn.textContent   = opt.label;
+      btn.dataset.value = opt.value;
+
+      const highlight = () => {
+        btnRow.querySelectorAll('button').forEach(b => {
+          b.style.borderColor = 'transparent';
+          b.style.transform   = 'none';
+        });
+        btn.style.borderColor = opt.activeBg;
+        btn.style.transform   = 'scale(1.02)';
+      };
+
+      if (selectedStatus === opt.value) highlight();
+
+      btn.addEventListener('click', () => {
+        selectedStatus = opt.value;
+        highlight();
+      });
+      btnRow.appendChild(btn);
+    });
+    body.appendChild(btnRow);
+
+    // Feedback textarea
+    body.appendChild(UI.formGroup('Feedback for Intern (optional)',
+      UI.textarea({
+        id:          'review-feedback',
+        value:       report.feedback,
+        placeholder: 'Write your comments or suggestions…',
+        rows:        3,
+      })
+    ));
+
+    const m = UI.modal({
+      title: '📝 Review Report',
+      body,
+      size: 'lg',
+      footer: [
+        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        Helpers.orangeBtn('Save Review', () => {
+          const feedback = document.getElementById('review-feedback')?.value.trim() ?? '';
+          report.status   = selectedStatus;
+          report.feedback = feedback;
+          this.renderTable();
+          m.close();
+          UI.toast('Review saved!', 'success');
+        }),
+      ],
+    });
+    m.open();
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
 Dashboard    .build();
 Approvals    .build();
 Interns      .build();
+Reports      .build();
 Announcements.build();
 </script>
 </body>
