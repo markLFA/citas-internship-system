@@ -6,30 +6,39 @@
   <title>CITAS — Coordinator Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/uiParts.css">
+  <link rel="stylesheet" href="citas-ui.css">
   <style>
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
     .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
 
-    /* Announcement item in coordinator manage view */
+    /* Announcement item */
     .ann-item {
-      background: #fff;
-      border: 1px solid #FED7AA;
-      border-radius: 12px;
-      padding: 1.1rem 1.25rem;
-      margin-bottom: .7rem;
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
+      background: #fff; border: 1px solid #FED7AA; border-radius: 12px;
+      padding: 1.1rem 1.25rem; margin-bottom: .7rem;
+      display: flex; gap: 1rem; align-items: flex-start;
       transition: box-shadow .15s;
     }
-    .ann-item:hover { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
+    .ann-item:hover  { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
     .ann-item.pinned { border-color: #EA580C; background: #FFF7ED; }
     .ann-item-body    { flex: 1; min-width: 0; }
-    .ann-item-title   { font-family: Sora, sans-serif; font-weight: 700; color: #1A0A00; font-size: .95rem; }
-    .ann-item-text    { font-size: .84rem; color: #6B3A1F; margin-top: .25rem; line-height: 1.6; }
-    .ann-item-meta    { font-size: .74rem; color: #9A6647; margin-top: .4rem; }
-    .ann-item-actions { display: flex; flex-direction: column; gap: .4rem; flex-shrink: 0; }
+    .ann-item-title   { font-family: Sora,sans-serif; font-weight:700; color:#1A0A00; font-size:.95rem; }
+    .ann-item-text    { font-size:.84rem; color:#6B3A1F; margin-top:.25rem; line-height:1.6; }
+    .ann-item-meta    { font-size:.74rem; color:#9A6647; margin-top:.4rem; }
+    .ann-item-actions { display:flex; flex-direction:column; gap:.4rem; flex-shrink:0; }
+
+    /* Pending approval card */
+    .approval-card {
+      background: #fff; border: 1px solid #FED7AA; border-radius: 12px;
+      padding: 1.1rem 1.25rem; margin-bottom: .75rem;
+      display: flex; align-items: center; gap: 1rem;
+      transition: box-shadow .15s;
+    }
+    .approval-card:hover { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
+    .approval-info  { flex: 1; min-width: 0; }
+    .approval-name  { font-family: Sora,sans-serif; font-weight:700; color:#1A0A00; font-size:.95rem; }
+    .approval-meta  { font-size:.78rem; color:#9A6647; margin-top:.2rem; }
+    .approval-badge { flex-shrink: 0; }
+    .approval-actions { display:flex; gap:.5rem; flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -38,19 +47,20 @@
   <div class="cui-page-main" id="page-main">
     <div class="cui-page-content">
       <section class="cui-section active" id="sec-dashboard"></section>
+      <section class="cui-section"        id="sec-approvals"></section>
       <section class="cui-section"        id="sec-interns"></section>
       <section class="cui-section"        id="sec-announcements"></section>
     </div>
   </div>
 </div>
 
-<script src="assets/uiParts.js"></script>
+<script src="citas-ui.js"></script>
 <script>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────
 //  DATA
-//  PHP: replace with json_encode output
+//  PHP: replace blocks with json_encode() output
 // ─────────────────────────────────────────────────────────────
 const COORDINATOR = {
   name:  'Dr. Maria Santos',
@@ -58,6 +68,7 @@ const COORDINATOR = {
   role:  'Coordinator',
 };
 
+// Approved interns (status = 'approved' in DB)
 let INTERNS = [
   { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
   { id:2, name:'Maria Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:96,  daysPresent:18, reports:5 },
@@ -65,6 +76,14 @@ let INTERNS = [
   { id:4, name:'Ana Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:112, daysPresent:21, reports:6 },
   { id:5, name:'Carlo Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:80,  daysPresent:15, reports:4 },
   { id:6, name:'Liza Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:144, daysPresent:27, reports:7 },
+];
+
+// Pending registrations — interns who signed up but not yet approved
+// PHP: SELECT * FROM users WHERE role='intern' AND is_active=0
+let PENDING = [
+  { id:10, name:'Ricardo Bautista', email:'rbautista@samar.edu.ph', dept:'BSIT',  school:'Samar College',  registeredOn:'Apr 28, 2026' },
+  { id:11, name:'Sofia Delgado',    email:'sdelgado@samar.edu.ph',  dept:'BSCS',  school:'Eastern Samar',  registeredOn:'Apr 27, 2026' },
+  { id:12, name:'Mark Ocampo',      email:'mocampo@samar.edu.ph',   dept:'BSBA',  school:'Samar College',  registeredOn:'Apr 26, 2026' },
 ];
 
 let ANNOUNCEMENTS = [
@@ -79,25 +98,27 @@ let ANNOUNCEMENTS = [
     author:'Ms. Reyes',  date:'Apr 15, 2026' },
 ];
 
-let nextAnnId = 4;
-
-// Filter state for interns section
+let nextAnnId    = 4;
 let filterSearch = '';
 let filterDept   = '';
 let filterSort   = 'name';
 
 
 // ─────────────────────────────────────────────────────────────
-//  NAVIGATION
+//  SECTION MAP
 // ─────────────────────────────────────────────────────────────
 const SECTIONS = {
   dashboard:     'Dashboard',
+  approvals:     'Pending Approvals',
   interns:       'Interns',
   announcements: 'Announcements',
 };
 
+
 // ─────────────────────────────────────────────────────────────
 //  SHARED HELPERS
+//  ⚠ Must be defined BEFORE sidebar/navbar so they can call
+//    Helpers.sidebarFooter() without a ReferenceError.
 // ─────────────────────────────────────────────────────────────
 const Helpers = {
 
@@ -113,7 +134,7 @@ const Helpers = {
     return wrap;
   },
 
-  // Small inline orange button used throughout coordinator page
+  // Orange filled button — primary actions
   orangeBtn(label, onClick) {
     return UI.button(label, {
       size: 'sm',
@@ -122,7 +143,7 @@ const Helpers = {
     });
   },
 
-  // Ghost button with orange hover — used for secondary actions
+  // Ghost button with orange hover — secondary actions
   ghostBtn(label, onClick) {
     return UI.button(label, {
       variant: 'ghost', size: 'sm',
@@ -131,7 +152,25 @@ const Helpers = {
     });
   },
 
-  // Intern avatar element
+  // Green approve button
+  approveBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#10B981', hover:'#059669', text:'#fff' },
+      onClick,
+    });
+  },
+
+  // Red reject button
+  rejectBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
+      onClick,
+    });
+  },
+
+  // Intern avatar circle
   internAvatar(name, size = 'sm') {
     const av = UI.avatar(name, size);
     av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
@@ -139,7 +178,7 @@ const Helpers = {
     return av;
   },
 
-  // Sidebar footer with avatar + name/role
+  // Sidebar footer chip — avatar + name + role
   sidebarFooter(name, role) {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;align-items:center;gap:.65rem';
@@ -154,7 +193,7 @@ const Helpers = {
     return wrap;
   },
 
-  // Refresh any card container by id
+  // Swap content of a card container by id
   refreshCard(id, buildFn) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -164,25 +203,34 @@ const Helpers = {
 };
 
 
+// ─────────────────────────────────────────────────────────────
+//  NAVIGATION  (sidebar + navbar — defined after Helpers)
+// ─────────────────────────────────────────────────────────────
 const sidebar = UI.pageSidebar({
-  brand:     'Coordinator Panel',   // role-specific label
+  brand:     'Coordinator Panel',
   brandIcon: '🗂️',
   items: [
     { section:true, label:'Menu' },
-    { label:'Dashboard',     icon:'🏠', active:true,  onClick: () => navigate('dashboard')     },
-    { label:'Interns',       icon:'👥',               onClick: () => navigate('interns')       },
-    { label:'Announcements', icon:'📢',
+    { label:'Dashboard',        icon:'🏠', active:true,
+      onClick: () => navigate('dashboard') },
+    { label:'Pending Approvals',icon:'⏳',
+      badge: PENDING.length || null,
+      onClick: () => navigate('approvals') },
+    { label:'Interns',          icon:'👥',
+      onClick: () => navigate('interns') },
+    { label:'Announcements',    icon:'📢',
       badge: ANNOUNCEMENTS.filter(a => a.pinned).length || null,
       onClick: () => navigate('announcements') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = '/'; } },
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
   ],
   footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
 });
 
+// Navbar matches intern page: CITAS brand + divider + page title
 const topbar = UI.navbar({
-  brand:     'CITAS',               // system brand on navbar
+  brand:     'CITAS',
   brandIcon: '🎓',
   sidebar,
   pageTitle: 'Dashboard',
@@ -206,8 +254,6 @@ function navigate(name) {
 }
 
 
-
-
 // ─────────────────────────────────────────────────────────────
 //  DASHBOARD
 // ─────────────────────────────────────────────────────────────
@@ -216,10 +262,10 @@ const Dashboard = {
   build() {
     const sec  = document.getElementById('sec-dashboard');
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
     sec.appendChild(Helpers.pageHeader(
-      `${greeting}, ${COORDINATOR.name.split(' ').pop()}! 👋`,
+      `${greet}, ${COORDINATOR.name.split(' ').pop()}! 👋`,
       new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }),
       Helpers.orangeBtn('📢 Post Announcement', () => {
         navigate('announcements');
@@ -227,53 +273,68 @@ const Dashboard = {
       })
     ));
 
-    sec.appendChild( this.statStrip()     );
-    sec.appendChild( this.bottomRow()     );
+    sec.appendChild( this.statStrip()  );
+    sec.appendChild( this.bottomRow()  );
   },
 
-  // Horizontal stat strip — mirrors intern page style
+  // 4-number horizontal stat strip
   statStrip() {
-    const totalHours   = INTERNS.reduce((s, i) => s + i.totalHours,   0);
-    const todayPresent = 4; // PHP: count of interns with a time_log today
-    const pendingRpts  = 3; // PHP: weekly_reports WHERE status='pending'
-
     return UI.statRow([
-      { value: INTERNS.length,         label: 'Total Interns',    color: '#EA580C' },
-      { value: todayPresent,            label: 'Present Today',    color: '#10B981' },
-      { value: pendingRpts,             label: 'Pending Reports',  color: '#F59E0B' },
-      { value: ANNOUNCEMENTS.length,   label: 'Announcements',    color: '#6366F1' },
+      { value: INTERNS.length,       label: 'Total Interns',     color: '#EA580C' },
+      { value: PENDING.length,        label: 'Pending Approval',  color: '#F59E0B' },
+      { value: 3,                     label: 'Pending Reports',   color: '#6366F1' },
+      { value: ANNOUNCEMENTS.length, label: 'Announcements',     color: '#10B981' },
     ]);
   },
 
-  // Two-column: recent interns table + recent announcements
+  // Two-column bottom row
   bottomRow() {
     const row = document.createElement('div');
     row.className = 'pg-grid-2 mt-lg';
-    row.appendChild( this.recentInternsCard()       );
+    row.appendChild( this.pendingApprovalsCard()    );
     row.appendChild( this.recentAnnouncementsCard() );
     return row;
   },
 
-  // Top 4 interns, clickable row opens detail modal
-  recentInternsCard() {
+  // Quick view of pending registrations on dashboard
+  pendingApprovalsCard() {
+    const body = document.createElement('div');
+
+    if (!PENDING.length) {
+      body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
+    } else {
+      PENDING.slice(0, 3).forEach(p => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #FFF0E0';
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML = `
+          <div style="font-weight:700;font-size:.875rem;color:#1A0A00">${p.name}</div>
+          <div style="font-size:.75rem;color:#9A6647">${p.email} · ${p.dept}</div>`;
+        const btn = Helpers.approveBtn('Approve', () => Approvals.approveIntern(p.id));
+        item.append(Helpers.internAvatar(p.name), info, btn);
+        body.appendChild(item);
+      });
+
+      if (PENDING.length > 3) {
+        const more = document.createElement('p');
+        more.style.cssText = 'font-size:.78rem;color:#9A6647;text-align:center;padding:.5rem 0 0';
+        more.textContent   = `+${PENDING.length - 3} more pending`;
+        body.appendChild(more);
+      }
+    }
+
     return UI.card({
-      title: '👥 Recent Interns',
-      padding: false,
-      headerActions: Helpers.ghostBtn('View all →', () => navigate('interns')),
-      body: UI.table([
-        { key:'name',       label:'Name',   render: v => `<strong>${v}</strong>` },
-        { key:'dept',       label:'Dept'   },
-        { key:'totalHours', label:'Hours',  align:'center',
-          render: v => `<span style="font-weight:700;color:#EA580C">${v}h</span>` },
-      ], INTERNS.slice(0, 4), {
-        hoverable:  true,
-        emptyText:  'No interns yet.',
-        onRowClick: intern => Interns.openDetailModal(intern),
-      }),
+      title: '⏳ Pending Approvals',
+      headerActions: UI.badge(PENDING.length, { base:'#FEF3C7', text:'#92400E' }),
+      body,
+      footer: PENDING.length ? [
+        Helpers.ghostBtn('View all →', () => navigate('approvals')),
+      ] : [],
     });
   },
 
-  // 3 most recent announcements, compact
+  // Recent announcements compact list
   recentAnnouncementsCard() {
     const body = document.createElement('div');
 
@@ -287,12 +348,10 @@ const Dashboard = {
       .slice(0, 3)
       .forEach(ann => {
         const item = document.createElement('div');
-        item.style.cssText = 'padding:.7rem 0;border-bottom:1px solid #FFF0E0';
+        item.style.cssText = 'padding:.65rem 0;border-bottom:1px solid #FFF0E0';
         item.innerHTML = `
           <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.15rem">
-            ${ann.pinned
-              ? `<span class="cui-badge" style="background:#FFF7ED;color:#EA580C;border:1px solid #FED7AA;font-size:.68rem">📌</span>`
-              : ''}
+            ${ann.pinned ? `<span class="cui-badge" style="background:#FFF7ED;color:#EA580C;border:1px solid #FED7AA;font-size:.68rem">📌</span>` : ''}
             <span style="font-family:Sora,sans-serif;font-weight:700;font-size:.875rem;color:#1A0A00">${ann.title}</span>
           </div>
           <div style="font-size:.78rem;color:#9A6647">${ann.date}</div>`;
@@ -309,7 +368,201 @@ const Dashboard = {
 
 
 // ─────────────────────────────────────────────────────────────
-//  INTERNS
+//  APPROVALS  (pending intern registrations)
+// ─────────────────────────────────────────────────────────────
+const Approvals = {
+
+  build() {
+    const sec = document.getElementById('sec-approvals');
+    sec.appendChild(Helpers.pageHeader(
+      'Pending Approvals',
+      'Review and approve intern registration requests'
+    ));
+
+    const listWrap = document.createElement('div');
+    listWrap.id = 'approvals-list-wrap';
+    sec.appendChild(listWrap);
+
+    this.renderList();
+  },
+
+  renderList() {
+    const wrap = document.getElementById('approvals-list-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+
+    if (!PENDING.length) {
+      wrap.appendChild(UI.empty(
+        '✅', 'No pending approvals',
+        'All registration requests have been reviewed.'
+      ));
+      return;
+    }
+
+    // Header info
+    const info = document.createElement('p');
+    info.style.cssText = 'font-size:.85rem;color:#9A6647;margin-bottom:1rem';
+    info.textContent   = `${PENDING.length} intern${PENDING.length !== 1 ? 's' : ''} waiting for approval. Approved interns can log in and access the intern portal.`;
+    wrap.appendChild(info);
+
+    PENDING.forEach(p => wrap.appendChild(this.approvalCard(p)));
+  },
+
+  // Single pending registration card
+  approvalCard(p) {
+    const wrap = document.createElement('div');
+    wrap.className = 'approval-card';
+    wrap.id        = `approval-${p.id}`;
+
+    // Avatar
+    wrap.appendChild(Helpers.internAvatar(p.name, 'md'));
+
+    // Info
+    const info = document.createElement('div');
+    info.className = 'approval-info';
+    info.innerHTML = `
+      <div class="approval-name">${p.name}</div>
+      <div class="approval-meta">
+        ${p.email}
+        <span style="margin:0 .3rem;opacity:.4">·</span>
+        ${p.dept}
+        <span style="margin:0 .3rem;opacity:.4">·</span>
+        ${p.school}
+      </div>
+      <div style="font-size:.72rem;color:#C4845A;margin-top:.2rem">
+        Registered: ${p.registeredOn}
+      </div>`;
+    wrap.appendChild(info);
+
+    // Pending badge
+    const badge = document.createElement('div');
+    badge.className = 'approval-badge';
+    badge.appendChild(UI.badge('⏳ Pending', { base:'#FEF3C7', text:'#92400E' }));
+    wrap.appendChild(badge);
+
+    // Action buttons
+    const actions = document.createElement('div');
+    actions.className = 'approval-actions';
+
+    actions.appendChild(UI.button('👁 View', {
+      variant: 'ghost', size: 'sm',
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => this.openDetailModal(p),
+    }));
+
+    actions.appendChild(Helpers.approveBtn('✅ Approve', () => this.approveIntern(p.id)));
+    actions.appendChild(Helpers.rejectBtn('✗ Reject',   () => this.rejectIntern(p.id)));
+
+    wrap.appendChild(actions);
+    return wrap;
+  },
+
+  // Full registration detail modal before approving
+  openDetailModal(p) {
+    const body = document.createElement('div');
+
+    // Profile header
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
+    const info = document.createElement('div');
+    info.innerHTML = `
+      <div style="font-family:Sora,sans-serif;font-size:1.05rem;font-weight:800;color:#1A0A00">${p.name}</div>
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${p.email}</div>
+      <div style="font-size:.8rem;color:#9A6647">${p.dept} · ${p.school}</div>`;
+    header.append(Helpers.internAvatar(p.name, 'lg'), info);
+    body.appendChild(header);
+
+    // Registration info rows
+    [
+      ['📧', 'Email',       p.email],
+      ['📚', 'Course/Dept', p.dept],
+      ['🏫', 'School',      p.school],
+      ['📅', 'Registered',  p.registeredOn],
+    ].forEach(([icon, label, value]) => body.appendChild(UI.infoRow(icon, label, value)));
+
+    // Status notice
+    const notice = document.createElement('div');
+    notice.style.cssText = 'margin-top:1.25rem;padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.83rem;color:#92400E';
+    notice.innerHTML = '⚠️ <strong>Pending approval.</strong> This intern cannot access the system until you approve their account.';
+    body.appendChild(notice);
+
+    const m = UI.modal({
+      title: '📋 Registration Details',
+      body,
+      size: 'lg',
+      footer: [
+        UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        Helpers.rejectBtn('✗ Reject', () => {
+          this.rejectIntern(p.id);
+          m.close();
+        }),
+        Helpers.approveBtn('✅ Approve', () => {
+          this.approveIntern(p.id);
+          m.close();
+        }),
+      ],
+    });
+    m.open();
+  },
+
+  // Approve — moves from PENDING to INTERNS
+  approveIntern(id) {
+    const idx = PENDING.findIndex(p => p.id === id);
+    if (idx === -1) return;
+
+    const p = PENDING[idx];
+
+    // Add to approved interns list with default stats
+    INTERNS.push({
+      id:          p.id,
+      name:        p.name,
+      email:       p.email,
+      dept:        p.dept,
+      school:      p.school,
+      company:     '—',
+      supervisor:  '—',
+      totalHours:  0,
+      daysPresent: 0,
+      reports:     0,
+    });
+
+    // Remove from pending
+    PENDING.splice(idx, 1);
+
+    // Update sidebar badge
+    sidebar.setActive('Pending Approvals'); // triggers re-render of badge count
+    this.renderList();
+    this.updateApprovalsBadge();
+
+    UI.toast(`✅ ${p.name} has been approved and can now log in.`, 'success');
+  },
+
+  // Reject — removes from PENDING with confirmation
+  rejectIntern(id) {
+    const p = PENDING.find(p => p.id === id);
+    if (!p) return;
+    if (!confirm(`Reject the registration of ${p.name}?\nThis will delete their account.`)) return;
+
+    PENDING = PENDING.filter(p => p.id !== id);
+    this.renderList();
+    this.updateApprovalsBadge();
+
+    UI.toast(`Registration for ${p.name} has been rejected.`, 'danger');
+  },
+
+  // Refresh the sidebar badge count after approve/reject
+  updateApprovalsBadge() {
+    // Re-build sidebar to update badge — simple approach for frontend demo
+    // With PHP backend you'd just reload the page after the API call
+    const badgeEl = document.querySelector('#intern-sidebar .cui-ps-btn-badge');
+    if (badgeEl && PENDING.length === 0) badgeEl.remove();
+    else if (badgeEl) badgeEl.textContent = PENDING.length;
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  INTERNS  (approved interns list)
 // ─────────────────────────────────────────────────────────────
 const Interns = {
 
@@ -318,16 +571,15 @@ const Interns = {
 
     sec.appendChild(Helpers.pageHeader(
       'Interns',
-      INTERNS.length + ' interns enrolled',
-      Helpers.orangeBtn('➕ Add Intern', () => this.openRegisterModal())
+      INTERNS.length + ' interns enrolled'
     ));
 
-    sec.appendChild( this.filterBar()     );
-    sec.appendChild( this.tableContainer());
+    sec.appendChild( this.filterBar()      );
+    sec.appendChild( this.tableContainer() );
     this.renderTable();
   },
 
-  // Search + dept + sort filter bar using UI.input and UI.select
+  // Search + dept filter + sort controls
   filterBar() {
     const bar = document.createElement('div');
     bar.className = 'cui-filter-bar';
@@ -338,38 +590,30 @@ const Interns = {
       this.renderTable();
     });
 
-    const depts  = [...new Set(INTERNS.map(i => i.dept))].sort();
-    const dept   = UI.select({ options: depts, placeholder: 'All Departments' });
+    const depts = [...new Set(INTERNS.map(i => i.dept))].sort();
+    const dept  = UI.select({ options: depts, placeholder: 'All Departments' });
     dept.style.minWidth = '160px';
-    dept.addEventListener('change', e => {
-      filterDept = e.target.value;
-      this.renderTable();
-    });
+    dept.addEventListener('change', e => { filterDept = e.target.value; this.renderTable(); });
 
-    const sort   = UI.select({ options: [
-      { value:'name',    label:'Sort: Name A–Z'   },
+    const sort  = UI.select({ options: [
+      { value:'name',    label:'Sort: Name A–Z'    },
       { value:'hours',   label:'Sort: Most Hours'  },
       { value:'days',    label:'Sort: Most Days'   },
       { value:'reports', label:'Sort: Most Reports'},
     ]});
     sort.style.minWidth = '160px';
-    sort.addEventListener('change', e => {
-      filterSort = e.target.value;
-      this.renderTable();
-    });
+    sort.addEventListener('change', e => { filterSort = e.target.value; this.renderTable(); });
 
     bar.append(search, dept, sort);
     return bar;
   },
 
-  // Container div that renderTable() swaps in and out
   tableContainer() {
     const wrap = document.createElement('div');
     wrap.id = 'interns-table-wrap';
     return wrap;
   },
 
-  // Get filtered + sorted intern list
   filteredList() {
     return [...INTERNS]
       .filter(i =>
@@ -383,7 +627,6 @@ const Interns = {
       }[filterSort] ?? 0));
   },
 
-  // Build and insert the interns table
   renderTable() {
     const list = this.filteredList();
     const wrap = document.getElementById('interns-table-wrap');
@@ -403,21 +646,16 @@ const Interns = {
           return cell;
         }},
       { key:'dept',        label:'Dept'   },
-      { key:'school',      label:'School',
-        render: v => `<span style="font-size:.82rem;color:#9A6647">${v}</span>` },
-      { key:'company',     label:'Company',
-        render: v => `<span style="font-size:.82rem">${v}</span>` },
-      { key:'daysPresent', label:'Days',    align:'center',
-        render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }) },
-      { key:'totalHours',  label:'Hours',   align:'center',
-        render: v => `<strong style="color:#EA580C">${v}h</strong>` },
-      { key:'reports',     label:'Reports', align:'center',
-        render: v => UI.badge(v, { base:'#DBEAFE', text:'#1E40AF' }) },
+      { key:'school',      label:'School',   render: v => `<span style="font-size:.82rem;color:#9A6647">${v}</span>` },
+      { key:'company',     label:'Company',  render: v => `<span style="font-size:.82rem">${v}</span>` },
+      { key:'daysPresent', label:'Days',     align:'center', render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }) },
+      { key:'totalHours',  label:'Hours',    align:'center', render: v => `<strong style="color:#EA580C">${v}h</strong>` },
+      { key:'reports',     label:'Reports',  align:'center', render: v => UI.badge(v, { base:'#DBEAFE', text:'#1E40AF' }) },
       { key:'id', label:'', align:'center',
         render: (_, row) => Helpers.ghostBtn('View', () => this.openDetailModal(row)) },
     ], list, {
-      hoverable:  true,
-      emptyText:  'No interns match your filters.',
+      hoverable: true,
+      emptyText: 'No interns match your filters.',
     });
 
     wrap.appendChild(UI.card({
@@ -427,11 +665,10 @@ const Interns = {
     }));
   },
 
-  // Intern detail modal — profile + stats + company info
+  // Intern detail modal
   openDetailModal(intern) {
     const body = document.createElement('div');
 
-    // Profile header row
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
     const info = document.createElement('div');
@@ -442,14 +679,12 @@ const Interns = {
     header.append(Helpers.internAvatar(intern.name, 'lg'), info);
     body.appendChild(header);
 
-    // Stat strip — same pattern as dashboard
     body.appendChild(UI.statRow([
       { value: intern.totalHours + 'h', label: 'Total Hours',   color: '#EA580C' },
       { value: intern.daysPresent,       label: 'Days Present',  color: '#10B981' },
       { value: intern.reports,           label: 'Reports Filed', color: '#6366F1' },
     ]));
 
-    // Progress toward 500h requirement
     const pct = Math.min(100, Math.round(intern.totalHours / 500 * 100));
     const lbl = document.createElement('p');
     lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.9rem 0 .4rem';
@@ -457,7 +692,6 @@ const Interns = {
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
 
-    // Company card
     const compLabel = document.createElement('div');
     compLabel.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.875rem;margin:1.25rem 0 .6rem';
     compLabel.textContent   = 'Internship Details';
@@ -469,58 +703,10 @@ const Interns = {
     }));
 
     const m = UI.modal({
-      title: '👤 Intern Details',
-      body,
-      size: 'lg',
+      title: '👤 Intern Details', body, size: 'lg',
       footer: [
         UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
-      ],
-    });
-    m.open();
-  },
-
-  // Register new intern modal
-  openRegisterModal() {
-    const body = document.createElement('div');
-    const section = t => { const d=document.createElement('div'); d.className='cui-form-section'; d.textContent=t; body.appendChild(d); };
-    const twoCol  = () => { const d=document.createElement('div'); d.className='cui-form-row'; body.appendChild(d); return d; };
-
-    section('Personal Information');
-    body.appendChild(UI.formGroup('Full Name',
-      UI.input({ id:'reg-name', placeholder:'Juan dela Cruz', required:true }), '', { required:true }));
-    body.appendChild(UI.formGroup('School Email',
-      UI.input({ type:'email', id:'reg-email', placeholder:'you@samar.edu.ph', required:true })));
-    const r1 = twoCol();
-    r1.appendChild(UI.formGroup('Course / Dept',
-      UI.input({ id:'reg-dept', placeholder:'e.g. BSIT' })));
-    r1.appendChild(UI.formGroup('School',
-      UI.input({ id:'reg-school', placeholder:'e.g. Samar College' })));
-
-    section('Internship Details');
-    body.appendChild(UI.formGroup('Company Name',
-      UI.input({ id:'reg-company', placeholder:'Host company name' })));
-    const r2 = twoCol();
-    r2.appendChild(UI.formGroup('Start Date', UI.input({ type:'date', id:'reg-start' })));
-    r2.appendChild(UI.formGroup('End Date',   UI.input({ type:'date', id:'reg-end'   })));
-
-    section('Account');
-    body.appendChild(UI.formGroup('Temporary Password',
-      UI.input({ type:'password', id:'reg-pass', placeholder:'Min. 6 characters', required:true }),
-      'Share with the intern — they can change it after signing in.'));
-
-    const m = UI.modal({
-      title: '➕ Register New Intern',
-      body,
-      size: 'lg',
-      footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        Helpers.orangeBtn('Create Account', () => {
-          const name = document.getElementById('reg-name')?.value.trim();
-          if (!name) { UI.toast('Please enter a name.', 'danger'); return; }
-          UI.toast(`Account created for ${name}! (Demo)`, 'success');
-          m.close();
-        }),
       ],
     });
     m.open();
@@ -540,39 +726,29 @@ const Announcements = {
       'Post updates and notices for all interns',
       Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())
     ));
-
     const listWrap = document.createElement('div');
     listWrap.id = 'ann-list-wrap';
     sec.appendChild(listWrap);
-
     this.renderList();
   },
 
-  // Re-render the entire announcements list
   renderList() {
     const wrap = document.getElementById('ann-list-wrap');
     if (!wrap) return;
     wrap.innerHTML = '';
-
     if (!ANNOUNCEMENTS.length) {
-      wrap.appendChild(UI.empty(
-        '📭', 'No announcements yet', 'Post your first update for interns.',
-        Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())
-      ));
+      wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
+        Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())));
       return;
     }
-
-    [...ANNOUNCEMENTS]
-      .sort((a, b) => b.pinned - a.pinned)
+    [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
       .forEach(ann => wrap.appendChild(this.annItem(ann)));
   },
 
-  // Single announcement card with pin / edit / delete actions
   annItem(ann) {
     const wrap = document.createElement('div');
     wrap.className = 'ann-item' + (ann.pinned ? ' pinned' : '');
 
-    // Body — title + text + meta
     const body = document.createElement('div');
     body.className = 'ann-item-body';
     body.innerHTML = `
@@ -581,29 +757,23 @@ const Announcements = {
       <div class="ann-item-text">${ann.body}</div>
       <div class="ann-item-meta">By ${ann.author} · ${ann.date}</div>`;
 
-    // Actions column
     const actions = document.createElement('div');
     actions.className = 'ann-item-actions';
 
-    // Pin / Unpin toggle
     actions.appendChild(Helpers.ghostBtn(ann.pinned ? 'Unpin' : '📌 Pin', () => {
       ann.pinned = !ann.pinned;
       this.renderList();
-      UI.toast(ann.pinned ? 'Announcement pinned.' : 'Unpinned.', 'info');
+      UI.toast(ann.pinned ? 'Pinned.' : 'Unpinned.', 'info');
     }));
-
-    // Edit
     actions.appendChild(Helpers.ghostBtn('✏️ Edit', () => this.openEditModal(ann)));
-
-    // Delete
     actions.appendChild(UI.button('🗑 Delete', {
-      variant: 'ghost', size: 'sm',
+      variant:'ghost', size:'sm',
       color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
       onClick: () => {
         if (!confirm(`Delete "${ann.title}"?`)) return;
         ANNOUNCEMENTS = ANNOUNCEMENTS.filter(a => a.id !== ann.id);
         this.renderList();
-        UI.toast('Announcement deleted.', 'danger');
+        UI.toast('Deleted.', 'danger');
       },
     }));
 
@@ -611,34 +781,23 @@ const Announcements = {
     return wrap;
   },
 
-  // Shared form body builder used by create + edit modals
-  buildForm({ title = '', body = '', pinned = false } = {}) {
+  buildForm({ title='', body='', pinned=false } = {}) {
     const wrap = document.createElement('div');
-
     wrap.appendChild(UI.formGroup('Title',
-      UI.input({ id:'ann-form-title', value: title, placeholder:'Announcement title', required:true }),
+      UI.input({ id:'ann-form-title', value:title, placeholder:'Announcement title', required:true }),
       '', { required:true }));
-
     wrap.appendChild(UI.formGroup('Message',
-      UI.textarea({ id:'ann-form-body', value: body, placeholder:'Write your message for interns…', rows:5 })));
-
+      UI.textarea({ id:'ann-form-body', value:body, placeholder:'Write your message…', rows:5 })));
     const pinLabel = document.createElement('label');
     pinLabel.style.cssText = 'display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#6B3A1F;margin-top:.5rem';
-    pinLabel.innerHTML = `
-      <input type="checkbox" id="ann-form-pin" ${pinned ? 'checked' : ''}
-        style="width:15px;height:15px;accent-color:#EA580C">
-      📌 Pin this announcement`;
+    pinLabel.innerHTML = `<input type="checkbox" id="ann-form-pin" ${pinned?'checked':''} style="width:15px;height:15px;accent-color:#EA580C"> 📌 Pin this announcement`;
     wrap.appendChild(pinLabel);
-
     return wrap;
   },
 
-  // Create new announcement modal
   openCreateModal() {
     const m = UI.modal({
-      title: '📢 New Announcement',
-      body:  this.buildForm(),
-      size:  'lg',
+      title: '📢 New Announcement', body: this.buildForm(), size: 'lg',
       footer: [
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         Helpers.orangeBtn('Post Announcement', () => {
@@ -646,15 +805,12 @@ const Announcements = {
           const b = document.getElementById('ann-form-body')?.value.trim();
           if (!t || !b) { UI.toast('Please fill in all fields.', 'danger'); return; }
           ANNOUNCEMENTS.unshift({
-            id:     nextAnnId++,
+            id: nextAnnId++, title:t, body:b,
             pinned: document.getElementById('ann-form-pin')?.checked ?? false,
-            title:  t,
-            body:   b,
             author: COORDINATOR.name,
             date:   new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
           });
-          this.renderList();
-          m.close();
+          this.renderList(); m.close();
           UI.toast('Announcement posted!', 'success');
         }),
       ],
@@ -662,11 +818,10 @@ const Announcements = {
     m.open();
   },
 
-  // Edit existing announcement modal
   openEditModal(ann) {
     const m = UI.modal({
       title: '✏️ Edit Announcement',
-      body:  this.buildForm({ title: ann.title, body: ann.body, pinned: ann.pinned }),
+      body:  this.buildForm({ title:ann.title, body:ann.body, pinned:ann.pinned }),
       size:  'lg',
       footer: [
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
@@ -674,12 +829,10 @@ const Announcements = {
           const t = document.getElementById('ann-form-title')?.value.trim();
           const b = document.getElementById('ann-form-body')?.value.trim();
           if (!t || !b) { UI.toast('Please fill in all fields.', 'danger'); return; }
-          ann.title  = t;
-          ann.body   = b;
+          ann.title=t; ann.body=b;
           ann.pinned = document.getElementById('ann-form-pin')?.checked ?? false;
-          this.renderList();
-          m.close();
-          UI.toast('Announcement updated.', 'success');
+          this.renderList(); m.close();
+          UI.toast('Updated.', 'success');
         }),
       ],
     });
@@ -689,9 +842,10 @@ const Announcements = {
 
 
 // ─────────────────────────────────────────────────────────────
-//  BOOT  — build every section once on page load
+//  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
 Dashboard    .build();
+Approvals    .build();
 Interns      .build();
 Announcements.build();
 </script>
