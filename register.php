@@ -416,9 +416,23 @@
             required
           >
         </div>
-        <div class="field-hint">Use your official school email if applicable.</div>
       </div>
 
+      <div class="field">
+        <label for="phone">Phone Number</label>
+        <div class="input-wrap">
+          <span class="input-icon">📞</span>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            placeholder="e.g. +63 912 345 6789"
+            value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>"
+            required
+          >
+        </div>
+      </div>
+      
       <!-- Role & Password -->
       <div class="form-section-label">Account Setup</div>
 
@@ -427,8 +441,7 @@
         <select id="role" name="role" required>
           <option value="" disabled <?php echo empty($_POST['role']) ? 'selected' : ''; ?>>Select your role…</option>
           <option value="student"     <?php echo (($_POST['role'] ?? '') === 'student')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
-          <option value="faculty"     <?php echo (($_POST['role'] ?? '') === 'faculty')     ? 'selected' : ''; ?>>📘 Faculty Adviser</option>
-          <option value="coordinator" <?php echo (($_POST['role'] ?? '') === 'coordinator') ? 'selected' : ''; ?>>🗂 Internship Coordinator</option>
+          <option value="faculty"     <?php echo (($_POST['role'] ?? '') === 'coordinator')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
         </select>
       </div>
 
