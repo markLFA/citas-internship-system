@@ -1,6 +1,5 @@
 <?php
 require_once 'config/db.php';
-require_once 'config/functions.php';
 
 $message = '';
 $messageType = '';
@@ -17,8 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = $result['message'];
     $messageType = 'error';
 }
-?>
-<?php
+
 require_once 'config/db.php';
 session_start();
 
