@@ -1,6 +1,5 @@
 <?php
 require_once 'config/db.php';
-require_once 'config/functions.php';
 session_start();
 
 function createUser(PDO $pdo, array $data): array
