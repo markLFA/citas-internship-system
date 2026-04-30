@@ -61,7 +61,9 @@ let InternData;
 //  DATA
 //  PHP: replace with const INTERN = <?= json_encode($intern) ?>;
 // ─────────────────────────────────────────────────────────────
-const INTERN = {
+/*
+*/
+let INTERN = {
   name:          'Juan dela Cruz',
   email:         'juan@samar.edu.ph',
   phone:         '+63 912 345 6789',
@@ -780,7 +782,7 @@ fetch('config/api.php', {
   return res.json();
 })
 .then(data => {
-  InternData = data;
+  INTERN = data;
   console.log('InternData:', InternData);
 
   Dashboard.build();
