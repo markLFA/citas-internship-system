@@ -1,3 +1,106 @@
+<?php
+require_once 'config/db.php';
+require_once 'config/functions.php';
+session_start();
+
+function createUser(PDO $pdo, array $data): array
+{
+    try {
+        // Validate required fields
+        $required = ['name', 'email', 'password', 'role'];
+
+        foreach ($required as $field) {
+            if (empty($data[$field])) {
+                return [
+                    'success' => false,
+                    'message' => ucfirst($field) . ' is required.'
+                ];
+            }
+        }
+
+        // Check if email already exists
+        $stmt = $pdo->prepare("
+            SELECT id
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$data['email']]);
+
+        if ($stmt->fetch()) {
+            return [
+                'success' => false,
+                'message' => 'Email is already registered.'
+            ];
+        }
+
+        // Insert new user
+        $stmt = $pdo->prepare("
+            INSERT INTO users (
+                name,
+                email,
+                password,
+                role
+            ) VALUES (?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            trim($data['name']),
+            trim($data['email']),
+            password_hash($data['password'], PASSWORD_DEFAULT),
+            trim($data['role'])
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'User created successfully.',
+            'user_id' => (int)$pdo->lastInsertId()
+        ];
+
+    } catch (PDOException $e) {
+        return [
+            'success' => false,
+            'message' => 'Database error: ' . $e->getMessage()
+        ];
+    }
+}
+
+$message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $userData = [
+        'name'     => trim($_POST['name'] ?? ''),
+        'email'    => trim($_POST['email'] ?? ''),
+        'role'     => trim($_POST['role'] ?? ''),
+        'password' => $_POST['password'] ?? ''
+    ];
+
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+
+    // Validation
+    if ($userData['name'] === '') {
+        $message = 'Full name is required.';
+    } elseif (!filter_var($userData['email'], FILTER_VALIDATE_EMAIL)) {
+        $message = 'Please enter a valid email address.';
+    } elseif (!in_array($userData['role'], ['student', 'faculty'], true)) {
+        $message = 'Invalid role selected.';
+    } elseif (strlen($userData['password']) < 6) {
+        $message = 'Password must be at least 6 characters long.';
+    } elseif ($userData['password'] !== $confirmPassword) {
+        $message = 'Passwords do not match.';
+    } else {
+        // Save to database
+        $result = createUser($pdo, $userData);
+
+        if ($result['success']) {
+            header('Location: login.php?registered=1');
+            exit;
+        }
+
+        $message = $result['message'];
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -419,21 +522,7 @@
         </div>
       </div>
 
-      <div class="field">
-        <label for="phone">Phone Number</label>
-        <div class="input-wrap">
-          <span class="input-icon">📞</span>
-          <input
-            type="phone"
-            id="phone"
-            name="phone"
-            placeholder="e.g. +63 912 345 6789"
-            value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>"
-            required
-          >
-        </div>
-      </div>
-      
+
       <!-- Role & Password -->
       <div class="form-section-label">Account Setup</div>
 
