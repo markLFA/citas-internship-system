@@ -27,7 +27,7 @@ function getInternProfile() {
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
-function getInternProfile() {
+function getAllInternData() {
     if (!isset($_SESSION['user']['id'])) {
         return null;
     }
