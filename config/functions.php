@@ -27,59 +27,108 @@ function getInternProfile() {
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+
 function getAllInternData() {
     if (!isset($_SESSION['user']['id'])) {
         return null;
     }
 
     $pdo = getDB();
+    $userId = $_SESSION['user']['id'];
 
+    // ---------------------------
+    // 1. Get user
+    // ---------------------------
+    $stmt = $pdo->prepare("
+        SELECT id, name, email
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) return null;
+
+    // ---------------------------
+    // 2. Get intern profile
+    // ---------------------------
     $stmt = $pdo->prepare("
         SELECT 
-            u.id AS user_id,
-            u.name,
-            u.email,
+            school,
+            course,
+            year_level,
+            phone,
+            required_hours,
+            joined_date
+        FROM intern_profiles
+        WHERE user_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$userId]);
+    $profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            ip.id AS profile_id,
-            ip.school,
-            ip.course,
-            ip.year_level,
-            ip.phone AS intern_phone,
-            ip.required_hours,
-            ip.joined_date,
-
-            i.id AS internship_id,
+    // ---------------------------
+    // 3. Get internships + company
+    // ---------------------------
+    $stmt = $pdo->prepare("
+        SELECT 
+            i.id,
             i.position,
             i.supervisor,
             i.start_date,
             i.end_date,
             i.status,
-            i.created_at AS internship_created,
+            i.created_at,
 
             c.id AS company_id,
             c.name AS company_name,
-            c.address AS company_address,
+            c.address,
             c.phone AS company_phone,
             c.email AS company_email,
             c.created_at AS company_created
 
-        FROM users u
-        LEFT JOIN intern_profiles ip 
-            ON ip.user_id = u.id
-
-        LEFT JOIN internships i 
-            ON i.intern_id = u.id
-
-        LEFT JOIN companies c 
-            ON c.id = i.company_id
-
-        WHERE u.id = ?
-        LIMIT 1
+        FROM internships i
+        LEFT JOIN companies c ON c.id = i.company_id
+        WHERE i.intern_id = ?
+        ORDER BY i.created_at DESC
     ");
 
-    $stmt->execute([$_SESSION['user']['id']]);
+    $stmt->execute([$userId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    // ---------------------------
+    // 4. Build nested internships
+    // ---------------------------
+    $internships = [];
 
-    return $result ?: null;
+    foreach ($rows as $row) {
+        $internships[] = [
+            "id" => $row["id"],
+            "position" => $row["position"],
+            "supervisor" => $row["supervisor"],
+            "start_date" => $row["start_date"],
+            "end_date" => $row["end_date"],
+            "status" => $row["status"],
+            "created_at" => $row["created_at"],
+
+            "company" => [
+                "id" => $row["company_id"],
+                "name" => $row["company_name"],
+                "address" => $row["address"],
+                "phone" => $row["company_phone"],
+                "email" => $row["company_email"],
+                "created_at" => $row["company_created"]
+            ]
+        ];
+    }
+
+    // ---------------------------
+    // 5. Final response
+    // ---------------------------
+    return [
+        "user" => $user,
+        "profile" => $profile,
+        "internships" => $internships
+    ];
 }

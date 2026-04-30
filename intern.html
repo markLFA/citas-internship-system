@@ -782,7 +782,7 @@ fetch('config/api.php', {
   return res.json();
 })
 .then(data => {
-  INTERN = data;
+  InternData = data;
   console.log('InternData:', InternData);
 
   Dashboard.build();
