@@ -27,7 +27,7 @@ function getInternProfile() {
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
-function getAllInternData() {
+function getInternProfile() {
     if (!isset($_SESSION['user']['id'])) {
         return null;
     }
@@ -39,29 +39,40 @@ function getAllInternData() {
             u.id AS user_id,
             u.name,
             u.email,
-            u.phone,
 
             ip.id AS profile_id,
+            ip.school,
             ip.course,
             ip.year_level,
-            ip.skills,
-            ip.bio,
+            ip.phone AS intern_phone,
+            ip.required_hours,
+            ip.joined_date,
 
             i.id AS internship_id,
             i.position,
+            i.supervisor,
             i.start_date,
             i.end_date,
-            i.status AS internship_status,
+            i.status,
+            i.created_at AS internship_created,
 
             c.id AS company_id,
             c.name AS company_name,
             c.address AS company_address,
-            c.email AS company_email
+            c.phone AS company_phone,
+            c.email AS company_email,
+            c.created_at AS company_created
 
         FROM users u
-        LEFT JOIN intern_profiles ip ON ip.user_id = u.id
-        LEFT JOIN internships i ON i.user_id = u.id
-        LEFT JOIN companies c ON c.id = i.company_id
+        LEFT JOIN intern_profiles ip 
+            ON ip.user_id = u.id
+
+        LEFT JOIN internships i 
+            ON i.intern_id = u.id
+
+        LEFT JOIN companies c 
+            ON c.id = i.company_id
+
         WHERE u.id = ?
         LIMIT 1
     ");
