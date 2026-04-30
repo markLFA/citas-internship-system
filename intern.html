@@ -36,18 +36,23 @@
 <script src="assets/uiParts.js"></script>
 <script>
 'use strict';
-const response = await fetch('config/api.php', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        action: 'getInternProfile'
-    })
-});
+async function loadProfile() {
+    const response = await fetch('config/api.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'getInternProfile'
+        })
+    });
 
-const text = await response.text();
-console.log(text);
+    const data = await response.json();
+    console.log(data);
+}
+
+loadProfile();
+
 let InternData;
 
 
