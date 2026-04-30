@@ -16,6 +16,9 @@ switch ($action) {
     case 'getInternProfile':
         echo json_encode(getInternProfile());
         break;
+    case 'getAllInternData':
+        echo json_encode(getAllInternData());
+        break;
 
     default:
         echo json_encode([
