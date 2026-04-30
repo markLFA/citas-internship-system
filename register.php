@@ -1,47 +1,11 @@
 <?php
 require_once 'config/db.php';
-
-$message = '';
-$messageType = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $result = registerUser($pdo);
-
-    if ($result['success']) {
-        header('Location: login.php?registered=1');
-        exit;
-    }
-
-    $message = $result['message'];
-    $messageType = 'error';
-}
-
-require_once 'config/db.php';
 session_start();
-
 function createUser(PDO $pdo, array $data): array
 {
-  echo "role " . $data['role'];
     try {
-        // Validate required fields
-        $required = ['name', 'email', 'password', 'role'];
-
-        foreach ($required as $field) {
-            if (empty($data[$field])) {
-                return [
-                    'success' => false,
-                    'message' => ucfirst($field) . ' is required.'
-                ];
-            }
-        }
-
-        // Check if email already exists
         $stmt = $pdo->prepare("
-            SELECT id
-            FROM users
-            WHERE email = ?
-            LIMIT 1
+            SELECT id FROM users WHERE email = ? LIMIT 1
         ");
         $stmt->execute([$data['email']]);
 
@@ -52,27 +16,21 @@ function createUser(PDO $pdo, array $data): array
             ];
         }
 
-        // Insert new user
         $stmt = $pdo->prepare("
-            INSERT INTO users (
-                name,
-                email,
-                password,
-                role
-            ) VALUES (?, ?, ?, ?)
+            INSERT INTO users (name, email, password, role)
+            VALUES (?, ?, ?, ?)
         ");
 
         $stmt->execute([
-            trim($data['name']),
-            trim($data['email']),
+            $data['name'],
+            $data['email'],
             password_hash($data['password'], PASSWORD_DEFAULT),
-            trim($data['role'])
+            $data['role']
         ]);
 
         return [
             'success' => true,
-            'message' => 'User created successfully.',
-            'user_id' => (int)$pdo->lastInsertId()
+            'message' => 'User created successfully.'
         ];
 
     } catch (PDOException $e) {
@@ -84,9 +42,12 @@ function createUser(PDO $pdo, array $data): array
 }
 
 $pdo = getDB();
+
 $message = '';
+$messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     $userData = [
         'name'     => trim($_POST['name'] ?? ''),
         'email'    => trim($_POST['email'] ?? ''),
@@ -96,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
-    // Validation
     if ($userData['name'] === '') {
         $message = 'Full name is required.';
     } elseif (!filter_var($userData['email'], FILTER_VALIDATE_EMAIL)) {
@@ -108,17 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($userData['password'] !== $confirmPassword) {
         $message = 'Passwords do not match.';
     } else {
-        // Save to database
+
         $result = createUser($pdo, $userData);
 
-        if ($result['success']) {
-            //header('Location: index.php?registered=1');
-            //exit;
-        } else {
-            echo "Error: " . $result['message'];
-        }
-
         $message = $result['message'];
+        $messageType = $result['success'] ? 'success' : 'error';
+
+        if ($result['success']) {
+            header('Location: login.php?registered=1');
+            exit;
+        }
     }
 }
 ?>
