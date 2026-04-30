@@ -13,14 +13,14 @@ $data = json_decode(file_get_contents("php://input"), true);
 $action = $data['action'] ?? '';
 
 switch ($action) {
+    case 'logout':
+        logout();
+        break;
     case 'getInternProfile':
         echo json_encode(getInternProfile());
         break;
     case 'getAllInternData':
         echo json_encode(getAllInternData());
-        break;
-    case 'logout':
-        logout();
         break;
     default:
         echo json_encode([
