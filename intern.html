@@ -755,7 +755,10 @@ const Reports = {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ action: 'getInternProfile' })
 })
-.then(res => res.json())
+.then(res => {
+  console.log('API response status:', res.status);
+  res.json()
+})
 .then(data => {
   InternData = data;
   Dashboard .build();
