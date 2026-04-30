@@ -222,6 +222,7 @@
     }
 
     input[type="email"],
+    input[type="phone"],
     input[type="password"],
     input[type="text"],
     select {
@@ -423,7 +424,7 @@
         <div class="input-wrap">
           <span class="input-icon">📞</span>
           <input
-            type="tel"
+            type="phone"
             id="phone"
             name="phone"
             placeholder="e.g. +63 912 345 6789"
