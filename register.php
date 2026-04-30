@@ -1,11 +1,28 @@
 <?php
 require_once 'config/db.php';
 session_start();
+
 function createUser(PDO $pdo, array $data): array
 {
     try {
+        // Validate required fields
+        $required = ['name', 'email', 'password', 'role'];
+
+        foreach ($required as $field) {
+            if (empty($data[$field])) {
+                return [
+                    'success' => false,
+                    'message' => ucfirst($field) . ' is required.'
+                ];
+            }
+        }
+
+        // Check if email already exists
         $stmt = $pdo->prepare("
-            SELECT id FROM users WHERE email = ? LIMIT 1
+            SELECT id
+            FROM users
+            WHERE email = ?
+            LIMIT 1
         ");
         $stmt->execute([$data['email']]);
 
@@ -16,21 +33,27 @@ function createUser(PDO $pdo, array $data): array
             ];
         }
 
+        // Insert new user
         $stmt = $pdo->prepare("
-            INSERT INTO users (name, email, password, role)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO users (
+                name,
+                email,
+                password,
+                role
+            ) VALUES (?, ?, ?, ?)
         ");
 
         $stmt->execute([
-            $data['name'],
-            $data['email'],
+            trim($data['name']),
+            trim($data['email']),
             password_hash($data['password'], PASSWORD_DEFAULT),
-            $data['role']
+            trim($data['role'])
         ]);
 
         return [
             'success' => true,
-            'message' => 'User created successfully.'
+            'message' => 'User created successfully.',
+            'user_id' => (int)$pdo->lastInsertId()
         ];
 
     } catch (PDOException $e) {
@@ -42,12 +65,9 @@ function createUser(PDO $pdo, array $data): array
 }
 
 $pdo = getDB();
-
 $message = '';
-$messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
     $userData = [
         'name'     => trim($_POST['name'] ?? ''),
         'email'    => trim($_POST['email'] ?? ''),
@@ -57,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
+    // Validation
     if ($userData['name'] === '') {
         $message = 'Full name is required.';
     } elseif (!filter_var($userData['email'], FILTER_VALIDATE_EMAIL)) {
@@ -68,16 +89,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($userData['password'] !== $confirmPassword) {
         $message = 'Passwords do not match.';
     } else {
-
+        // Save to database
         $result = createUser($pdo, $userData);
 
-        $message = $result['message'];
-        $messageType = $result['success'] ? 'success' : 'error';
-
         if ($result['success']) {
-            header('Location: login.php?registered=1');
+            header('Location: index.php?registered=1');
             exit;
         }
+
+        $message = $result['message'];
     }
 }
 ?>
@@ -421,24 +441,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       .card-body   { padding: 1.4rem 1.5rem 1.5rem; }
       .field-row   { grid-template-columns: 1fr; }
     }
-    .alert {
-        padding: 12px 15px;
-        margin-bottom: 15px;
-        border-radius: 6px;
-        font-family: sans-serif;
-    }
-
-    .alert.error {
-        background: #ffe5e5;
-        color: #b00020;
-        border: 1px solid #ffb3b3;
-    }
-
-    .alert.success {
-        background: #e6ffed;
-        color: #0a7a2f;
-        border: 1px solid #a6e6b5;
-    }
   </style>
 </head>
 <body>
@@ -485,12 +487,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     <?php endif; ?>
 
-<?php if (!empty($message)): ?>
-    <div class="alert <?= $messageType ?>">
-        <?= htmlspecialchars($message) ?>
-    </div>
-<?php endif; ?>
-
     <form method="POST" action="">
 
       <!-- Personal info -->
@@ -534,8 +530,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="role">Role</label>
         <select id="role" name="role" required>
           <option value="" disabled <?php echo empty($_POST['role']) ? 'selected' : ''; ?>>Select your role…</option>
-          <option value="intern"     <?php echo (($_POST['role'] ?? '') === 'intern')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
-          <option value="coordinator"     <?php echo (($_POST['role'] ?? '') === 'coordinator')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
+          <option value="student"     <?php echo (($_POST['role'] ?? '') === 'student')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
+          <option value="faculty"     <?php echo (($_POST['role'] ?? '') === 'coordinator')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
         </select>
       </div>
 
