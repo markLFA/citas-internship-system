@@ -767,22 +767,28 @@ const Reports = {
 //  BOOT  — build every section once on page load
 // ─────────────────────────────────────────────────────────────
 
-  fetch('config/api.php', {
+fetch('config/api.php', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ action: 'getInternProfile' })
+  body: JSON.stringify({
+    action: 'getInternProfile'
+  })
 })
 .then(res => {
   console.log('API response status:', res.status);
-  res.json()
+  return res.json();
 })
 .then(data => {
   InternData = data;
-  console.log(InternData);
-  Dashboard .build();
-  Profile   .build();
+  console.log('InternData:', InternData);
+
+  Dashboard.build();
+  Profile.build();
   Attendance.build();
-  Reports   .build();
+  Reports.build();
+})
+.catch(error => {
+  console.error('Fetch error:', error);
 });
 </script>
 </body>
