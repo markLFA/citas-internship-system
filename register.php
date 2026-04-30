@@ -96,6 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result['success']) {
             //header('Location: index.php?registered=1');
             //exit;
+        } else {
+            echo "Error: " . $result['message'];
         }
 
         $message = $result['message'];
