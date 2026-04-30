@@ -9,6 +9,11 @@ function getUsers() {
   return $stmt->fetchAll(PDO::FETCH_ASSOC);
   
 }
+function logout() {
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
 function getInternProfile() {
     if (!isset($_SESSION['user']['id'])) {
         return null;

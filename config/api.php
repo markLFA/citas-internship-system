@@ -19,7 +19,9 @@ switch ($action) {
     case 'getAllInternData':
         echo json_encode(getAllInternData());
         break;
-
+    case 'logout':
+        logout();
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"
