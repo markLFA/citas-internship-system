@@ -10,7 +10,7 @@ function getDB() {
   if ($pdo === null) {
 $host = "fdb1034.awardspace.net";
 $user = "4753482_capstone";
-$pass = "787898;"; 
+$pass = "Pa_787898_;"; 
 $db   = "4753482_capstone"; 
 
     $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
