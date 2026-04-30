@@ -10,22 +10,20 @@ function getUsers() {
   
 }
 function getInternProfile() {
-  // make sure session is started BEFORE calling this function
-  if (!isset($_SESSION['user']['id'])) {
-    return null; // or throw error if you prefer
-  }
+    if (!isset($_SESSION['user']['id'])) {
+        return null;
+    }
 
-  $pdo = getDB(); // assuming you’re using the getDB() pattern
+    $pdo = getDB();
 
-  $stmt = $pdo->prepare("
-    SELECT *
-    FROM intern_profiles
-    WHERE user_id = ?
-    LIMIT 1
-  ");
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM intern_profiles
+        WHERE user_id = ?
+        LIMIT 1
+    ");
 
-  $stmt->execute([$_SESSION['user']['id']]);
-  echo "Executed query for user_id: " . $_SESSION['user']['id']; // Debugging line
+    $stmt->execute([$_SESSION['user']['id']]);
 
-  return $stmt->fetch(PDO::FETCH_ASSOC);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
