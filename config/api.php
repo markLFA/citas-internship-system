@@ -13,10 +13,14 @@ $data = json_decode(file_get_contents("php://input"), true);
 $action = $data['action'] ?? '';
 
 switch ($action) {
-  case 'getInternProfile':
-    echo json_encode(getInternProfile());
-    break;
+    case 'getInternProfile':
+        echo json_encode(getInternProfile());
+        break;
 
-  default:
-    echo json_encode(["error" => "Invalid action"]);
+    default:
+        echo json_encode([
+            "error" => "Invalid action"
+        ]);
+        break;
 }
+?>
