@@ -288,7 +288,7 @@ const Dashboard = {
 
   // Horizontal 4-number stat strip
   statStrip() {
-    const pct = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const pct = Math.round(nternData.internships[0].total_hours / INTERN.reqHours * 100);
     return UI.statRow([
       { value: InternData.internships[0].total_hours + 'h',   label: 'Hours Rendered',    color: '#EA580C' },
       { value: InternData.internships[0].days_present,          label: 'Days Present',      color: '#10B981' },
@@ -299,13 +299,13 @@ const Dashboard = {
 
   // Slim progress bar with label underneath
   progressBar() {
-    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const pct  = Math.round(nternData.internships[0].total_hours / INTERN.reqHours * 100);
     const wrap = document.createElement('div');
     wrap.style.marginBottom = '1rem';
     wrap.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
     const sub = document.createElement('p');
     sub.style.cssText = 'font-size:.75rem;color:#9A6647;margin-top:.35rem';
-    sub.textContent   = `${INTERN.totalHours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
+    sub.textContent   = `${nternData.internships[0].total_hours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
     wrap.appendChild(sub);
     return wrap;
   },
