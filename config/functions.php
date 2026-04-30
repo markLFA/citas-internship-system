@@ -54,13 +54,7 @@ function getAllInternData() {
     // 2. Get intern profile
     // ---------------------------
     $stmt = $pdo->prepare("
-        SELECT 
-            school,
-            course,
-            year_level,
-            phone,
-            required_hours,
-            joined_date
+        SELECT school, course, year_level, phone, required_hours, joined_date
         FROM intern_profiles
         WHERE user_id = ?
         LIMIT 1
@@ -97,9 +91,6 @@ function getAllInternData() {
     $stmt->execute([$userId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ---------------------------
-    // 4. Build nested internships
-    // ---------------------------
     $internships = [];
 
     foreach ($rows as $row) {
@@ -124,11 +115,42 @@ function getAllInternData() {
     }
 
     // ---------------------------
-    // 5. Final response
+    // Final structured response
     // ---------------------------
-    return [
+
+    /** @var array{
+     *  user: array{id:int,name:string,email:string},
+     *  profile: array{
+     *      school:string,
+     *      course:string,
+     *      year_level:string,
+     *      phone:string,
+     *      required_hours:int,
+     *      joined_date:string
+     *  }|null,
+     *  internships: array<array{
+     *      id:int,
+     *      position:string,
+     *      supervisor:string,
+     *      start_date:string,
+     *      end_date:string,
+     *      status:string,
+     *      created_at:string,
+     *      company: array{
+     *          id:int|null,
+     *          name:string|null,
+     *          address:string|null,
+     *          phone:string|null,
+     *          email:string|null,
+     *          created_at:string|null
+     *      }|null
+     *  }>
+     * } */
+    $result = [
         "user" => $user,
         "profile" => $profile,
         "internships" => $internships
     ];
+
+    return $result;
 }
