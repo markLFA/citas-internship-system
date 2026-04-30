@@ -1,5 +1,25 @@
 <?php
 require_once 'config/db.php';
+require_once 'config/functions.php';
+
+$message = '';
+$messageType = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $result = registerUser($pdo);
+
+    if ($result['success']) {
+        header('Location: login.php?registered=1');
+        exit;
+    }
+
+    $message = $result['message'];
+    $messageType = 'error';
+}
+?>
+<?php
+require_once 'config/db.php';
 session_start();
 
 function createUser(PDO $pdo, array $data): array
@@ -444,6 +464,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       .card-body   { padding: 1.4rem 1.5rem 1.5rem; }
       .field-row   { grid-template-columns: 1fr; }
     }
+    .alert {
+        padding: 12px 15px;
+        margin-bottom: 15px;
+        border-radius: 6px;
+        font-family: sans-serif;
+    }
+
+    .alert.error {
+        background: #ffe5e5;
+        color: #b00020;
+        border: 1px solid #ffb3b3;
+    }
+
+    .alert.success {
+        background: #e6ffed;
+        color: #0a7a2f;
+        border: 1px solid #a6e6b5;
+    }
   </style>
 </head>
 <body>
@@ -489,6 +527,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($success); ?>
       </div>
     <?php endif; ?>
+
+<?php if (!empty($message)): ?>
+    <div class="alert <?= $messageType ?>">
+        <?= htmlspecialchars($message) ?>
+    </div>
+<?php endif; ?>
 
     <form method="POST" action="">
 
