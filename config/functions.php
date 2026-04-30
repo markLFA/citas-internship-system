@@ -74,6 +74,9 @@ function getAllInternData() {
             i.end_date,
             i.status,
             i.created_at,
+            i.total_hours,
+            i.days_present,
+            i.reports_submitted,
 
             c.id AS company_id,
             c.name AS company_name,
@@ -102,6 +105,9 @@ function getAllInternData() {
             "end_date" => $row["end_date"],
             "status" => $row["status"],
             "created_at" => $row["created_at"],
+            "total_hours" => $row["total_hours"],
+            "days_present" => $row["days_present"],
+            "reports_submitted" => $row["reports_submitted"],
 
             "company" => [
                 "id" => $row["company_id"],

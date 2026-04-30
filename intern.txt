@@ -1,0 +1,32 @@
+*/
+
+/**
+ * @typedef {Object} Company
+ * @property {number|null} id
+ * @property {string|null} name
+ * @property {string|null} address
+ * @property {string|null} phone
+ * @property {string|null} email
+ * @property {string|null} created_at
+ */
+
+/**
+ * @typedef {Object} Internship
+ * @property {number} id
+ * @property {string} position
+ * @property {string} supervisor
+ * @property {string} start_date
+ * @property {string} end_date
+ * @property {string} status
+ * @property {string} created_at
+ * @property {Company|null} company
+ */
+
+/**
+ * @typedef {Object} InternData
+ * @property {{id:number,name:string,email:string}} user
+ * @property {{school:string,course:string,year_level:string,phone:string,required_hours:number,joined_date:string}|null} profile
+ * @property {Internship[]} internships
+ */
+
+/** @type {InternData|null} */
