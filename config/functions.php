@@ -1,6 +1,6 @@
 <?php
 require 'db.php';
-
+session_start();
 function getUsers() {
   global $conn;
   $user = $_SESSION['user'];

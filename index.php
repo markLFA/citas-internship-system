@@ -1,19 +1,5 @@
 <?php
-// ============================================================
-//  login.php — Login page + validation
-//  Connects to citas_db, checks credentials, starts session,
-//  then redirects to the correct dashboard based on role.
-// ============================================================
-
-
-// ── 1. CONFIG ────────────────────────────────────────────────
-// Edit these four values to match your server setup.
-
-define('DB_HOST', 'fdb1034.awardspace.net');
-define('DB_NAME', '4753482_capstone');
-define('DB_USER', '4753482_capstone');
-define('DB_PASS', 'Pw_787898_;');
-
+require 'config/db.php';
 
 // ── 2. SESSION ───────────────────────────────────────────────
 session_start();
@@ -26,21 +12,6 @@ if (isset($_SESSION['user'])) {
 
 // ── 3. HELPERS ───────────────────────────────────────────────
 
-/**
- * Returns a PDO connection (singleton — one connection per request).
- */
-function db(): PDO {
-    static $pdo = null;
-    if ($pdo === null) {
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
-    }
-    return $pdo;
-}
 
 /**
  * Sanitise a string for safe HTML output.
@@ -92,7 +63,7 @@ function validate_input(array $post): array {
  * Returns the user row on success, null on any failure.
  */
 function attempt_login(string $email, string $password): ?array {
-    $stmt = db()->prepare(
+    $stmt = getDB()->prepare(
         'SELECT id, name, email, password, role, is_active
          FROM   users
          WHERE  email = :email
