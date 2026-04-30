@@ -4,6 +4,7 @@ session_start();
 
 function createUser(PDO $pdo, array $data): array
 {
+  echo "role " . $data['role'];
     try {
         // Validate required fields
         $required = ['name', 'email', 'password', 'role'];
@@ -530,8 +531,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="role">Role</label>
         <select id="role" name="role" required>
           <option value="" disabled <?php echo empty($_POST['role']) ? 'selected' : ''; ?>>Select your role…</option>
-          <option value="student"     <?php echo (($_POST['role'] ?? '') === 'student')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
-          <option value="faculty"     <?php echo (($_POST['role'] ?? '') === 'coordinator')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
+          <option value="intern"     <?php echo (($_POST['role'] ?? '') === 'intern')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
+          <option value="coordinator"     <?php echo (($_POST['role'] ?? '') === 'coordinator')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
         </select>
       </div>
 
