@@ -64,6 +64,7 @@ function createUser(PDO $pdo, array $data): array
     }
 }
 
+$pdo = getDB();
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
