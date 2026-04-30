@@ -25,6 +25,7 @@ function getInternProfile() {
   ");
 
   $stmt->execute([$_SESSION['user']['id']]);
+  echo "Executed query for user_id: " . $_SESSION['user']['id']; // Debugging line
 
   return $stmt->fetch(PDO::FETCH_ASSOC);
 }
