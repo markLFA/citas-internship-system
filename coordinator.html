@@ -390,6 +390,7 @@ const Dashboard = {
         //body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
         const container = document.getElementById('pending-approvals-card-container');
         container.remove();
+        return;
 
       } else {
         PENDING.slice(0, 3).forEach(p => {
