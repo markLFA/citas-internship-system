@@ -1,105 +1,232 @@
 <?php
-require_once 'config/db.php';
+// ============================================================
+//  register.php — Intern / Coordinator self-registration
+//
+//  What this does on POST:
+//  1. Validates all fields
+//  2. Inserts a row into `users`  (is_active = 0 for interns
+//     so the coordinator must approve before they can log in)
+//  3. If the role is intern, also inserts:
+//       • `intern_profiles`  — school / course / year / phone
+//       • `companies`        — placeholder row so the FK exists
+//       • `internships`      — links intern ↔ company (empty dates)
+// ============================================================
+
+require_once __DIR__ . '/config/db.php';   // provides getDB()
 session_start();
 
-function createUser(PDO $pdo, array $data): array
-{
-    try {
-        // Validate required fields
-        $required = ['name', 'email', 'password', 'role'];
-
-        foreach ($required as $field) {
-            if (empty($data[$field])) {
-                return [
-                    'success' => false,
-                    'message' => ucfirst($field) . ' is required.'
-                ];
-            }
-        }
-
-        // Check if email already exists
-        $stmt = $pdo->prepare("
-            SELECT id
-            FROM users
-            WHERE email = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$data['email']]);
-
-        if ($stmt->fetch()) {
-            return [
-                'success' => false,
-                'message' => 'Email is already registered.'
-            ];
-        }
-
-        // Insert new user
-        $stmt = $pdo->prepare("
-            INSERT INTO users (
-                name,
-                email,
-                password,
-                role
-            ) VALUES (?, ?, ?, ?)
-        ");
-
-        $stmt->execute([
-            trim($data['name']),
-            trim($data['email']),
-            password_hash($data['password'], PASSWORD_DEFAULT),
-            trim($data['role'])
-        ]);
-
-        return [
-            'success' => true,
-            'message' => 'User created successfully.',
-            'user_id' => (int)$pdo->lastInsertId()
-        ];
-
-    } catch (PDOException $e) {
-        return [
-            'success' => false,
-            'message' => 'Database error: ' . $e->getMessage()
-        ];
-    }
+// Redirect if already logged in
+if (isset($_SESSION['user'])) {
+    header('Location: index.php');
+    exit;
 }
 
-$pdo = getDB();
-$message = '';
+// ── Helpers ──────────────────────────────────────────────────
+
+function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
+/** Return the POST value trimmed, or '' if not set. */
+function post(string $key): string {
+    return trim($_POST[$key] ?? '');
+}
+
+/** Map the form role value to the DB role enum. */
+function map_role(string $formRole): string {
+    return match($formRole) {
+        'intern'      => 'intern',
+        'coordinator' => 'coordinator',
+        default       => 'intern',
+    };
+}
+
+// ── Validation ────────────────────────────────────────────────
+
+function validate(array $data): array {
+    $errors = [];
+
+    if (empty($data['name']))
+        $errors[] = 'Full name is required.';
+
+    if (empty($data['email']))
+        $errors[] = 'Email address is required.';
+    elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))
+        $errors[] = 'Please enter a valid email address.';
+
+    if (empty($data['role']))
+        $errors[] = 'Please select a role.';
+
+    if (empty($data['password']))
+        $errors[] = 'Password is required.';
+    elseif (strlen($data['password']) < 6)
+        $errors[] = 'Password must be at least 6 characters.';
+    elseif ($data['password'] !== $data['confirm_password'])
+        $errors[] = 'Passwords do not match.';
+
+    // Extra fields required for interns
+    if ($data['role'] === 'intern') {
+        if (empty($data['school']))
+            $errors[] = 'School name is required for interns.';
+        if (empty($data['course']))
+            $errors[] = 'Course / Department is required for interns.';
+    }
+
+    return $errors;
+}
+
+// ── Registration logic ────────────────────────────────────────
+
+/**
+ * Insert the user account.
+ * Interns are created with is_active = 0 so they cannot log in
+ * until the coordinator approves them.
+ */
+function create_user(array $data): int {
+    $db   = getDB();
+    $role = map_role($data['role']);
+
+    // Interns start inactive; coordinators are active immediately
+    $active = ($role === 'coordinator') ? 1 : 0;
+    $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
+
+    $stmt = $db->prepare(
+        'INSERT INTO users (name, email, password, role, is_active)
+         VALUES (:name, :email, :password, :role, :is_active)'
+    );
+    $stmt->execute([
+        ':name'      => $data['name'],
+        ':email'     => $data['email'],
+        ':password'  => $hash,
+        ':role'      => $role,
+        ':is_active' => $active,
+    ]);
+
+    return (int)$db->lastInsertId();
+}
+
+/**
+ * Insert a placeholder company row.
+ * Interns fill in their real company details later from their profile page.
+ * Returns the new company ID.
+ */
+function create_placeholder_company(): int {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO companies (name) VALUES (:name)'
+    );
+    $stmt->execute([':name' => 'Not yet assigned']);
+    return (int)$db->lastInsertId();
+}
+
+/**
+ * Insert the intern_profile row with the details from registration.
+ * The rest (phone, joined_date) can be filled in later from the profile page.
+ */
+function create_intern_profile(int $userId, array $data): void {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO intern_profiles
+           (user_id, school, course, year_level, phone, required_hours)
+         VALUES
+           (:user_id, :school, :course, :year_level, :phone, :required_hours)'
+    );
+    $stmt->execute([
+        ':user_id'       => $userId,
+        ':school'        => $data['school']     ?: null,
+        ':course'        => $data['course']     ?: null,
+        ':year_level'    => $data['year_level'] ?: null,
+        ':phone'         => $data['phone']      ?: null,
+        ':required_hours'=> 500,   // default; coordinator can adjust later
+    ]);
+}
+
+/**
+ * Link the intern to the placeholder company via the internships table.
+ * All date / position fields are left NULL — filled in later.
+ */
+function create_internship(int $userId, int $companyId): void {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO internships (intern_id, company_id, status)
+         VALUES (:intern_id, :company_id, :status)'
+    );
+    $stmt->execute([
+        ':intern_id'  => $userId,
+        ':company_id' => $companyId,
+        ':status'     => 'active',
+    ]);
+}
+
+/**
+ * Check whether an email already exists in the users table.
+ */
+function email_taken(string $email): bool {
+    $db   = getDB();
+    $stmt = $db->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+    $stmt->execute([':email' => $email]);
+    return (bool)$stmt->fetch();
+}
+
+// ── Handle POST ───────────────────────────────────────────────
+
+$errors  = [];
+$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $userData = [
-        'name'     => trim($_POST['name'] ?? ''),
-        'email'    => trim($_POST['email'] ?? ''),
-        'role'     => trim($_POST['role'] ?? ''),
-        'password' => $_POST['password'] ?? ''
+
+    $data = [
+        'name'             => post('name'),
+        'email'            => post('email'),
+        'role'             => post('role'),
+        'school'           => post('school'),
+        'course'           => post('course'),
+        'year_level'       => post('year_level'),
+        'phone'            => post('phone'),
+        'password'         => $_POST['password']         ?? '',
+        'confirm_password' => $_POST['confirm_password'] ?? '',
     ];
 
-    $confirmPassword = $_POST['confirm_password'] ?? '';
+    // Step 1 — validate fields
+    $errors = validate($data);
 
-    // Validation
-    if ($userData['name'] === '') {
-        $message = 'Full name is required.';
-    } elseif (!filter_var($userData['email'], FILTER_VALIDATE_EMAIL)) {
-        $message = 'Please enter a valid email address.';
-    } elseif (!in_array($userData['role'], ['student', 'faculty'], true)) {
-        $message = 'Invalid role selected.';
-    } elseif (strlen($userData['password']) < 6) {
-        $message = 'Password must be at least 6 characters long.';
-    } elseif ($userData['password'] !== $confirmPassword) {
-        $message = 'Passwords do not match.';
-    } else {
-        // Save to database
-        $result = createUser($pdo, $userData);
+    // Step 2 — check for duplicate email
+    if (empty($errors) && email_taken($data['email'])) {
+        $errors[] = 'An account with that email already exists.';
+    }
 
-        if ($result['success']) {
-            header('Location: index.php?registered=1');
-            exit;
-        } else {
-          echo "Error: " . $result['message'];
+    // Step 3 — insert records in a transaction so it's all-or-nothing
+    if (empty($errors)) {
+        try {
+            $db = getDB();
+            $db->beginTransaction();
+
+            // Always create the user first
+            $userId = create_user($data);
+
+            // Extra tables only for interns
+            if (map_role($data['role']) === 'intern') {
+                $companyId = create_placeholder_company();
+                create_intern_profile($userId, $data);
+                create_internship($userId, $companyId);
+            }
+
+            $db->commit();
+
+            $isIntern = map_role($data['role']) === 'intern';
+            $success  = $isIntern
+                ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
+                : 'Account created successfully! You can now log in.';
+
+            // Clear POST data so form resets
+            $_POST = [];
+
+        } catch (PDOException $e) {
+            $db->rollBack();
+            // Show a safe message; log the real error server-side
+            error_log('Registration error: ' . $e->getMessage());
+            $errors[] = 'Something went wrong. Please try again later.';
         }
-
-        $message = $result['message'];
     }
 }
 ?>
@@ -112,361 +239,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    /* ── Tokens ─────────────────────────────────────────── */
     :root {
-      --orange-1: #FF6B00;
-      --orange-2: #EA580C;
-      --orange-3: #C2410C;
-      --orange-pale: #FFF7ED;
-      --orange-ring: rgba(234,88,12,.25);
-      --text-dark: #1A0A00;
-      --text-mid:  #6B3A1F;
-      --text-muted:#9A6647;
-      --white:     #FFFFFF;
-      --card-shadow: 0 24px 64px rgba(194,65,12,.18), 0 4px 16px rgba(0,0,0,.08);
+      --o1: #FF6B00; --o2: #EA580C; --o3: #C2410C;
+      --pale: #FFF7ED; --ring: rgba(234,88,12,.25);
+      --text-dark: #1A0A00; --text-mid: #6B3A1F; --text-muted: #9A6647;
     }
-
-    /* ── Reset ───────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Page ────────────────────────────────────────────── */
     body {
-      min-height: 100vh;
-      font-family: 'DM Sans', sans-serif;
-      background: var(--orange-3);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem 1rem 2rem;
-      position: relative;
-      overflow-x: hidden;
+      min-height: 100vh; font-family: 'DM Sans', sans-serif;
+      background: var(--o3);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1.5rem 1rem 2rem; overflow-x: hidden; position: relative;
     }
+    body::before, body::after { content:''; position:fixed; border-radius:50%; pointer-events:none; }
+    body::before { width:520px;height:520px;top:-180px;right:-140px; background:radial-gradient(circle,rgba(255,140,0,.35) 0%,transparent 70%); }
+    body::after  { width:400px;height:400px;bottom:-130px;left:-100px; background:radial-gradient(circle,rgba(255,100,0,.2) 0%,transparent 70%); }
 
-    body::before, body::after {
-      content: '';
-      position: fixed;
-      border-radius: 50%;
-      pointer-events: none;
+    /* ── Banner ───────────────────────────────────────────── */
+    .banner {
+      width:100%; max-width:480px;
+      background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.2); border-radius:10px;
+      padding:.6rem 1rem; margin-bottom:1rem;
+      display:flex; align-items:center; gap:.6rem;
     }
-    body::before {
-      width: 520px; height: 520px;
-      top: -180px; right: -140px;
-      background: radial-gradient(circle, rgba(255,140,0,.35) 0%, transparent 70%);
-    }
-    body::after {
-      width: 400px; height: 400px;
-      bottom: -130px; left: -100px;
-      background: radial-gradient(circle, rgba(255,100,0,.2) 0%, transparent 70%);
-    }
+    .dot { width:8px;height:8px;border-radius:50%;background:#FCD34D;flex-shrink:0;box-shadow:0 0 6px #FCD34D;animation:blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)} }
+    .banner p { font-size:.78rem;color:rgba(255,255,255,.9);line-height:1.4; }
+    .banner strong { color:#FCD34D; }
 
-    .bg-texture {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      opacity: .5;
-    }
-
-    /* ── Capstone banner ─────────────────────────────────── */
-    .capstone-banner {
-      width: 100%;
-      max-width: 480px;
-      background: rgba(255,255,255,.12);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 10px;
-      padding: .6rem 1rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-      animation: slideDown .5s ease both;
-    }
-    .capstone-banner-dot {
-      width: 8px; height: 8px;
-      background: #FCD34D;
-      border-radius: 50%;
-      flex-shrink: 0;
-      box-shadow: 0 0 6px #FCD34D;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: .6; transform: scale(.85); }
-    }
-    .capstone-banner p {
-      font-size: .78rem;
-      color: rgba(255,255,255,.9);
-      font-weight: 500;
-      line-height: 1.4;
-    }
-    .capstone-banner strong { color: #FCD34D; }
-
-    /* ── Card ────────────────────────────────────────────── */
+    /* ── Card ─────────────────────────────────────────────── */
     .card {
-      width: 100%;
-      max-width: 480px;
-      background: var(--white);
-      border-radius: 20px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-      animation: slideUp .5s .1s ease both;
-      position: relative;
-      z-index: 1;
+      width:100%; max-width:480px; background:#fff; border-radius:20px; overflow:hidden;
+      box-shadow:0 24px 64px rgba(194,65,12,.18),0 4px 16px rgba(0,0,0,.08);
     }
+    .card-head {
+      background:linear-gradient(135deg,var(--o1) 0%,var(--o2) 60%,var(--o3) 100%);
+      padding:1.75rem 2rem 1.6rem; position:relative; overflow:hidden;
+    }
+    .card-head::before { content:'';position:absolute;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.08);top:-60px;right:-40px; }
+    .logo-row { display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;position:relative;z-index:1; }
+    .logo-icon { width:46px;height:46px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.35);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem; }
+    .logo-name { font-family:'Sora',sans-serif;font-size:1.15rem;font-weight:800;color:#fff; }
+    .logo-sub  { font-size:.72rem;opacity:.8;color:#fff;margin-top:.1rem; }
+    .card-head h1 { font-family:'Sora',sans-serif;font-size:1.4rem;font-weight:800;color:#fff;position:relative;z-index:1;letter-spacing:-.3px; }
+    .card-head p  { color:rgba(255,255,255,.75);font-size:.83rem;margin-top:.25rem;position:relative;z-index:1; }
 
-    .card-header {
-      background: linear-gradient(135deg, var(--orange-1) 0%, var(--orange-2) 60%, var(--orange-3) 100%);
-      padding: 1.75rem 2rem 1.6rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .card-header::before {
-      content: '';
-      position: absolute;
-      width: 180px; height: 180px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.08);
-      top: -60px; right: -40px;
-    }
-    .card-header::after {
-      content: '';
-      position: absolute;
-      width: 100px; height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.06);
-      bottom: -30px; left: 30px;
-    }
+    .card-body { padding:1.75rem 2rem 2rem; }
 
-    .logo-row {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-      margin-bottom: .9rem;
-      position: relative;
-      z-index: 1;
-    }
-    .logo-icon {
-      width: 46px; height: 46px;
-      background: rgba(255,255,255,.2);
-      border: 1.5px solid rgba(255,255,255,.35);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      backdrop-filter: blur(4px);
-    }
-    .logo-text { color: #fff; }
-    .logo-text .system-name {
-      font-family: 'Sora', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: -.3px;
-      line-height: 1;
-    }
-    .logo-text .system-sub {
-      font-size: .72rem;
-      opacity: .8;
-      margin-top: .2rem;
-    }
-    .card-header h1 {
-      font-family: 'Sora', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 800;
-      color: #fff;
-      position: relative;
-      z-index: 1;
-      letter-spacing: -.3px;
-    }
-    .card-header p {
-      color: rgba(255,255,255,.75);
-      font-size: .83rem;
-      margin-top: .25rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Card body */
-    .card-body { padding: 1.75rem 2rem 2rem; }
-
-    /* ── Two-column grid for some fields ─────────────────── */
-    .field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .75rem;
-    }
-
-    /* ── Form ────────────────────────────────────────────── */
-    .field { margin-bottom: .95rem; }
-
-    label {
-      display: block;
-      font-size: .79rem;
-      font-weight: 600;
-      color: var(--text-mid);
-      margin-bottom: .35rem;
-      letter-spacing: .01em;
-    }
-    .field-hint {
-      font-size: .72rem;
-      color: var(--text-muted);
-      margin-top: .3rem;
-    }
-
-    .input-wrap { position: relative; }
-    .input-icon {
-      position: absolute;
-      left: .85rem;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: .95rem;
-      pointer-events: none;
-      opacity: .4;
-    }
-
-    input[type="email"],
-    input[type="phone"],
-    input[type="password"],
-    input[type="text"],
-    select {
-      display: block;
-      width: 100%;
-      padding: .68rem .85rem .68rem 2.4rem;
-      font-size: .875rem;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--text-dark);
-      background: var(--orange-pale);
-      border: 1.5px solid #FED7AA;
-      border-radius: 10px;
-      outline: none;
-      transition: border-color .15s, box-shadow .15s, background .15s;
-      -webkit-appearance: none;
-    }
-    input::placeholder { color: #C4845A; opacity: .7; }
-    input:focus, select:focus {
-      border-color: var(--orange-2);
-      background: #fff;
-      box-shadow: 0 0 0 3px var(--orange-ring);
-    }
-
-    /* select needs no left icon padding */
-    select { padding-left: .85rem; }
-
-    /* ── Alerts ──────────────────────────────────────────── */
+    /* ── Alerts ───────────────────────────────────────────── */
     .alert {
-      display: flex;
-      align-items: flex-start;
-      gap: .5rem;
-      border-radius: 8px;
-      padding: .7rem .9rem;
-      font-size: .82rem;
-      font-weight: 500;
-      margin-bottom: 1rem;
+      display:flex; align-items:flex-start; gap:.5rem;
+      border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem;
+      font-size:.83rem; font-weight:500;
     }
+    .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
+    .alert li::before { content:'⚠ '; }
     .alert-error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
     .alert-success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
 
-    /* ── Section dividers inside the form ───────────────── */
-    .form-section-label {
-      font-size: .7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: #D97706;
-      padding: .25rem 0 .5rem;
-      border-bottom: 1px solid #FED7AA;
-      margin-bottom: .9rem;
-      margin-top: .4rem;
+    /* ── Section divider ──────────────────────────────────── */
+    .section-label {
+      font-size:.7rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:.08em; color:var(--o2);
+      border-bottom:1px solid #FED7AA; padding-bottom:.4rem;
+      margin:1.1rem 0 .85rem;
     }
+    .section-label:first-child { margin-top:0; }
 
-    /* ── Submit button ───────────────────────────────────── */
-    .submit-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .5rem;
-      width: 100%;
-      padding: .8rem;
-      margin-top: 1.4rem;
-      background: linear-gradient(135deg, var(--orange-1) 0%, var(--orange-2) 100%);
-      color: #fff;
-      font-family: 'Sora', sans-serif;
-      font-size: .95rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      letter-spacing: .01em;
-      transition: filter .15s, transform .12s, box-shadow .15s;
-      box-shadow: 0 4px 14px rgba(234,88,12,.4);
-    }
-    .submit-btn:hover  { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(234,88,12,.45); }
-    .submit-btn:active { transform: translateY(0); filter: brightness(.97); }
+    /* ── Intern-only fields (hidden by default) ───────────── */
+    #intern-fields { display:none; }
 
-    /* ── Footer link ─────────────────────────────────────── */
-    .card-footer-link {
-      text-align: center;
-      margin-top: 1.1rem;
-      font-size: .83rem;
-      color: var(--text-muted);
-    }
-    .card-footer-link a {
-      color: var(--orange-2);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .card-footer-link a:hover { text-decoration: underline; }
+    /* ── Form ─────────────────────────────────────────────── */
+    .field { margin-bottom:.95rem; }
+    label  { display:block;font-size:.79rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem; }
+    .hint  { font-size:.72rem;color:var(--text-muted);margin-top:.3rem; }
 
-    /* ── Page footer ─────────────────────────────────────── */
-    .page-footer {
-      margin-top: 1.5rem;
-      text-align: center;
-      animation: fadeIn .6s .3s ease both;
-    }
-    .page-footer p {
-      font-size: .73rem;
-      color: rgba(255,255,255,.5);
-      line-height: 1.8;
-    }
-    .page-footer strong { color: rgba(255,255,255,.75); }
+    .inp-wrap { position:relative; }
+    .inp-icon { position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4; }
 
-    /* ── Animations ──────────────────────────────────────── */
-    @keyframes slideUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
-    @keyframes slideDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
-    @keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
+    input[type="text"], input[type="email"],
+    input[type="password"], input[type="tel"],
+    select {
+      display:block; width:100%;
+      padding:.68rem .85rem .68rem 2.4rem;
+      font-size:.875rem; font-family:'DM Sans',sans-serif;
+      color:var(--text-dark); background:var(--pale);
+      border:1.5px solid #FED7AA; border-radius:10px; outline:none;
+      transition:border-color .15s,box-shadow .15s,background .15s;
+      -webkit-appearance:none;
+    }
+    select { padding-left:.85rem; }   /* select has no icon */
+    input::placeholder { color:#C4845A;opacity:.7; }
+    input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
+    input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
-    /* ── Responsive ──────────────────────────────────────── */
-    @media (max-width: 480px) {
-      .card-header { padding: 1.4rem 1.5rem 1.25rem; }
-      .card-body   { padding: 1.4rem 1.5rem 1.5rem; }
-      .field-row   { grid-template-columns: 1fr; }
+    /* Two-column row */
+    .field-row { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
+    @media(max-width:480px){ .field-row{grid-template-columns:1fr;} }
+
+    /* ── Submit ───────────────────────────────────────────── */
+    .btn-submit {
+      display:flex;align-items:center;justify-content:center;gap:.5rem;
+      width:100%;padding:.8rem;margin-top:1.4rem;
+      background:linear-gradient(135deg,var(--o1) 0%,var(--o2) 100%);
+      color:#fff;font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
+      border:none;border-radius:10px;cursor:pointer;
+      box-shadow:0 4px 14px rgba(234,88,12,.4);
+      transition:filter .15s,transform .12s;
+    }
+    .btn-submit:hover  { filter:brightness(1.08);transform:translateY(-1px); }
+    .btn-submit:active { transform:none; }
+
+    .card-link { text-align:center;margin-top:1.1rem;font-size:.83rem;color:var(--text-muted); }
+    .card-link a { color:var(--o2);font-weight:600;text-decoration:none; }
+    .card-link a:hover { text-decoration:underline; }
+
+    .page-foot { margin-top:1.5rem;text-align:center; }
+    .page-foot p { font-size:.73rem;color:rgba(255,255,255,.5);line-height:1.9; }
+    .page-foot strong { color:rgba(255,255,255,.75); }
+
+    /* ── Role info callout ────────────────────────────────── */
+    .role-info {
+      background:var(--pale); border:1px solid #FED7AA; border-radius:8px;
+      padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid);
+      margin-top:.5rem; display:none;
     }
   </style>
 </head>
 <body>
-<div class="bg-texture"></div>
 
-<!-- Capstone notice -->
-<div class="capstone-banner">
-  <div class="capstone-banner-dot"></div>
-  <p>
-    <strong>Academic Project Notice —</strong>
-    Registration is for a <strong>Capstone Project (Academic Use Only)</strong>.
-    Data is collected for demonstration purposes.
-  </p>
+<div class="banner">
+  <div class="dot"></div>
+  <p><strong>Academic Project — </strong>Registration is for a <strong>Capstone Project (Academic Use Only)</strong>.</p>
 </div>
 
-<!-- Register card -->
 <div class="card">
 
-  <div class="card-header">
+  <div class="card-head">
     <div class="logo-row">
       <div class="logo-icon">🎓</div>
-      <div class="logo-text">
-        <div class="system-name">CITAS</div>
-        <div class="system-sub">Internship Monitoring System</div>
+      <div>
+        <div class="logo-name">CITAS</div>
+        <div class="logo-sub">Internship Monitoring System</div>
       </div>
     </div>
     <h1>Create your account</h1>
@@ -475,114 +391,154 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <div class="card-body">
 
-    <?php if (!empty($error)): ?>
+    <?php if (!empty($errors)): ?>
       <div class="alert alert-error">
-        <span>⚠️</span>
-        <?php echo htmlspecialchars($error); ?>
+        <ul>
+          <?php foreach ($errors as $e): ?>
+            <li><?= h($e) ?></li>
+          <?php endforeach; ?>
+        </ul>
       </div>
     <?php endif; ?>
 
     <?php if (!empty($success)): ?>
       <div class="alert alert-success">
-        <span>✅</span>
-        <?php echo htmlspecialchars($success); ?>
+        <span>✅</span>&nbsp;<?= h($success) ?>
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="">
+    <form method="POST" action="" novalidate>
 
-      <!-- Personal info -->
-      <div class="form-section-label">Personal Information</div>
+      <!-- ── Personal Information ──────────────────────────── -->
+      <div class="section-label">Personal Information</div>
 
       <div class="field">
         <label for="name">Full Name</label>
-        <div class="input-wrap">
-          <span class="input-icon">👤</span>
-          <input
-            type="text"
-            id="name"
-            name="name"
+        <div class="inp-wrap">
+          <span class="inp-icon">👤</span>
+          <input type="text" id="name" name="name"
             placeholder="e.g. Juan dela Cruz"
-            value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>"
-            required
-          >
+            value="<?= h(post('name')) ?>" required>
         </div>
       </div>
 
       <div class="field">
         <label for="email">School Email Address</label>
-        <div class="input-wrap">
-          <span class="input-icon">✉️</span>
-          <input
-            type="email"
-            id="email"
-            name="email"
+        <div class="inp-wrap">
+          <span class="inp-icon">✉️</span>
+          <input type="email" id="email" name="email"
             placeholder="you@samar.edu.ph"
-            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-            required
-          >
+            value="<?= h(post('email')) ?>" required autocomplete="email">
+        </div>
+        <div class="hint">Use your official school email if applicable.</div>
+      </div>
+
+      <!-- ── Account Setup ─────────────────────────────────── -->
+      <div class="section-label">Account Setup</div>
+
+      <div class="field">
+        <label for="role">I am registering as…</label>
+        <select id="role" name="role" required>
+          <option value="" disabled <?= empty(post('role')) ? 'selected' : '' ?>>Select your role…</option>
+          <option value="intern"      <?= post('role')==='intern'      ? 'selected' : '' ?>>🎒 Student Intern</option>
+          <option value="coordinator" <?= post('role')==='coordinator' ? 'selected' : '' ?>>🗂 Internship Coordinator</option>
+        </select>
+
+        <!-- Shows below the select based on chosen role -->
+        <div class="role-info" id="info-intern">
+          ⏳ Intern accounts require coordinator approval before you can log in.
+        </div>
+        <div class="role-info" id="info-coordinator">
+          ✅ Coordinator accounts are activated immediately after registration.
         </div>
       </div>
 
+      <!-- ── Intern-only fields (shown via JS) ─────────────── -->
+      <div id="intern-fields">
+        <div class="section-label">Internship Details</div>
 
-      <!-- Role & Password -->
-      <div class="form-section-label">Account Setup</div>
+        <div class="field-row">
+          <div class="field">
+            <label for="school">School / University</label>
+            <div class="inp-wrap">
+              <span class="inp-icon">🏫</span>
+              <input type="text" id="school" name="school"
+                placeholder="e.g. Samar College"
+                value="<?= h(post('school')) ?>">
+            </div>
+          </div>
+          <div class="field">
+            <label for="course">Course / Department</label>
+            <div class="inp-wrap">
+              <span class="inp-icon">📚</span>
+              <input type="text" id="course" name="course"
+                placeholder="e.g. BSIT"
+                value="<?= h(post('course')) ?>">
+            </div>
+          </div>
+        </div>
 
-      <div class="field">
-        <label for="role">Role</label>
-        <select id="role" name="role" required>
-          <option value="" disabled <?php echo empty($_POST['role']) ? 'selected' : ''; ?>>Select your role…</option>
-          <option value="intern_"     <?php echo (($_POST['role'] ?? '') === 'intern_')     ? 'selected' : ''; ?>>🎒 Student Intern</option>
-          <option value="coordinator_"     <?php echo (($_POST['role'] ?? '') === 'coordinator_')     ? 'selected' : ''; ?>>📘 Internship Coordinator</option>
-        </select>
+        <div class="field-row">
+          <div class="field">
+            <label for="year_level">Year Level</label>
+            <div class="inp-wrap">
+              <span class="inp-icon">🎓</span>
+              <input type="text" id="year_level" name="year_level"
+                placeholder="e.g. 4th Year"
+                value="<?= h(post('year_level')) ?>">
+            </div>
+          </div>
+          <div class="field">
+            <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
+            <div class="inp-wrap">
+              <span class="inp-icon">📱</span>
+              <input type="tel" id="phone" name="phone"
+                placeholder="+63 9xx xxx xxxx"
+                value="<?= h(post('phone')) ?>">
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:.75rem;color:#9A6647;margin-bottom:.5rem">
+          💡 Company and supervisor details can be filled in later from your profile page.
+        </p>
       </div>
+
+      <!-- ── Password ──────────────────────────────────────── -->
+      <div class="section-label">Password</div>
 
       <div class="field-row">
         <div class="field">
-          <label for="password">Password</label>
-          <div class="input-wrap">
-            <span class="input-icon">🔒</span>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Create password"
-              required
-            >
+          <label for="password">Create Password</label>
+          <div class="inp-wrap">
+            <span class="inp-icon">🔒</span>
+            <input type="password" id="password" name="password"
+              placeholder="Min. 6 characters" required autocomplete="new-password">
           </div>
-          <div class="field-hint">Minimum 6 characters.</div>
+          <div class="hint">Minimum 6 characters.</div>
         </div>
-
         <div class="field">
-          <label for="confirm_password">Confirm</label>
-          <div class="input-wrap">
-            <span class="input-icon">🔑</span>
-            <input
-              type="password"
-              id="confirm_password"
-              name="confirm_password"
-              placeholder="Repeat password"
-              required
-            >
+          <label for="confirm_password">Confirm Password</label>
+          <div class="inp-wrap">
+            <span class="inp-icon">🔑</span>
+            <input type="password" id="confirm_password" name="confirm_password"
+              placeholder="Repeat password" required autocomplete="new-password">
           </div>
         </div>
       </div>
 
-      <button class="submit-btn" type="submit">
-        Create Account →
-      </button>
+      <button class="btn-submit" type="submit">Create Account →</button>
 
     </form>
 
-    <div class="card-footer-link">
+    <div class="card-link">
       Already have an account? <a href="index.php">Sign in here</a>
     </div>
 
   </div>
 </div>
 
-<!-- Page footer -->
-<div class="page-footer">
+<div class="page-foot">
   <p>
     <strong>CITAS Internship Monitoring System</strong><br>
     Capstone Project 2025–2026 &nbsp;·&nbsp; Samar College BSIT Students<br>
@@ -590,5 +546,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </p>
 </div>
 
+<script>
+// ── Show/hide intern-only fields based on role selection ──────
+const roleSelect    = document.getElementById('role');
+const internFields  = document.getElementById('intern-fields');
+const infoIntern    = document.getElementById('info-intern');
+const infoCoord     = document.getElementById('info-coordinator');
+const schoolInput   = document.getElementById('school');
+const courseInput   = document.getElementById('course');
+
+function updateRoleUI() {
+  const role = roleSelect.value;
+
+  // Show/hide intern-specific fields
+  internFields.style.display = role === 'intern' ? 'block' : 'none';
+
+  // Toggle info callouts
+  infoIntern.style.display = role === 'intern'      ? 'block' : 'none';
+  infoCoord.style.display  = role === 'coordinator' ? 'block' : 'none';
+
+  // Make school/course required only for interns
+  schoolInput.required = role === 'intern';
+  courseInput.required = role === 'intern';
+}
+
+roleSelect.addEventListener('change', updateRoleUI);
+
+// Run on page load to restore state after a failed POST
+updateRoleUI();
+</script>
 </body>
 </html>
