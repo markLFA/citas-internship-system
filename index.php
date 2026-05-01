@@ -333,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
     <?php if (!empty($Alert)): ?>
       <div class="alert alert-success">
-        <span>✅</span>&nbsp;<?= h($Alert) ?>
+        <span>⚠</span>&nbsp;<?= h($Alert) ?>
       </div>
     <?php endif; ?>
 
