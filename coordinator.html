@@ -131,11 +131,7 @@ async function getPendingInterns() {
     return { error: true };
   }
 }
-async function refreshInternList() {
-  const data = await getPendingInterns();
-  PENDING = (data && !data.error) ? data : [];
-}
-refreshInternList();
+
 
 let ANNOUNCEMENTS = [
   { id:1, pinned:true,  title:'Required Documents Reminder',
@@ -384,39 +380,43 @@ const Dashboard = {
   // Quick view of pending registrations on dashboard
   pendingApprovalsCard() {
     const body = document.createElement('div');
+    getPendingInterns().then(data => {
+      PENDING = (data && !data.error) ? data : [];
+      if (!PENDING.length) {
+        body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
+      } else {
+        PENDING.slice(0, 3).forEach(p => {
+          const item = document.createElement('div');
+          item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #FFF0E0';
+          const info = document.createElement('div');
+          info.style.flex = '1';
+          info.innerHTML = `
+            <div style="font-weight:700;font-size:.875rem;color:#1A0A00">${p.name}</div>
+            <div style="font-size:.75rem;color:#9A6647">${p.email} · ${p.course}</div>`;
+          const btn = Helpers.approveBtn('Approve', () => Approvals.approveIntern(p.id));
+          item.append(Helpers.internAvatar(p.name), info, btn);
+          body.appendChild(item);
+        });
 
-    if (!PENDING.length) {
-      body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
-    } else {
-      PENDING.slice(0, 3).forEach(p => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #FFF0E0';
-        const info = document.createElement('div');
-        info.style.flex = '1';
-        info.innerHTML = `
-          <div style="font-weight:700;font-size:.875rem;color:#1A0A00">${p.name}</div>
-          <div style="font-size:.75rem;color:#9A6647">${p.email} · ${p.course}</div>`;
-        const btn = Helpers.approveBtn('Approve', () => Approvals.approveIntern(p.id));
-        item.append(Helpers.internAvatar(p.name), info, btn);
-        body.appendChild(item);
-      });
-
-      if (PENDING.length > 3) {
-        const more = document.createElement('p');
-        more.style.cssText = 'font-size:.78rem;color:#9A6647;text-align:center;padding:.5rem 0 0';
-        more.textContent   = `+${PENDING.length - 3} more pending`;
-        body.appendChild(more);
+        if (PENDING.length > 3) {
+          const more = document.createElement('p');
+          more.style.cssText = 'font-size:.78rem;color:#9A6647;text-align:center;padding:.5rem 0 0';
+          more.textContent   = `+${PENDING.length - 3} more pending`;
+          body.appendChild(more);
+        }
       }
-    }
 
-    return UI.card({
-      title: '⏳ Pending Approvals',
-      headerActions: UI.badge(PENDING.length, { base:'#FEF3C7', text:'#92400E' }),
-      body,
-      footer: PENDING.length ? [
-        Helpers.ghostBtn('View all →', () => navigate('approvals')),
-      ] : [],
+      return UI.card({
+        title: '⏳ Pending Approvals',
+        headerActions: UI.badge(PENDING.length, { base:'#FEF3C7', text:'#92400E' }),
+        body,
+        footer: PENDING.length ? [
+          Helpers.ghostBtn('View all →', () => navigate('approvals')),
+        ] : [],
+      });
+      
     });
+
   },
 
   // Quick view of 3 most recent reports on dashboard
