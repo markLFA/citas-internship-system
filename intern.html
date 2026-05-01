@@ -601,29 +601,29 @@ const Profile = {
   // Company header + detail rows using UI.companyInfoCard
   companyCard() {
     return UI.companyInfoCard({
-      company:    INTERN.company,
-      position:   INTERN.position,
-      address:    INTERN.address,
-      supervisor: INTERN.supervisor,
-      phone:      INTERN.companyPhone,
-      email:      INTERN.companyEmail,
-      startDate:  INTERN.startDate,
-      endDate:    INTERN.endDate,
+      company:    InternData.internships[0].company.name,
+      position:   InternData.internships[0].position,
+      address:    InternData.internships[0].company.address,
+      supervisor: InternData.internships[0].supervisor,
+      phone:      InternData.internships[0].company.phone,
+      email:      InternData.internships[0].company.email,
+      startDate:  InternData.internships[0].start_date,
+      endDate:    InternData.internships[0].end_date,
     });
   },
 
   // Total hours with progress bar
   hoursCard() {
-    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const pct  = Math.round(InternData.internships[0].total_hours / InternData.profile.required_hours * 100);
     const body = document.createElement('div');
     body.appendChild(UI.statRow([
-      { value: INTERN.totalHours + 'h',                      label: 'Rendered',  color: '#EA580C' },
-      { value: (INTERN.reqHours - INTERN.totalHours) + 'h',  label: 'Remaining', color: '#6B3A1F' },
+      { value: InternData.internships[0].total_hours + 'h',                      label: 'Rendered',  color: '#EA580C' },
+      { value: (InternData.profile.required_hours - InternData.internships[0].total_hours) + 'h',  label: 'Remaining', color: '#6B3A1F' },
       { value: pct + '%',                                     label: 'Complete',  color: '#10B981' },
     ]));
     const lbl = document.createElement('p');
     lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
-    lbl.textContent   = `Progress toward ${INTERN.reqHours}h requirement`;
+    lbl.textContent   = `Progress toward ${InternData.profile.required_hours}h requirement`;
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
     return UI.card({ title: '⏳ Hours Summary', body });
@@ -648,27 +648,27 @@ const Profile = {
 
     section('Personal Information');
     body.appendChild(UI.formGroup('Full Name',
-      UI.input({ value: INTERN.name,      placeholder: 'Full name' })));
+      UI.input({ value: InternData.user.name,      placeholder: 'Full name' })));
     body.appendChild(UI.formGroup('Phone',
-      UI.input({ value: INTERN.phone,     placeholder: '+63 9xx xxx xxxx' })));
+      UI.input({ value: InternData.profile.phone,     placeholder: '+63 9xx xxx xxxx' })));
     const r1 = twoCol();
     r1.appendChild(UI.formGroup('Course',
-      UI.input({ value: INTERN.course,    placeholder: 'e.g. BSIT' })));
+      UI.input({ value: InternData.profile.course,    placeholder: 'e.g. BSIT' })));
     r1.appendChild(UI.formGroup('Year Level',
-      UI.input({ value: INTERN.yearLevel, placeholder: 'e.g. 4th Year' })));
+      UI.input({ value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })));
 
     section('Internship / Company');
     body.appendChild(UI.formGroup('Company Name',
-      UI.input({ value: INTERN.company,    placeholder: 'Company name' })));
+      UI.input({ value: InternData.internships[0].company.name,    placeholder: 'Company name' })));
     body.appendChild(UI.formGroup('Position',
-      UI.input({ value: INTERN.position,   placeholder: 'e.g. IT Intern' })));
+      UI.input({ value: InternData.internships[0].position,   placeholder: 'e.g. IT Intern' })));
     body.appendChild(UI.formGroup('Address',
-      UI.textarea({ value: INTERN.address, rows: 2, placeholder: 'Full address' })));
+      UI.textarea({ value: InternData.internships[0].company.address, rows: 2, placeholder: 'Full address' })));
     body.appendChild(UI.formGroup('Supervisor',
-      UI.input({ value: INTERN.supervisor, placeholder: 'Supervisor name' })));
+      UI.input({ value: InternData.internships[0].supervisor, placeholder: 'Supervisor name' })));
     const r2 = twoCol();
-    r2.appendChild(UI.formGroup('Start Date', UI.input({ type: 'date', value: '2026-01-13' })));
-    r2.appendChild(UI.formGroup('End Date',   UI.input({ type: 'date', value: '2026-05-30' })));
+    r2.appendChild(UI.formGroup('Start Date', UI.input({ type: 'date', value: InternData.internships[0].start_date })));
+    r2.appendChild(UI.formGroup('End Date',   UI.input({ type: 'date', value: InternData.internships[0].end_date })));
 
     const m = UI.modal({
       title: '✏️ Edit Profile', body, size: 'lg',
