@@ -371,7 +371,10 @@ const Dashboard = {
   bottomRow() {
     const row = document.createElement('div');
     row.className = 'pg-grid-3 mt-lg';
-    row.appendChild( this.pendingApprovalsCard()    );
+    const approvalCardContainer = document.createElement('div');
+    approvalCardContainer.id = 'pending-approvals-card-conatiner';
+    row.appendChild( approvalCardContainer );
+    this.pendingApprovalsCard(approvalCardContainer);
     row.appendChild( this.recentReportsCard()        );
     row.appendChild( this.analyticsPreviewCard()    );
     return row;
@@ -405,16 +408,16 @@ const Dashboard = {
           body.appendChild(more);
         }
       }
-
-      return UI.card({
+      const container = document.getElementById('pending-approvals-card-container');
+      container.appendChild(UI.card({
         title: '⏳ Pending Approvals',
         headerActions: UI.badge(PENDING.length, { base:'#FEF3C7', text:'#92400E' }),
         body,
         footer: PENDING.length ? [
           Helpers.ghostBtn('View all →', () => navigate('approvals')),
         ] : [],
-      });
-      
+      }) );
+
     });
 
   },
