@@ -569,12 +569,12 @@ const Profile = {
   // Avatar + name + role using UI.profileCard
   personalCard() {
     return UI.profileCard({
-      name:   INTERN.name,
-      role:   `${INTERN.course} · ${INTERN.yearLevel}`,
-      email:  INTERN.email,
-      dept:   INTERN.course,
-      school: INTERN.school,
-      joined: INTERN.joined,
+      name:   InternData.user.name,
+      role:   `${InternData.profile.course} · ${InternData.profile.yearLevel}`,
+      email:  InternData.user.email,
+      dept:   InternData.profile.course,
+      yearLevel: InternData.profile.year_level,
+      joined: InternData.profile.joined_date,
     });
   },
 
@@ -582,11 +582,10 @@ const Profile = {
   detailsCard() {
     const body = document.createElement('div');
     [
-      ['📱', 'Phone',      INTERN.phone],
-      ['🏫', 'School',     INTERN.school],
-      ['📚', 'Course',     INTERN.course],
-      ['🎓', 'Year Level', INTERN.yearLevel],
-      ['📅', 'Joined',     INTERN.joined],
+      ['📱', 'Phone',      InternData.profile.phone],
+      ['📚', 'Course',     InternData.profile.course],
+      ['🎓', 'Year Level', InternData.profile.year_level],
+      ['📅', 'Joined',     InternData.profile.joined_date],
     ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v)));
     return UI.card({ title: '📋 Personal Details', body });
   },
