@@ -130,7 +130,7 @@ function create_intern_profile(int $userId, array $data): void {
         'INSERT INTO intern_profiles
            (user_id, course, year_level, phone, coordinator_id, required_hours)
          VALUES
-           (:user_id, :course, :year_level, :phone, :required_hours)'
+           (:user_id, :course, :year_level, :phone, :coordinator_id, :required_hours)'
     );
     $stmt->execute([
         ':user_id'       => $userId,
