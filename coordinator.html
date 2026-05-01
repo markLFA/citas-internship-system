@@ -6,7 +6,7 @@
   <title>CITAS — Coordinator Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/uiParts.css">
+  <link rel="stylesheet" href="citas-ui.css">
   <style>
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
     .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
@@ -63,6 +63,7 @@
   <div class="cui-page-main" id="page-main">
     <div class="cui-page-content">
       <section class="cui-section active" id="sec-dashboard"></section>
+      <section class="cui-section"        id="sec-analytics"></section>
       <section class="cui-section"        id="sec-approvals"></section>
       <section class="cui-section"        id="sec-interns"></section>
       <section class="cui-section"        id="sec-reports"></section>
@@ -71,7 +72,8 @@
   </div>
 </div>
 
-<script src="assets/uiParts.js"></script>
+<script src="citas-ui.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 'use strict';
 
@@ -93,6 +95,22 @@ let INTERNS = [
   { id:4, name:'Ana Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:112, daysPresent:21, reports:6 },
   { id:5, name:'Carlo Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:80,  daysPresent:15, reports:4 },
   { id:6, name:'Liza Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:144, daysPresent:27, reports:7 },
+  { id:7, name:'jose dela cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
+  { id:8, name:'Anna Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:96,  daysPresent:18, reports:5 },
+  { id:9, name:'anton Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
+  { id:10, name:'maria Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:102, daysPresent:21, reports:6 },
+  { id:11, name:'andress Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:99,  daysPresent:15, reports:4 },
+  { id:12, name:'Sarah Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
+  { id:13, name:'Pedro Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
+  { id:14, name:'Ana Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:112, daysPresent:21, reports:6 },
+  { id:15, name:'Carlo Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:80,  daysPresent:15, reports:4 },
+  { id:16, name:'Liza Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:144, daysPresent:27, reports:7 },
+  { id:17, name:'jose dela cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:188, daysPresent:24, reports:6 },
+  { id:18, name:'Anna Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:111,  daysPresent:18, reports:5 },
+  { id:19, name:'anton Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
+  { id:20, name:'joel Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:99, daysPresent:21, reports:6 },
+  { id:21, name:'maria Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:112,  daysPresent:15, reports:4 },
+  { id:22, name:'andress Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
 ];
 
 // Pending registrations — interns who signed up but not yet approved
@@ -139,6 +157,7 @@ let reportFilterStatus = ''; // '' | 'pending' | 'reviewed' | 'approved' | 'revi
 // ─────────────────────────────────────────────────────────────
 const SECTIONS = {
   dashboard:     'Dashboard',
+  analytics:     'Analytics',
   approvals:     'Pending Approvals',
   interns:       'Interns',
   reports:       'Weekly Reports',
@@ -244,6 +263,8 @@ const sidebar = UI.pageSidebar({
     { section:true, label:'Menu' },
     { label:'Dashboard',        icon:'🏠', active:true,
       onClick: () => navigate('dashboard') },
+    { label:'Analytics',        icon:'📊',
+      onClick: () => navigate('analytics') },
     { label:'Pending Approvals',icon:'⏳',
       badge: PENDING.length || null,
       onClick: () => navigate('approvals') },
@@ -257,7 +278,7 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('announcements') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = '/'; } },
+      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
   ],
   footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
 });
@@ -285,6 +306,8 @@ function navigate(name) {
   sidebar.setActive(SECTIONS[name]);
   const center = document.querySelector('.cui-navbar-center');
   if (center) center.textContent = SECTIONS[name];
+  // Charts must be drawn after their canvas is visible
+  if (name === 'analytics') setTimeout(() => Analytics.drawAllCharts(), 30);
 }
 
 
@@ -327,7 +350,7 @@ const Dashboard = {
     row.className = 'pg-grid-3 mt-lg';
     row.appendChild( this.pendingApprovalsCard()    );
     row.appendChild( this.recentReportsCard()        );
-    row.appendChild( this.recentAnnouncementsCard() );
+    row.appendChild( this.analyticsPreviewCard()    );
     return row;
   },
 
@@ -402,6 +425,39 @@ const Dashboard = {
       body,
       footer: REPORTS.length ? [Helpers.ghostBtn('View all →', () => navigate('reports'))] : [],
     });
+  },
+
+  // Analytics snapshot card on dashboard
+  analyticsPreviewCard() {
+    const avgPct  = Math.round(INTERNS.reduce((s,i) => s + (i.totalHours/500*100), 0) / (INTERNS.length||1));
+    const behind  = INTERNS.filter(i => (i.totalHours/500*100) < 70).length;
+    const onPace  = INTERNS.length - behind;
+
+    const body = document.createElement('div');
+
+    // Mini donut-style completion ring using a progress arc
+    const ringWrap = document.createElement('div');
+    ringWrap.style.cssText = 'text-align:center;padding:.75rem 0 .5rem';
+    ringWrap.innerHTML = `
+      <div style="font-family:Sora,sans-serif;font-size:2rem;font-weight:800;color:#EA580C;line-height:1">${avgPct}%</div>
+      <div style="font-size:.75rem;color:#9A6647;margin-top:.2rem">batch avg completion</div>`;
+    body.appendChild(ringWrap);
+
+    body.appendChild(UI.progress(avgPct, { color:{ base:'#EA580C' }, label:false }));
+
+    // Quick stats
+    body.appendChild(UI.statRow([
+      { value: onPace, label: 'On Schedule', color: '#10B981' },
+      { value: behind, label: 'Behind',      color: '#EF4444' },
+    ]));
+
+    const btn = Helpers.ghostBtn('View Full Analytics →', () => navigate('analytics'));
+    btn.style.width     = '100%';
+    btn.style.marginTop = '.75rem';
+    btn.style.justifyContent = 'center';
+    body.appendChild(btn);
+
+    return UI.card({ title: '📊 Analytics Snapshot', body });
   },
 
   // Recent announcements compact list
@@ -1131,9 +1187,369 @@ const Reports = {
 
 
 // ─────────────────────────────────────────────────────────────
+//  ANALYTICS
+// ─────────────────────────────────────────────────────────────
+const Analytics = {
+
+  // Store chart instances so we can destroy before redrawing
+  _charts: {},
+
+  build() {
+    const sec = document.getElementById('sec-analytics');
+    sec.appendChild(Helpers.pageHeader(
+      'Analytics',
+      'Internship data insights for the current batch'
+    ));
+
+    // Top summary stat strip
+    sec.appendChild( this.summaryStrip()  );
+
+    // Two charts side by side
+    const row1 = document.createElement('div');
+    row1.className = 'pg-grid-2 mt-lg';
+    row1.style.alignItems = 'start';
+    row1.appendChild( this.completionChartCard()   );
+    row1.appendChild( this.reportStatusChartCard() );
+    sec.appendChild(row1);
+
+    // Second row: attendance trend + dept comparison
+    const row2 = document.createElement('div');
+    row2.className = 'pg-grid-2 mt-lg';
+    row2.style.alignItems = 'start';
+    row2.appendChild( this.attendanceTrendCard()   );
+    row2.appendChild( this.deptComparisonCard()    );
+    sec.appendChild(row2);
+
+    // Behind schedule table
+    sec.appendChild( this.behindScheduleCard() );
+
+    // Draw charts after DOM is attached (brief delay ensures canvas is visible)
+    setTimeout(() => this.drawAllCharts(), 50);
+  },
+
+  // ── Summary strip ─────────────────────────────────────────
+  summaryStrip() {
+    const totalHours  = INTERNS.reduce((s, i) => s + i.totalHours, 0);
+    const avgHours    = Math.round(totalHours / (INTERNS.length || 1));
+    const avgPct      = Math.round(INTERNS.reduce((s,i) => s + (i.totalHours/500*100), 0) / (INTERNS.length||1));
+    const onPace      = INTERNS.filter(i => (i.totalHours / 500 * 100) >= 25).length; // >= 25% by week 14
+    const rptApproved = REPORTS.filter(r => r.status === 'approved').length;
+
+    return UI.statRow([
+      { value: avgHours + 'h',        label: 'Avg Hours / Intern',  color: '#EA580C' },
+      { value: avgPct + '%',           label: 'Avg Completion',      color: '#10B981' },
+      { value: onPace + '/' + INTERNS.length, label: 'On Schedule', color: '#6366F1' },
+      { value: rptApproved,            label: 'Reports Approved',    color: '#F59E0B' },
+    ]);
+  },
+
+  // ── Intern completion bar chart ────────────────────────────
+  completionChartCard() {
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-completion';
+    canvas.height = 260;
+
+    return UI.card({
+      title: '📊 Intern Completion Rate',
+      body:  canvas,
+    });
+  },
+
+  drawCompletionChart() {
+    const ctx = document.getElementById('chart-completion');
+    if (!ctx) return;
+    if (this._charts.completion) this._charts.completion.destroy();
+
+    const sorted = [...INTERNS].sort((a,b) => b.totalHours - a.totalHours);
+    const pcts   = sorted.map(i => Math.min(100, Math.round(i.totalHours / 500 * 100)));
+    const colors = pcts.map(p => p >= 50 ? '#10B981' : p >= 25 ? '#F59E0B' : '#EF4444');
+
+    this._charts.completion = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels:   sorted.map(i => i.name),
+        datasets: [{
+          label:           'Completion %',
+          data:            pcts,
+          backgroundColor: colors,
+          borderRadius:    6,
+          borderSkipped:   false,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const intern = sorted[ctx.dataIndex];
+                return ` ${ctx.parsed.y}%  (${intern.totalHours}h of 500h)`;
+              },
+            },
+          },
+        },
+        scales: {
+          y: {
+            min: 0, max: 100,
+            ticks: { callback: v => v + '%', font: { size: 11 } },
+            grid:  { color: '#FFF0E0' },
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        },
+      },
+    });
+  },
+
+  // ── Report status donut chart ──────────────────────────────
+  reportStatusChartCard() {
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-report-status';
+    canvas.height = 220;
+
+    const counts = {
+      pending:  REPORTS.filter(r => r.status === 'pending').length,
+      reviewed: REPORTS.filter(r => r.status === 'reviewed').length,
+      approved: REPORTS.filter(r => r.status === 'approved').length,
+      revision: REPORTS.filter(r => r.status === 'revision').length,
+    };
+
+    const body = document.createElement('div');
+    body.appendChild(canvas);
+
+    // Legend below chart
+    const legend = document.createElement('div');
+    legend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.75rem;justify-content:center';
+    [
+      ['#FCD34D','Pending',  counts.pending],
+      ['#93C5FD','Reviewed', counts.reviewed],
+      ['#6EE7B7','Approved', counts.approved],
+      ['#FCA5A5','Revision', counts.revision],
+    ].forEach(([color, label, count]) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
+      item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>${label} (${count})`;
+      legend.appendChild(item);
+    });
+    body.appendChild(legend);
+
+    return UI.card({ title: '🍩 Report Status Breakdown', body });
+  },
+
+  drawReportStatusChart() {
+    const ctx = document.getElementById('chart-report-status');
+    if (!ctx) return;
+    if (this._charts.reportStatus) this._charts.reportStatus.destroy();
+
+    this._charts.reportStatus = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels:   ['Pending', 'Reviewed', 'Approved', 'Revision'],
+        datasets: [{
+          data: [
+            REPORTS.filter(r => r.status === 'pending').length,
+            REPORTS.filter(r => r.status === 'reviewed').length,
+            REPORTS.filter(r => r.status === 'approved').length,
+            REPORTS.filter(r => r.status === 'revision').length,
+          ],
+          backgroundColor: ['#FCD34D','#93C5FD','#6EE7B7','#FCA5A5'],
+          borderWidth:     2,
+          borderColor:     '#fff',
+          hoverOffset:     6,
+        }],
+      },
+      options: {
+        responsive:  true,
+        cutout:      '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed} report${ctx.parsed !== 1 ? 's' : ''}`,
+            },
+          },
+        },
+      },
+    });
+  },
+
+  // ── Weekly hours trend (batch average per week) ────────────
+  attendanceTrendCard() {
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-attendance-trend';
+    canvas.height = 220;
+
+    return UI.card({
+      title: '📈 Weekly Hours Trend (Batch Average)',
+      body:  canvas,
+    });
+  },
+
+  drawAttendanceTrendChart() {
+    const ctx = document.getElementById('chart-attendance-trend');
+    if (!ctx) return;
+    if (this._charts.trend) this._charts.trend.destroy();
+
+    // Simulated weekly average hours — PHP: GROUP BY WEEK(log_date), AVG(total_hours)
+    const weeks = ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6',
+                   'Week 7','Week 8','Week 9','Week 10','Week 11','Week 12','Week 13','Week 14'];
+    const avgs  = [8.1, 7.9, 8.4, 8.2, 8.6, 8.3, 7.8, 8.5, 8.7, 8.2, 8.4, 8.1, 8.6, 8.3];
+
+    this._charts.trend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels:   weeks,
+        datasets: [{
+          label:           'Avg Hours/Day',
+          data:            avgs,
+          borderColor:     '#EA580C',
+          backgroundColor: 'rgba(234,88,12,.08)',
+          pointBackgroundColor: '#EA580C',
+          pointRadius:     4,
+          pointHoverRadius:6,
+          tension:         0.35,
+          fill:            true,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            min:   7, max: 10,
+            ticks: { callback: v => v + 'h', font: { size: 11 } },
+            grid:  { color: '#FFF0E0' },
+          },
+          x: {
+            grid:  { display: false },
+            ticks: { font: { size: 10 }, maxRotation: 45 },
+          },
+        },
+      },
+    });
+  },
+
+  // ── Department comparison horizontal bar chart ─────────────
+  deptComparisonCard() {
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-dept';
+    canvas.height = 220;
+
+    return UI.card({
+      title: '🏫 Avg Completion by Department',
+      body:  canvas,
+    });
+  },
+
+  drawDeptChart() {
+    const ctx = document.getElementById('chart-dept');
+    if (!ctx) return;
+    if (this._charts.dept) this._charts.dept.destroy();
+
+    // Group interns by dept and average their completion
+    const deptMap = {};
+    INTERNS.forEach(i => {
+      if (!deptMap[i.dept]) deptMap[i.dept] = [];
+      deptMap[i.dept].push(Math.round(i.totalHours / 500 * 100));
+    });
+    const labels = Object.keys(deptMap);
+    const avgs   = labels.map(d => {
+      const vals = deptMap[d];
+      return Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
+    });
+
+    this._charts.dept = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label:           'Avg Completion %',
+          data:            avgs,
+          backgroundColor: ['#FED7AA','#FDBA74','#FB923C'],
+          borderRadius:    6,
+          borderSkipped:   false,
+        }],
+      },
+      options: {
+        indexAxis:  'y',      // horizontal bars
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            min:   0, max: 100,
+            ticks: { callback: v => v + '%', font: { size: 11 } },
+            grid:  { color: '#FFF0E0' },
+          },
+          y: { grid: { display: false }, ticks: { font: { size: 12 } } },
+        },
+      },
+    });
+  },
+
+  // ── Behind schedule table ──────────────────────────────────
+  behindScheduleCard() {
+    // Expected pct by week 14 of ~20 week internship = 70%
+    const EXPECTED_PCT = 70;
+    const behind = INTERNS
+      .map(i => ({
+        ...i,
+        pct: Math.round(i.totalHours / 500 * 100),
+        gap: EXPECTED_PCT - Math.round(i.totalHours / 500 * 100),
+      }))
+      .filter(i => i.pct < EXPECTED_PCT)
+      .sort((a, b) => a.pct - b.pct);  // worst first
+
+    if (!behind.length) {
+      return UI.card({
+        title: '✅ Schedule Status',
+        body: UI.empty('🎉', 'All interns are on schedule!', `Everyone is at or above the expected ${EXPECTED_PCT}% mark.`),
+      });
+    }
+
+    const tbl = UI.table([
+      { key:'name',   label:'Intern',     render: v => `<strong>${v}</strong>` },
+      { key:'dept',   label:'Dept' },
+      { key:'totalHours', label:'Hours',  align:'center',
+        render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
+      { key:'pct',    label:'Completion', align:'center',
+        render: v => {
+          const bar = document.createElement('div');
+          bar.style.cssText = 'display:flex;align-items:center;gap:.5rem';
+          const track = document.createElement('div');
+          track.style.cssText = 'flex:1;height:6px;background:#FEE2E2;border-radius:10px;overflow:hidden';
+          const fill  = document.createElement('div');
+          fill.style.cssText  = `height:100%;width:${v}%;background:#EF4444;border-radius:10px`;
+          track.appendChild(fill);
+          bar.innerHTML = `<span style="font-size:.8rem;font-weight:700;color:#EF4444;width:35px">${v}%</span>`;
+          bar.appendChild(track);
+          return bar;
+        }},
+      { key:'gap',    label:'Behind By',  align:'center',
+        render: v => UI.badge(v + '% behind', { base:'#FEE2E2', text:'#991B1B' }) },
+    ], behind, { hoverable: true });
+
+    return UI.card({
+      title: `⚠️ Behind Schedule (${behind.length} intern${behind.length!==1?'s':''})`,
+      padding: false,
+      body: tbl,
+    });
+  },
+
+  // Draw all charts at once
+  drawAllCharts() {
+    this.drawCompletionChart();
+    this.drawReportStatusChart();
+    this.drawAttendanceTrendChart();
+    this.drawDeptChart();
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
 Dashboard    .build();
+Analytics    .build();
 Approvals    .build();
 Interns      .build();
 Reports      .build();
