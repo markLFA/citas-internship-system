@@ -373,44 +373,6 @@ const Dashboard = {
     return wrap;
   },
 
-  profilePreviewCard() {
-    const internship = this.internship;
-    const company = this.company;
-
-    const body = document.createElement('div');
-
-    if (!internship || !company) {
-      return UI.card({
-        title: '🏢 My Internship',
-        body: UI.empty('🏢', 'No internship assigned yet', 'Please wait for assignment.')
-      });
-    }
-
-    [
-      ['🏢', company.name],
-      ['📍', company.address],
-      ['👤', `Supervisor: ${internship.supervisor}`],
-      ['📅', `${internship.start_date} → ${internship.end_date}`]
-    ].forEach(([icon, text]) => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        display:flex;
-        gap:.5rem;
-        align-items:flex-start;
-        padding:.45rem 0;
-        border-bottom:1px solid #FFF0E0;
-        font-size:.82rem;
-        color:#6B3A1F;
-      `;
-      row.innerHTML = `<span style="opacity:.55">${icon}</span><span>${text}</span>`;
-      body.appendChild(row);
-    });
-
-    return UI.card({
-      title: '🏢 My Internship',
-      body
-    });
-  },
 
   announcementsCard() {
     const body = document.createElement('div');
@@ -496,21 +458,49 @@ const Dashboard = {
     });
   },
 
+  profilePreviewCard() {
+    const body = document.createElement('div');
+    [
+      ['🏢', this.company.name],
+      ['📍', this.company.address.split(',').slice(-2).join(',').trim()],
+      ['👤', 'Supervisor: ' + this.internship.supervisor],
+      ['📅', this.internship.start_date + ' → ' + this.internship.end_date],
+    ].forEach(([icon, text]) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem;color:#6B3A1F';
+      row.innerHTML = `<span style="opacity:.55;flex-shrink:0">${icon}</span><span>${text}</span>`;
+      body.appendChild(row);
+    });
+
+    const btn = UI.button('View Full Profile →', {
+      block: true,
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => navigate('profile'),
+    });
+    btn.style.marginTop = '.85rem';
+    body.appendChild(btn);
+
+    return UI.card({ title: '🏢 My Internship', body });
+  },
 
   recentAttendanceCard() {
     return UI.card({
       title: '🕐 Recent Attendance',
-      body: UI.table(
-        [
-          { key: 'date', label: 'Date' },
-          { key: 'timeIn', label: 'In' },
-          { key: 'timeOut', label: 'Out' },
-          { key: 'hours', label: 'Hours' }
-        ],
-        ATTENDANCE_LOG.slice(0, 4)
-      )
+      padding: false,
+      headerActions: UI.button('View all', {
+        variant: 'ghost', size: 'sm',
+        color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+        onClick: () => navigate('attendance'),
+      }),
+      body: UI.table([
+        { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
+        { key:'timeIn',  label:'In'   },
+        { key:'timeOut', label:'Out'  },
+        { key:'hours',   label:'Hrs', align:'center',
+          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
+      ], ATTENDANCE_LOG.slice(0, 4), { hoverable: true }),
     });
-  }
+  },
 };
 // ─────────────────────────────────────────────────────────────
 //  PROFILE
