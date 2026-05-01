@@ -226,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->rollBack();
             // Show a safe message; log the real error server-side
             error_log('Registration error: ' . $e->getMessage());
-            $errors[] = 'Something went wrong. Please try again later.';
+            $errors[] = 'Something went wrong. Please try again later. ' . $e->getMessage();
         }
     }
 }
