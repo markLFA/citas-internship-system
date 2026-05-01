@@ -456,6 +456,47 @@ const Dashboard = {
     });
   },
 
+  // Mini sparkline-style chart for intern's recent daily hours
+  drawHoursTrendChart() {
+    const ctx = document.getElementById('chart-intern-trend');
+    if (!ctx || typeof Chart === 'undefined') return;
+
+    const labels = ATTENDANCE_LOG.slice().reverse().map(l => l.date.split(',')[0]);
+    const hours  = ATTENDANCE_LOG.slice().reverse().map(l => l.hours);
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data:                hours,
+          borderColor:         '#EA580C',
+          backgroundColor:     'rgba(234,88,12,.1)',
+          pointBackgroundColor:'#EA580C',
+          pointRadius:         3,
+          pointHoverRadius:    5,
+          tension:             0.3,
+          fill:                true,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins:    { legend: { display: false }, tooltip: {
+          callbacks: { label: c => ` ${c.parsed.y}h` },
+        }},
+        scales: {
+          y: {
+            min:   7, max: 10,
+            ticks: { callback: v => v+'h', font:{ size:10 } },
+            grid:  { color: '#FFF0E0' },
+          },
+          x: { grid: { display:false }, ticks: { font:{ size:9 }, maxRotation:30 } },
+        },
+      },
+    });
+  },
+
+
   recentAttendanceCard() {
     return UI.card({
       title: '🕐 Recent Attendance',
