@@ -111,9 +111,9 @@ function create_user(array $data): int {
 function create_placeholder_company(): int {
     $db   = getDB();
     $stmt = $db->prepare(
-        'INSERT INTO companies (name) VALUES (:name)'
+        'INSERT INTO companies (name, address) VALUES (:name, :address)'
     );
-    $stmt->execute([':name' => 'Not yet assigned']);
+    $stmt->execute([':name' => 'Not yet assigned', ':address' => 'Enter company address here']);
     return (int)$db->lastInsertId();
 }
 
