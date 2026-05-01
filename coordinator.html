@@ -385,8 +385,12 @@ const Dashboard = {
     const body = document.createElement('div');
     getPendingInterns().then(data => {
       PENDING = (data && !data.error) ? data : [];
+
       if (!PENDING.length) {
-        body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
+        //body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
+        const container = document.getElementById('pending-approvals-card-container');
+        container.remove();
+
       } else {
         PENDING.slice(0, 3).forEach(p => {
           const item = document.createElement('div');
