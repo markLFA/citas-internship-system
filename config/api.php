@@ -25,6 +25,15 @@ switch ($action) {
     case 'getPendingInterns':
         echo json_encode(getPendingInterns());
         break;
+    case 'approavePendingIntern':
+        $internId = $data['internId'] ?? null;
+        if ($internId) {
+            approvePendingIntern($internId);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['error' => 'Missing internId']);
+        }
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

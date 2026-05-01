@@ -197,3 +197,15 @@ function getPendingInterns(): array
         return [];
     }
 }
+function approvePendingIntern($internId) {
+    $pdo = getDB();
+
+    try {
+        $stmt = $pdo->prepare("UPDATE users SET is_active = 1 WHERE id = ?");
+        $stmt->execute([$internId]);
+        return true;
+    } catch (PDOException $e) {
+        error_log('approavPendingIntern(): ' . $e->getMessage());
+        return false;
+    }
+}
