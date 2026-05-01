@@ -113,13 +113,29 @@ let INTERNS = [
   { id:22, name:'andress Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
 ];
 
-// Pending registrations — interns who signed up but not yet approved
-// PHP: SELECT * FROM users WHERE role='intern' AND is_active=0
-let PENDING = [
-  { id:10, name:'Ricardo Bautista', email:'rbautista@samar.edu.ph', course:'BSIT',  year_level:'4th Year',  created_at:'Apr 28, 2026' },
-  { id:11, name:'Sofia Delgado',    email:'sdelgado@samar.edu.ph',  course:'BSCS',  year_level:'4th Year',  created_at:'Apr 27, 2026' },
-  { id:12, name:'Mark Ocampo',      email:'mocampo@samar.edu.ph',   course:'BSBA',  year_level:'4th Year',  created_at:'Apr 26, 2026' },
-];
+
+let PENDING = []
+
+async function getPendingInterns() {
+  try {
+    const response = await fetch('config/api.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getPendingInterns' })
+    });
+
+    // You must return the parsed JSON
+    return await response.json();
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    return { error: true };
+  }
+}
+async function refreshInternList() {
+  const data = await getPendingInterns();
+  PENDING = (data && !data.error) ? data : [];
+}
+refreshInternList();
 
 let ANNOUNCEMENTS = [
   { id:1, pinned:true,  title:'Required Documents Reminder',
@@ -519,7 +535,7 @@ const Approvals = {
     const listWrap = document.createElement('div');
     listWrap.id = 'approvals-list-wrap';
     sec.appendChild(listWrap);
-        fetch('config/api.php', {
+    fetch('config/api.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
