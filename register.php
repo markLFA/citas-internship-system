@@ -66,8 +66,6 @@ function validate(array $data): array {
 
     // Extra fields required for interns
     if ($data['role'] === 'intern') {
-        if (empty($data['school']))
-            $errors[] = 'School name is required for interns.';
         if (empty($data['course']))
             $errors[] = 'Course / Department is required for interns.';
     }
@@ -127,13 +125,12 @@ function create_intern_profile(int $userId, array $data): void {
     $db   = getDB();
     $stmt = $db->prepare(
         'INSERT INTO intern_profiles
-           (user_id, school, course, year_level, phone, required_hours)
+           (user_id, course, year_level, phone, required_hours)
          VALUES
-           (:user_id, :school, :course, :year_level, :phone, :required_hours)'
+           (:user_id, :course, :year_level, :phone, :required_hours)'
     );
     $stmt->execute([
         ':user_id'       => $userId,
-        ':school'        => $data['school']     ?: null,
         ':course'        => $data['course']     ?: null,
         ':year_level'    => $data['year_level'] ?: null,
         ':phone'         => $data['phone']      ?: null,
@@ -179,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'name'             => post('name'),
         'email'            => post('email'),
         'role'             => post('role'),
-        'school'           => post('school'),
         'course'           => post('course'),
         'year_level'       => post('year_level'),
         'phone'            => post('phone'),
@@ -453,49 +449,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       </div>
 
-      <!-- ── Intern-only fields (shown via JS) ─────────────── -->
+      <!-- ── Replace the entire Internship Details section ───────── -->
       <div id="intern-fields">
         <div class="section-label">Internship Details</div>
 
         <div class="field-row">
           <div class="field">
-            <label for="school">School / University</label>
-            <div class="inp-wrap">
-              <span class="inp-icon">🏫</span>
-              <input type="text" id="school" name="school"
-                placeholder="e.g. Samar College"
-                value="<?= h(post('school')) ?>">
-            </div>
+            <label for="course">Course</label>
+            <select id="course" name="course">
+              <option value="" disabled <?= empty(post('course')) ? 'selected' : '' ?>>
+                Select your course...
+              </option>
+              <option value="BSIT" <?= post('course') === 'BSIT' ? 'selected' : '' ?>>BSIT</option>
+              <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
+              <option value="BSA"  <?= post('course') === 'BSA'  ? 'selected' : '' ?>>BSA</option>
+              <option value="BSBA" <?= post('course') === 'BSBA' ? 'selected' : '' ?>>BSBA</option>
+              <option value="BEED" <?= post('course') === 'BEED' ? 'selected' : '' ?>>BEED</option>
+              <option value="BSED" <?= post('course') === 'BSED' ? 'selected' : '' ?>>BSED</option>
+            </select>
           </div>
+
           <div class="field">
-            <label for="course">Course / Department</label>
-            <div class="inp-wrap">
-              <span class="inp-icon">📚</span>
-              <input type="text" id="course" name="course"
-                placeholder="e.g. BSIT"
-                value="<?= h(post('course')) ?>">
-            </div>
+            <label for="year_level">Year Level</label>
+            <select id="year_level" name="year_level">
+              <option value="" disabled <?= empty(post('year_level')) ? 'selected' : '' ?>>
+                Select year level...
+              </option>
+              <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
+              <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
+              <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
+              <option value="4th Year" <?= post('year_level') === '4th Year' ? 'selected' : '' ?>>4th Year</option>
+            </select>
           </div>
         </div>
 
-        <div class="field-row">
-          <div class="field">
-            <label for="year_level">Year Level</label>
-            <div class="inp-wrap">
-              <span class="inp-icon">🎓</span>
-              <input type="text" id="year_level" name="year_level"
-                placeholder="e.g. 4th Year"
-                value="<?= h(post('year_level')) ?>">
-            </div>
-          </div>
-          <div class="field">
-            <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
-            <div class="inp-wrap">
-              <span class="inp-icon">📱</span>
-              <input type="tel" id="phone" name="phone"
-                placeholder="+63 9xx xxx xxxx"
-                value="<?= h(post('phone')) ?>">
-            </div>
+        <div class="field">
+          <label for="phone">
+            Phone Number
+            <span style="font-weight:400;opacity:.6">(optional)</span>
+          </label>
+          <div class="inp-wrap">
+            <span class="inp-icon">📱</span>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              placeholder="+63 9xx xxx xxxx"
+              value="<?= h(post('phone')) ?>"
+            >
           </div>
         </div>
 
@@ -547,32 +548,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
-// ── Show/hide intern-only fields based on role selection ──────
-const roleSelect    = document.getElementById('role');
-const internFields  = document.getElementById('intern-fields');
-const infoIntern    = document.getElementById('info-intern');
-const infoCoord     = document.getElementById('info-coordinator');
-const schoolInput   = document.getElementById('school');
-const courseInput   = document.getElementById('course');
+// ── Update JavaScript ────────────────────────────────────────
+const roleSelect   = document.getElementById('role');
+const internFields = document.getElementById('intern-fields');
+const infoIntern   = document.getElementById('info-intern');
+const infoCoord    = document.getElementById('info-coordinator');
+const courseInput  = document.getElementById('course');
+const yearInput    = document.getElementById('year_level');
 
 function updateRoleUI() {
   const role = roleSelect.value;
 
-  // Show/hide intern-specific fields
   internFields.style.display = role === 'intern' ? 'block' : 'none';
+  infoIntern.style.display   = role === 'intern' ? 'block' : 'none';
+  infoCoord.style.display    = role === 'coordinator' ? 'block' : 'none';
 
-  // Toggle info callouts
-  infoIntern.style.display = role === 'intern'      ? 'block' : 'none';
-  infoCoord.style.display  = role === 'coordinator' ? 'block' : 'none';
-
-  // Make school/course required only for interns
-  schoolInput.required = role === 'intern';
   courseInput.required = role === 'intern';
+  yearInput.required   = role === 'intern';
 }
 
 roleSelect.addEventListener('change', updateRoleUI);
-
-// Run on page load to restore state after a failed POST
 updateRoleUI();
 </script>
 </body>
