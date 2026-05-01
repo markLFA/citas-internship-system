@@ -278,7 +278,15 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('announcements') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
-      onClick: () => { if (confirm('Sign out of CITAS?')) location.href = 'login.php'; } },
+      onClick: () => { 
+        if (confirm('Sign out of CITAS?')) location.href = '/'; 
+        fetch('config/api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'logout' }),
+        });
+      } 
+    },
   ],
   footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
 });
