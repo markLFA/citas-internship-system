@@ -278,6 +278,8 @@ function navigate(name) {
 // ─────────────────────────────────────────────────────────────
 const Dashboard = {
 
+  // Top row: progress analytics card + announcements
+  // Bottom row: profile preview + recent attendance
   build() {
     const sec  = document.getElementById('sec-dashboard');
     const hour = new Date().getHours();
@@ -311,37 +313,28 @@ const Dashboard = {
 
   // Horizontal 4-number stat strip
   statStrip() {
-    const pct = Math.round(InternData.internships[0].total_hours / INTERN.reqHours * 100);
+    const pct = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
     return UI.statRow([
-      { value: InternData.internships[0].total_hours + 'h',   label: 'Hours Rendered',    color: '#EA580C' },
-      { value: InternData.internships[0].days_present,          label: 'Days Present',      color: '#10B981' },
-      { value: InternData.internships[0].reports_submitted,     label: 'Reports Submitted', color: '#6366F1' },
+      { value: INTERN.totalHours + 'h',   label: 'Hours Rendered',    color: '#EA580C' },
+      { value: INTERN.daysPresent,          label: 'Days Present',      color: '#10B981' },
+      { value: INTERN.reportsSubmitted,     label: 'Reports Submitted', color: '#6366F1' },
       { value: pct + '%',                   label: 'Completion',        color: '#EA580C' },
     ]);
   },
 
   // Slim progress bar with label underneath
   progressBar() {
-    const pct  = Math.round(InternData.internships[0].total_hours / INTERN.reqHours * 100);
+    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
     const wrap = document.createElement('div');
     wrap.style.marginBottom = '1rem';
     wrap.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
     const sub = document.createElement('p');
     sub.style.cssText = 'font-size:.75rem;color:#9A6647;margin-top:.35rem';
-    sub.textContent   = `${InternData.internships[0].total_hours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
+    sub.textContent   = `${INTERN.totalHours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
     wrap.appendChild(sub);
     return wrap;
   },
 
-  // 3-column row: announcements · profile preview · recent attendance
-  bottomRow() {
-    const row = document.createElement('div');
-    row.className = 'pg-grid-3 mt-lg';
-    row.appendChild( this.announcementsCard()   );
-    row.appendChild( this.profilePreviewCard()  );
-    row.appendChild( this.recentAttendanceCard());
-    return row;
-  },
   // Progress insights card with projected finish + hours trend chart
   progressInsightsCard() {
     const pct        = Math.round(INTERN.totalHours / INTERN.reqHours * 100);

@@ -1,415 +1,233 @@
-// intern/intern.js
-// ============================================================
-// CITAS Intern Portal
-// Built with CITAS UI Component Library
-// ============================================================
+const Dashboard = {
 
-document.addEventListener('DOMContentLoaded', initInternPortal);
+  build() {
+    const sec  = document.getElementById('sec-dashboard');
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-function initInternPortal() {
-    const app = document.getElementById('app');
+    sec.appendChild(Helpers.pageHeader(
+      `${greeting}, ${INTERN.name.split(' ')[0]}! 👋`,
+      new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
+    ));
 
-    const layout = document.createElement('div');
-    layout.className = 'intern-layout';
+    sec.appendChild( this.statStrip()  );
+    sec.appendChild( this.progressBar());
 
-    layout.appendChild(createSidebar());
+    // Top row: announcements + progress insights
+    const row1 = document.createElement('div');
+    row1.className = 'pg-grid-2 mt-lg';
+    row1.appendChild( this.announcementsCard()      );
+    row1.appendChild( this.progressInsightsCard()   );
+    sec.appendChild(row1);
 
-    const main = document.createElement('main');
-    main.className = 'intern-main';
+    // Bottom row: profile preview + recent attendance
+    const row2 = document.createElement('div');
+    row2.className = 'pg-grid-2 mt-lg';
+    row2.appendChild( this.profilePreviewCard()   );
+    row2.appendChild( this.recentAttendanceCard() );
+    sec.appendChild(row2);
 
-    main.appendChild(createHeader());
+    // Draw chart after DOM is attached
+    setTimeout(() => this.drawHoursTrendChart(), 50);
+  },
 
-    const content = document.createElement('section');
-    content.className = 'intern-content';
-    content.id = 'page-container';
+  // Horizontal 4-number stat strip
+  statStrip() {
+    const pct = Math.round(InternData.internships[0].total_hours / INTERN.reqHours * 100);
+    return UI.statRow([
+      { value: InternData.internships[0].total_hours + 'h',   label: 'Hours Rendered',    color: '#EA580C' },
+      { value: InternData.internships[0].days_present,          label: 'Days Present',      color: '#10B981' },
+      { value: InternData.internships[0].reports_submitted,     label: 'Reports Submitted', color: '#6366F1' },
+      { value: pct + '%',                   label: 'Completion',        color: '#EA580C' },
+    ]);
+  },
 
-    main.appendChild(content);
-    layout.appendChild(main);
+  // Slim progress bar with label underneath
+  progressBar() {
+    const pct  = Math.round(InternData.internships[0].total_hours / INTERN.reqHours * 100);
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '1rem';
+    wrap.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+    const sub = document.createElement('p');
+    sub.style.cssText = 'font-size:.75rem;color:#9A6647;margin-top:.35rem';
+    sub.textContent   = `${InternData.internships[0].total_hours}h of ${INTERN.reqHours}h required · ${INTERN.reqHours - INTERN.totalHours}h remaining`;
+    wrap.appendChild(sub);
+    return wrap;
+  },
 
-    app.appendChild(layout);
+  // 3-column row: announcements · profile preview · recent attendance
+  bottomRow() {
+    const row = document.createElement('div');
+    row.className = 'pg-grid-3 mt-lg';
+    row.appendChild( this.announcementsCard()   );
+    row.appendChild( this.profilePreviewCard()  );
+    row.appendChild( this.recentAttendanceCard());
+    return row;
+  },
+  // Progress insights card with projected finish + hours trend chart
+  progressInsightsCard() {
+    const pct        = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const remaining  = INTERN.reqHours - INTERN.totalHours;
+    const daysIn     = INTERN.daysPresent;
+    const avgPerDay  = daysIn > 0 ? (INTERN.totalHours / daysIn) : 8;
+    const daysNeeded = Math.ceil(remaining / avgPerDay);
 
-    initializeNavigation();
-    navigate('dashboard');
-}
-initInternPortal()
-/* ============================================================
-   Layout
-============================================================ */
+    // Projected finish date from today
+    const projDate = new Date();
+    let workDaysAdded = 0;
+    while (workDaysAdded < daysNeeded) {
+      projDate.setDate(projDate.getDate() + 1);
+      const day = projDate.getDay();
+      if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
+    }
+    const projStr = projDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
-function createSidebar() {
-    const sidebar = document.createElement('aside');
-    sidebar.className = 'intern-sidebar';
+    // On pace check: expected ~70% by week 14 of 20-week internship
+    const expectedPct = 70;
+    const onPace      = pct >= expectedPct;
 
-    sidebar.innerHTML = `
-        <div class="brand">
-            <div class="brand-logo">C</div>
-            <div class="brand-text">
-                <h1>CITAS</h1>
-                <p>Intern Portal</p>
-            </div>
-        </div>
-    `;
+    const body = document.createElement('div');
 
-    const nav = document.createElement('nav');
-    nav.className = 'nav-menu';
+    // On-pace badge
+    const paceBadge = document.createElement('div');
+    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace?'#D1FAE5':'#FEE2E2'};color:${onPace?'#065F46':'#991B1B'}`;
+    paceBadge.innerHTML = onPace
+      ? '✅ You are on schedule'
+      : `⚠️ ${expectedPct - pct}% behind the expected pace`;
+    body.appendChild(paceBadge);
 
-    const items = [
-        ['dashboard', 'Dashboard', '📊'],
-        ['timelogs', 'Time Logs', '🕒'],
-        ['reports', 'Weekly Reports', '📝'],
-        ['announcements', 'Announcements', '📢'],
-        ['profile', 'Profile', '👤']
-    ];
-
-    items.forEach(([page, label, icon]) => {
-        const link = document.createElement('a');
-        link.href = '#';
-        link.className = 'nav-link';
-        link.dataset.page = page;
-        link.innerHTML = `
-            <span>${icon}</span>
-            <span>${label}</span>
-        `;
-        nav.appendChild(link);
+    // Key insights
+    [
+      ['📅', 'Projected finish',    projStr],
+      ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
+      ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
+      ['📄', 'Reports submitted',   INTERN.reportsSubmitted + ' of ~14 expected'],
+    ].forEach(([icon, label, value]) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
+      row.innerHTML = `
+        <span style="opacity:.55;flex-shrink:0;margin-top:.1rem">${icon}</span>
+        <span style="color:#9A6647;min-width:130px;flex-shrink:0">${label}</span>
+        <span style="font-weight:600;color:#1A0A00">${value}</span>`;
+      body.appendChild(row);
     });
 
-    sidebar.appendChild(nav);
-    return sidebar;
-}
+    // Mini hours trend chart
+    const chartLabel = document.createElement('p');
+    chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
+    chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
+    body.appendChild(chartLabel);
 
-function createHeader() {
-    const header = document.createElement('header');
-    header.className = 'intern-header';
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-intern-trend';
+    canvas.height = 80;
+    body.appendChild(canvas);
 
-    header.innerHTML = `
-        <div class="page-title">
-            <h2 id="header-title">Dashboard</h2>
-            <p id="header-subtitle">
-                Welcome back to your internship portal.
-            </p>
-        </div>
+    return UI.card({ title: '📈 My Progress Insights', body });
+  },
 
-        <div class="header-profile">
-            <div>
-                <strong>Juan Dela Cruz</strong>
-                <br>
-                <small>BS Information Technology</small>
-            </div>
-        </div>
-    `;
+  // Mini sparkline-style chart for intern's recent daily hours
+  drawHoursTrendChart() {
+    const ctx = document.getElementById('chart-intern-trend');
+    if (!ctx || typeof Chart === 'undefined') return;
 
-    header.querySelector('.header-profile')
-        .appendChild(UI.avatar('Juan Dela Cruz'));
+    const labels = ATTENDANCE_LOG.slice().reverse().map(l => l.date.split(',')[0]);
+    const hours  = ATTENDANCE_LOG.slice().reverse().map(l => l.hours);
 
-    return header;
-}
-
-/* ============================================================
-   Navigation
-============================================================ */
-
-function initializeNavigation() {
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('.nav-link');
-        if (!link) return;
-
-        e.preventDefault();
-        navigate(link.dataset.page);
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data:                hours,
+          borderColor:         '#EA580C',
+          backgroundColor:     'rgba(234,88,12,.1)',
+          pointBackgroundColor:'#EA580C',
+          pointRadius:         3,
+          pointHoverRadius:    5,
+          tension:             0.3,
+          fill:                true,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins:    { legend: { display: false }, tooltip: {
+          callbacks: { label: c => ` ${c.parsed.y}h` },
+        }},
+        scales: {
+          y: {
+            min:   7, max: 10,
+            ticks: { callback: v => v+'h', font:{ size:10 } },
+            grid:  { color: '#FFF0E0' },
+          },
+          x: { grid: { display:false }, ticks: { font:{ size:9 }, maxRotation:30 } },
+        },
+      },
     });
-}
+  },
 
-function navigate(page) {
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.toggle(
-            'active',
-            link.dataset.page === page
-        );
-    });
-
-    renderPage(page);
-    updateHeader(page);
-}
-
-/* ============================================================
-   Pages
-============================================================ */
-
-function renderPage(page) {
-    const container = document.getElementById('page-container');
-    container.innerHTML = '';
-
-    const pages = {
-        dashboard: createDashboardPage,
-        timelogs: createTimeLogsPage,
-        reports: createReportsPage,
-        announcements: createAnnouncementsPage,
-        profile: createProfilePage
-    };
-
-    container.appendChild(pages[page]());
-}
-
-function updateHeader(page) {
-    const titles = {
-        dashboard: ['Dashboard', 'Overview of your internship'],
-        timelogs: ['Time Logs', 'Monitor your attendance'],
-        reports: ['Weekly Reports', 'Submit accomplishments'],
-        announcements: ['Announcements', 'Latest updates'],
-        profile: ['Profile', 'Manage your account']
-    };
-
-    document.getElementById('header-title').textContent =
-        titles[page][0];
-
-    document.getElementById('header-subtitle').textContent =
-        titles[page][1];
-}
-
-/* ============================================================
-   Dashboard
-============================================================ */
-
-function createDashboardPage() {
-    const page = document.createElement('div');
-
-    page.appendChild(createProfileCard());
-    page.appendChild(createStatsGrid());
-
-    const grid = document.createElement('div');
-    grid.className = 'dashboard-grid';
-
-    grid.appendChild(createRecentLogsCard());
-    grid.appendChild(createAnnouncementsCard());
-
-    page.appendChild(grid);
-
-    return page;
-}
-
-function createProfileCard() {
-    return UI.card({
-        title: 'Intern Information',
-        body: `
-            <div class="profile-summary">
-                <div class="profile-avatar">JD</div>
-                <div class="profile-details">
-                    <h2>Juan Dela Cruz</h2>
-                    <p>BS Information Technology</p>
-                    <p>ABC Technology Solutions</p>
-                    <p>Required Hours: 486</p>
-                </div>
-            </div>
-        `
-    });
-}
-
-function createStatsGrid() {
-    const grid = document.createElement('div');
-    grid.className = 'stats-grid';
-
-    grid.append(
-        UI.statCard('320', 'Hours Rendered', '⏱️'),
-        UI.statCard('486', 'Required Hours', '🎯'),
-        UI.statCard('12', 'Reports Submitted', '📝'),
-        UI.statCard('98%', 'Attendance Rate', '📈')
-    );
-
-    return grid;
-}
-
-function createRecentLogsCard() {
-    return UI.card({
-        title: 'Recent Time Logs',
-        body: createTimeLogsTable()
-    });
-}
-
-function createAnnouncementsCard() {
-    return UI.card({
-        title: 'Latest Announcements',
-        body: `
-            <div class="announcement-list">
-                ${announcementHTML(
-                    'Weekly Report Deadline',
-                    'Submit before Friday at 5:00 PM.'
-                )}
-                ${announcementHTML(
-                    'Coordinator Visit',
-                    'Company visit this Friday.'
-                )}
-            </div>
-        `
-    });
-}
-
-/* ============================================================
-   Time Logs
-============================================================ */
-
-function createTimeLogsPage() {
-    const page = document.createElement('div');
-
-    const stats = document.createElement('div');
-    stats.className = 'stats-grid';
-
-    stats.append(
-        UI.statCard('320', 'Total Hours', '⏱️'),
-        UI.statCard('40', 'This Week', '📅'),
-        UI.statCard('8', 'Daily Average', '⚡')
-    );
-
-    page.appendChild(stats);
-
-    page.appendChild(UI.card({
-        title: 'Attendance Records',
-        body: createTimeLogsTable(true)
-    }));
-
-    return page;
-}
-
-function createTimeLogsTable() {
-    const columns = [
-        'Date',
-        'Time In',
-        'Time Out',
-        'Hours'
-    ];
-
-    const rows = [
-        ['Apr 21, 2026', '8:00 AM', '5:00 PM', '8.0'],
-        ['Apr 22, 2026', '8:05 AM', '5:02 PM', '8.0'],
-        ['Apr 23, 2026', '7:58 AM', '5:01 PM', '8.1']
-    ];
-
-    return UI.table(columns, rows);
-}
-
-/* ============================================================
-   Weekly Reports
-============================================================ */
-
-function createReportsPage() {
-    const page = document.createElement('div');
-
-    const uploadCard = UI.card({
-        title: 'Upload Weekly Report',
-        body: `
-            <div class="upload-zone">
-                <h2>Drag & Drop Files Here</h2>
-                <p>or click below to browse</p>
-            </div>
-        `
-    });
-
-    const buttonWrap = document.createElement('div');
-    buttonWrap.style.marginTop = '1.5rem';
-    buttonWrap.appendChild(
-        UI.button('Select File', {
-            variant: 'primary',
-            icon: '📤'
-        })
-    );
-
-    uploadCard.querySelector('.cui-card-body')
-        .appendChild(buttonWrap);
-
-    page.appendChild(uploadCard);
-
-    page.appendChild(UI.card({
-        title: 'Submission History',
-        body: createReportsTable()
-    }));
-
-    return page;
-}
-
-function createReportsTable() {
-    return UI.table(
-        ['Week', 'Date', 'Status', 'Review'],
-        [
-            ['Week 10', 'Apr 15, 2026', 'Submitted', 'Approved'],
-            ['Week 11', 'Apr 22, 2026', 'Submitted', 'Pending'],
-            ['Week 12', 'Apr 29, 2026', 'Not Submitted', '-']
-        ]
-    );
-}
-
-/* ============================================================
-   Announcements
-============================================================ */
-
-function createAnnouncementsPage() {
-    return UI.card({
-        title: 'All Announcements',
-        body: `
-            <div class="announcement-list">
-                ${announcementHTML(
-                    'Weekly Report Deadline',
-                    'Submit your report before Friday.'
-                )}
-                ${announcementHTML(
-                    'Coordinator Visit',
-                    'Scheduled this Friday at 2:00 PM.'
-                )}
-                ${announcementHTML(
-                    'System Maintenance',
-                    'Saturday, 8:00 PM to 10:00 PM.'
-                )}
-            </div>
-        `
-    });
-}
-
-/* ============================================================
-   Profile
-============================================================ */
-
-function createProfilePage() {
-    const form = document.createElement('div');
-    form.className = 'profile-form';
-
-    form.append(
-        UI.input({
-            value: 'Juan',
-            placeholder: 'First Name'
-        }),
-        UI.input({
-            value: 'Dela Cruz',
-            placeholder: 'Last Name'
-        }),
-        UI.input({
-            value: 'juan@example.com',
-            type: 'email'
-        }),
-        UI.input({
-            value: 'BS Information Technology'
-        })
-    );
-
-    const saveButton = UI.button('Save Changes', {
-        variant: 'primary',
-        icon: '💾'
-    });
-
-    form.appendChild(saveButton);
+  // Pinned-first announcement list
+  announcementsCard() {
+    const body = document.createElement('div');
+    [...ANNOUNCEMENTS]
+      .sort((a, b) => b.pinned - a.pinned)
+      .forEach(a => body.appendChild(Helpers.annItem(a)));
+    if (!ANNOUNCEMENTS.length)
+      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
 
     return UI.card({
-        title: 'Profile Information',
-        body: form
+      title: '📢 Announcements',
+      headerActions: UI.badge(
+        ANNOUNCEMENTS.filter(a => a.pinned).length + ' pinned', 'warning'
+      ),
+      body,
     });
-}
+  },
 
-/* ============================================================
-   Helpers
-============================================================ */
+  // Quick company + supervisor snapshot with "View Profile" button
+  profilePreviewCard() {
+    const body = document.createElement('div');
+    [
+      ['🏢', INTERN.company],
+      ['📍', INTERN.address.split(',').slice(-2).join(',').trim()],
+      ['👤', 'Supervisor: ' + INTERN.supervisor],
+      ['📅', INTERN.startDate + ' → ' + INTERN.endDate],
+    ].forEach(([icon, text]) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem;color:#6B3A1F';
+      row.innerHTML = `<span style="opacity:.55;flex-shrink:0">${icon}</span><span>${text}</span>`;
+      body.appendChild(row);
+    });
 
-function announcementHTML(title, text) {
-    return `
-        <div class="announcement">
-            <h4>${title}</h4>
-            <p>${text}</p>
-            <small>Posted recently</small>
-        </div>
-    `;
-}
+    const btn = UI.button('View Full Profile →', {
+      block: true,
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => navigate('profile'),
+    });
+    btn.style.marginTop = '.85rem';
+    body.appendChild(btn);
+
+    return UI.card({ title: '🏢 My Internship', body });
+  },
+
+  // Last 4 attendance rows
+  recentAttendanceCard() {
+    return UI.card({
+      title: '🕐 Recent Attendance',
+      padding: false,
+      headerActions: UI.button('View all', {
+        variant: 'ghost', size: 'sm',
+        color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+        onClick: () => navigate('attendance'),
+      }),
+      body: UI.table([
+        { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
+        { key:'timeIn',  label:'In'   },
+        { key:'timeOut', label:'Out'  },
+        { key:'hours',   label:'Hrs', align:'center',
+          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
+      ], ATTENDANCE_LOG.slice(0, 4), { hoverable: true }),
+    });
+  },
+};
+
