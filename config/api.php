@@ -22,6 +22,9 @@ switch ($action) {
     case 'getAllInternData':
         echo json_encode(getAllInternData());
         break;
+    case 'getPendingInterns':
+        echo json_encode(getPendingInterns());
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

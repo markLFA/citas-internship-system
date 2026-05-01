@@ -164,3 +164,34 @@ function getAllInternData() {
 
     return $result;
 }
+
+function getPendingInterns(): array
+{
+    $pdo = getDB();
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.created_at,
+                ip.course,
+                ip.year_level
+            FROM users u
+            INNER JOIN intern_profiles ip
+                ON ip.user_id = u.id
+            WHERE u.is_active = 0
+              AND u.role = 'student'
+            ORDER BY u.created_at DESC
+        ");
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    } catch (PDOException $e) {
+        error_log('getPendingInterns(): ' . $e->getMessage());
+        return [];
+    }
+}
