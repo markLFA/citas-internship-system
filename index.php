@@ -73,7 +73,6 @@ function attempt_login(string $email, string $password): ?array {
     $user = $stmt->fetch();
 
     if (!$user)                                    return null; // no account
-    if (!$user['is_active'])                       return null; // account disabled
     if (!password_verify($password, $user['password'])) return null; // wrong password
 
     return $user;
