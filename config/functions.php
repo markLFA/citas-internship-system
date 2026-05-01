@@ -58,7 +58,7 @@ function getAllInternData() {
     // 2. Get intern profile
     // ---------------------------
     $stmt = $pdo->prepare("
-        SELECT school, course, year_level, phone, required_hours, joined_date
+        SELECT course, year_level, phone, required_hours, joined_date
         FROM intern_profiles
         WHERE user_id = ?
         LIMIT 1
