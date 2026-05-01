@@ -68,6 +68,9 @@ function validate(array $data): array {
     if ($data['role'] === 'intern') {
         if (empty($data['course']))
             $errors[] = 'Course / Department is required for interns.';
+
+        if (empty($data['coordinator_id']))
+            $errors[] = 'Coordinator is required for interns.';
     }
 
     return $errors;
@@ -125,7 +128,7 @@ function create_intern_profile(int $userId, array $data): void {
     $db   = getDB();
     $stmt = $db->prepare(
         'INSERT INTO intern_profiles
-           (user_id, course, year_level, phone, required_hours)
+           (user_id, course, year_level, phone, coordinator_id, required_hours)
          VALUES
            (:user_id, :course, :year_level, :phone, :required_hours)'
     );
@@ -134,6 +137,7 @@ function create_intern_profile(int $userId, array $data): void {
         ':course'        => $data['course']     ?: null,
         ':year_level'    => $data['year_level'] ?: null,
         ':phone'         => $data['phone']      ?: null,
+        ':coordinator_id'=> $data['coordinator_id'] ?: null,
         ':required_hours'=> 500,   // default; coordinator can adjust later
     ]);
 }
@@ -179,6 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'course'           => post('course'),
         'year_level'       => post('year_level'),
         'phone'            => post('phone'),
+        'coordinator_id'   => post('coordinator_id'),
         'password'         => $_POST['password']         ?? '',
         'confirm_password' => $_POST['confirm_password'] ?? '',
     ];
