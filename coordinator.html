@@ -279,7 +279,11 @@ const sidebar = UI.pageSidebar({
       onClick: () => navigate('analytics') },
     { label:'Pending Approvals',icon:'⏳',
       badge: PENDING.length || null,
-      onClick: () => navigate('approvals') },
+      onClick: () => {
+        navigate('approvals')
+        Approvals.build();
+
+      } },
     { label:'Interns',          icon:'👥',
       onClick: () => navigate('interns') },
     { label:'Weekly Reports',   icon:'📄',
