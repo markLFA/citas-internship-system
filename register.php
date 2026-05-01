@@ -225,6 +225,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+function getCoordinators(): array
+{
+    $pdo = getDB();
+    $sql = "
+        SELECT id, name, email
+        FROM users
+        WHERE role = :role
+        ORDER BY name ASC
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':role' => 'coordinator'
+    ]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+$coordinators = getCoordinators();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -484,6 +503,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field">
+          <label for="coordinator_id">Coordinator</label>
+          <select id="coordinator_id" name="coordinator_id">
+            <option value="" disabled <?= empty(post('coordinator_id')) ? 'selected' : '' ?>>
+              Select coordinator...
+            </option>
+
+            <?php foreach ($coordinators as $coordinator): ?>
+              <option
+                value="<?= $coordinator['id'] ?>"
+                <?= post('coordinator_id') == $coordinator['id'] ? 'selected' : '' ?>
+              >
+                <?= htmlspecialchars($coordinator['name']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
           <label for="phone">
             Phone Number
             <span style="font-weight:400;opacity:.6">(optional)</span>
@@ -555,6 +592,7 @@ const infoIntern   = document.getElementById('info-intern');
 const infoCoord    = document.getElementById('info-coordinator');
 const courseInput  = document.getElementById('course');
 const yearInput    = document.getElementById('year_level');
+const coordinatorInput    = document.getElementById('coordinator_id');
 
 function updateRoleUI() {
   const role = roleSelect.value;
@@ -565,6 +603,7 @@ function updateRoleUI() {
 
   courseInput.required = role === 'intern';
   yearInput.required   = role === 'intern';
+  coordinatorInput.required = role === 'intern';
 }
 
 roleSelect.addEventListener('change', updateRoleUI);
