@@ -85,7 +85,7 @@ function create_user(array $data): int {
     $role = map_role($data['role']);
 
     // Interns start inactive; coordinators are active immediately
-    $active = ($role === 'coordinator') ? 1 : 0;
+    $active = 0;
     $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
 
     $stmt = $db->prepare(
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isIntern = map_role($data['role']) === 'intern';
             $success  = $isIntern
                 ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
-                : 'Account created successfully! You can now log in.';
+                : 'Account created successfully! wait for Admin aproaval.';
 
             // Clear POST data so form resets
             $_POST = [];
@@ -445,7 +445,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           ⏳ Intern accounts require coordinator approval before you can log in.
         </div>
         <div class="role-info" id="info-coordinator">
-          ✅ Coordinator accounts are activated immediately after registration.
+          ⏳ Coordinator accounts will be activated after Admin approaval.
         </div>
       </div>
 
