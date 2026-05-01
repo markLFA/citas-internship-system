@@ -182,7 +182,7 @@ function getPendingInterns(): array
             INNER JOIN intern_profiles ip
                 ON ip.user_id = u.id
             WHERE u.is_active = 0
-              AND u.role = 'student'
+              AND u.role = 'intern'
             ORDER BY u.created_at DESC
         ");
 
