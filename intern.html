@@ -391,7 +391,7 @@ const Dashboard = {
     const pct        = Math.round(this.internship.total_hours / InternData.profile.required_hours * 100);
     const remaining  = InternData.profile.required_hours - this.internship.total_hours;
     const daysIn     = this.internship.days_present;
-    const avgPerDay  = daysIn > 0 ? (this.internships.total_hours / daysIn) : 8;
+    const avgPerDay  = daysIn > 0 ? (InternData.internships[0].total_hours / daysIn) : 8;
     const daysNeeded = Math.ceil(remaining / avgPerDay);
 
     // Projected finish date from today
