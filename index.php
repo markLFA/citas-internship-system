@@ -97,6 +97,7 @@ function start_user_session(array $user): void {
 
 $errors    = [];
 $old_email = '';
+$Alert = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -115,8 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Deliberately vague so attackers can't tell which field was wrong
             $errors[] = 'Incorrect email or password. Please try again.';
         } else if ($user['is_active'] === 0) {
-          echo "Account not active";
-            $errors[] = 'Your account has not been approved by the coordinator yet.';
+            $Alert = 'Your account has not been approved by the coordinator yet.';
         } else {
             // Step C — success: session + redirect
             start_user_session($user);
@@ -232,6 +232,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     .errors li::before { content: '⚠'; flex-shrink: 0; }
 
+    /* ── Alerts ───────────────────────────────────────────── */
+    .alert {
+      display:flex; align-items:flex-start; gap:.5rem;
+      border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem;
+      font-size:.83rem; font-weight:500;
+    }
+    .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
+    .alert li::before { content:'⚠ '; }
+    .alert-success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
+
     /* ── Form ─────────────────────────────────────────────── */
     .field { margin-bottom: 1.1rem; }
     label  { display: block; font-size: .8rem; font-weight: 600; color: #6B3A1F; margin-bottom: .4rem; }
@@ -319,6 +329,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <li><?= h($e) ?></li>
           <?php endforeach; ?>
         </ul>
+      </div>
+    <?php endif; ?>
+    <?php if (!empty($Alert)): ?>
+      <div class="alert alert-success">
+        <span>✅</span>&nbsp;<?= h($Alert) ?>
       </div>
     <?php endif; ?>
 
