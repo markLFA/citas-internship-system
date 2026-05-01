@@ -388,34 +388,64 @@ const Dashboard = {
   },
 
   progressInsightsCard() {
-    const internship = this.internship;
-    const required = InternData.profile.required_hours;
+    const pct        = Math.round(this.internship.total_hours / InternData.profile.required_hours * 100);
+    const remaining  = InternData.profile.required_hours - this.internship.total_hours;
+    const daysIn     = this.internship.days_present;
+    const avgPerDay  = daysIn > 0 ? (InternData.profile.total_hours / daysIn) : 8;
+    const daysNeeded = Math.ceil(remaining / avgPerDay);
 
-    const total = internship?.total_hours ?? 0;
-    const days = internship?.days_present ?? 0;
+    // Projected finish date from today
+    const projDate = new Date();
+    let workDaysAdded = 0;
+    while (workDaysAdded < daysNeeded) {
+      projDate.setDate(projDate.getDate() + 1);
+      const day = projDate.getDay();
+      if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
+    }
+    const projStr = projDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
-    const pct = required ? Math.round((total / required) * 100) : 0;
-    const remaining = Math.max(0, required - total);
-
-    const avgPerDay = days > 0 ? total / days : 0;
+    // On pace check: expected ~70% by week 14 of 20-week internship
+    const expectedPct = 70;
+    const onPace      = pct >= expectedPct;
 
     const body = document.createElement('div');
 
+    // On-pace badge
+    const paceBadge = document.createElement('div');
+    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace?'#D1FAE5':'#FEE2E2'};color:${onPace?'#065F46':'#991B1B'}`;
+    paceBadge.innerHTML = onPace
+      ? '✅ You are on schedule'
+      : `⚠️ ${expectedPct - pct}% behind the expected pace`;
+    body.appendChild(paceBadge);
+
+    // Key insights
     [
-      ['📊', 'Progress', `${pct}%`],
-      ['⚡', 'Avg per day', `${avgPerDay.toFixed(1)}h`],
-      ['📌', 'Remaining', `${remaining}h`]
+      ['📅', 'Projected finish',    projStr],
+      ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
+      ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
+      ['📄', 'Reports submitted',   INTERN.reportsSubmitted + ' of ~14 expected'],
     ].forEach(([icon, label, value]) => {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:.5rem;padding:.4rem 0;font-size:.82rem';
-      row.innerHTML = `<span>${icon}</span><strong>${label}:</strong> ${value}`;
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
+      row.innerHTML = `
+        <span style="opacity:.55;flex-shrink:0;margin-top:.1rem">${icon}</span>
+        <span style="color:#9A6647;min-width:130px;flex-shrink:0">${label}</span>
+        <span style="font-weight:600;color:#1A0A00">${value}</span>`;
       body.appendChild(row);
     });
 
-    return UI.card({
-      title: '📈 Insights',
-      body
-    });
+    // Mini hours trend chart
+    const chartLabel = document.createElement('p');
+    chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
+    chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
+    body.appendChild(chartLabel);
+
+    const canvas = document.createElement('canvas');
+    canvas.id     = 'chart-intern-trend';
+    canvas.height = 80;
+    body.appendChild(canvas);
+
+    return UI.card({ title: '📈 My Progress Insights', body });
   },
 
   // Mini sparkline-style chart for intern's recent daily hours
