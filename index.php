@@ -115,6 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user === null) {
             // Deliberately vague so attackers can't tell which field was wrong
             $errors[] = 'Incorrect email or password. Please try again.';
+        } else if (!$user['is_active']) {
+            $errors[] = 'Your account has not been approved by the coordinator yet.';
         } else {
             // Step C — success: session + redirect
             start_user_session($user);

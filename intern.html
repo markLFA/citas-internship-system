@@ -235,12 +235,14 @@ const sidebar = UI.pageSidebar({
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
       onClick: () => { 
-        if (confirm('Sign out of CITAS?')) location.href = '/'; 
-        fetch('config/api.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'logout' }),
-        });
+        if (confirm('Sign out of CITAS?')) {
+          location.href = '/'; 
+          fetch('config/api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'logout' }),
+          });
+        }
       } 
     },
   ],
