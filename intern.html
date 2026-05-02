@@ -547,49 +547,57 @@ const Profile = {
     const grid = document.createElement('div');
     grid.className = 'pg-grid-2';
     grid.style.alignItems = 'start';
-    grid.appendChild( this.leftColumn()  );
-    grid.appendChild( this.rightColumn() );
+    grid.appendChild(this.leftColumn());
+    grid.appendChild(this.rightColumn());
     sec.appendChild(grid);
+  },
+
+  // 🔹 Helper to safely get internship
+  get internship() {
+    return InternData.internships?.[0] || {};
+  },
+
+  get company() {
+    return this.internship.company || {};
   },
 
   leftColumn() {
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
-    col.appendChild( this.personalCard()   );
-    col.appendChild( this.detailsCard()    );
-    col.appendChild( this.editButton()     );
+    col.appendChild(this.personalCard());
+    col.appendChild(this.detailsCard());
+    col.appendChild(this.editButton());
     return col;
   },
 
   rightColumn() {
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
-    col.appendChild( this.companyCard()  );
-    col.appendChild( this.hoursCard()   );
+    col.appendChild(this.companyCard());
+    col.appendChild(this.hoursCard());
     return col;
   },
 
-  // Avatar + name + role using UI.profileCard
   personalCard() {
     return UI.profileCard({
-      name:   InternData.user.name,
-      role:   `${InternData.profile.course} · ${InternData.profile.yearLevel}`,
-      email:  InternData.user.email,
-      dept:   InternData.profile.course,
+      name: InternData.user.name,
+      role: `${InternData.profile.course} · ${InternData.profile.year_level}`,
+      email: InternData.user.email,
+      dept: InternData.profile.course,
       yearLevel: InternData.profile.year_level,
-      joined: InternData.profile.joined_date,
+      joined: InternData.profile.joined_date || '—',
     });
   },
 
-  // Phone / school / course / year / joined using UI.infoRow
   detailsCard() {
     const body = document.createElement('div');
     [
-      ['📱', 'Phone',      InternData.profile.phone],
-      ['📚', 'Course',     InternData.profile.course],
+      ['📱', 'Phone', InternData.profile.phone],
+      ['📚', 'Course', InternData.profile.course],
       ['🎓', 'Year Level', InternData.profile.year_level],
-      ['📅', 'Joined',     InternData.profile.joined_date],
-    ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v)));
+      ['📅', 'Joined', InternData.profile.joined_date || '—'],
+    ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v || '—')));
+
     return UI.card({ title: '📋 Personal Details', body });
   },
 
@@ -601,38 +609,43 @@ const Profile = {
     });
   },
 
-  // Company header + detail rows using UI.companyInfoCard
   companyCard() {
     return UI.companyInfoCard({
-      company:    InternData.internships[0].company.name,
-      position:   InternData.internships[0].position,
-      address:    InternData.internships[0].company.address,
-      supervisor: InternData.internships[0].supervisor,
-      phone:      InternData.internships[0].company.phone,
-      email:      InternData.internships[0].company.email,
-      startDate:  InternData.internships[0].start_date,
-      endDate:    InternData.internships[0].end_date,
+      company:    this.company.name || 'Not assigned',
+      position:   this.internship.position || '—',
+      address:    this.company.address || '—',
+      supervisor: this.internship.supervisor || '—',
+      phone:      this.company.phone || '—',
+      email:      this.company.email || '—',
+      startDate:  this.internship.start_date || '—',
+      endDate:    this.internship.end_date || '—',
     });
   },
 
-  // Total hours with progress bar
   hoursCard() {
-    const pct  = Math.round(InternData.internships[0].total_hours / InternData.profile.required_hours * 100);
+    const total = this.internship.total_hours || 0;
+    const required = InternData.profile.required_hours || 1;
+
+    const pct = Math.round((total / required) * 100);
+
     const body = document.createElement('div');
+
     body.appendChild(UI.statRow([
-      { value: InternData.internships[0].total_hours + 'h',                      label: 'Rendered',  color: '#EA580C' },
-      { value: (InternData.profile.required_hours - InternData.internships[0].total_hours) + 'h',  label: 'Remaining', color: '#6B3A1F' },
-      { value: pct + '%',                                     label: 'Complete',  color: '#10B981' },
+      { value: total + 'h', label: 'Rendered', color: '#EA580C' },
+      { value: (required - total) + 'h', label: 'Remaining', color: '#6B3A1F' },
+      { value: pct + '%', label: 'Complete', color: '#10B981' },
     ]));
+
     const lbl = document.createElement('p');
     lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
-    lbl.textContent   = `Progress toward ${InternData.profile.required_hours}h requirement`;
+    lbl.textContent = `Progress toward ${required}h requirement`;
+
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+
     return UI.card({ title: '⏳ Hours Summary', body });
   },
 
-  // Edit profile modal with sections
   openEditModal() {
     const body = document.createElement('div');
 
@@ -642,6 +655,7 @@ const Profile = {
       d.textContent = label;
       body.appendChild(d);
     };
+
     const twoCol = () => {
       const d = document.createElement('div');
       d.className = 'cui-form-row';
@@ -650,42 +664,64 @@ const Profile = {
     };
 
     section('Personal Information');
+
     body.appendChild(UI.formGroup('Full Name',
-      UI.input({ value: InternData.user.name,      placeholder: 'Full name' })));
+      UI.input({ id: "nameField", value: InternData.user.name, placeholder: 'Full name' })));
+
     body.appendChild(UI.formGroup('Phone',
-      UI.input({ value: InternData.profile.phone,     placeholder: '+63 9xx xxx xxxx' })));
+      UI.input({ id: "phoneField", value: InternData.profile.phone, placeholder: '+63 9xx xxx xxxx' })));
+
     const r1 = twoCol();
     r1.appendChild(UI.formGroup('Course',
-      UI.input({ value: InternData.profile.course,    placeholder: 'e.g. BSIT' })));
+      UI.input({ id: "courseField", type:'select', options:['BSIT','BSCS','BSBA'],  value: InternData.profile.course, placeholder: 'e.g. BSIT' })));
+
     r1.appendChild(UI.formGroup('Year Level',
-      UI.input({ value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })));
+      UI.input({ id: "phoneField", type:'select', options:['1st Year','2nd Year','3rd Year', '4rth year'],  value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })));
 
     section('Internship / Company');
+
     body.appendChild(UI.formGroup('Company Name',
-      UI.input({ value: InternData.internships[0].company.name,    placeholder: 'Company name' })));
+      UI.input({ id: "CompanyNameField", value: this.company.name, placeholder: 'Company name' })));
+
     body.appendChild(UI.formGroup('Position',
-      UI.input({ value: InternData.internships[0].position,   placeholder: 'e.g. IT Intern' })));
+      UI.input({ id: "Positionfield", value: this.internship.position, placeholder: 'e.g. IT Intern' })));
+
     body.appendChild(UI.formGroup('Address',
-      UI.textarea({ value: InternData.internships[0].company.address, rows: 2, placeholder: 'Full address' })));
+      UI.textarea({ id: "Addressfield", value: this.company.address, rows: 2, placeholder: 'Full address' })));
+
     body.appendChild(UI.formGroup('Supervisor',
-      UI.input({ value: InternData.internships[0].supervisor, placeholder: 'Supervisor name' })));
+      UI.input({ id: "SupervisorField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
+
+    body.appendChild(UI.formGroup('Supervisor Number',
+      UI.input({ id: "SupervisorNumberField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
+
     const r2 = twoCol();
-    r2.appendChild(UI.formGroup('Start Date', UI.input({ type: 'date', value: InternData.internships[0].start_date })));
-    r2.appendChild(UI.formGroup('End Date',   UI.input({ type: 'date', value: InternData.internships[0].end_date })));
+    r2.appendChild(UI.formGroup('Start Date',
+      UI.input({ id: "StartdateField", type: 'date', value: this.internship.start_date })));
+
+    r2.appendChild(UI.formGroup('End Date',
+      UI.input({ id: "endDateField", type: 'date', value: this.internship.end_date })));
 
     const m = UI.modal({
-      title: '✏️ Edit Profile', body, size: 'lg',
+      title: '✏️ Edit Profile',
+      body,
+      size: 'lg',
       footer: [
-        UI.button('Cancel',      { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        UI.button('Save Changes', { size:'sm',
+        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        UI.button('Save Changes', {
+          size:'sm',
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-          onClick: () => { UI.toast('Profile saved! (Connect to PHP)', 'success'); m.close(); } }),
+          onClick: () => {
+            UI.toast('Profile saved! (Connect to PHP)', 'success');
+            m.close();
+          }
+        }),
       ],
     });
+
     m.open();
   },
 };
-
 
 // ─────────────────────────────────────────────────────────────
 //  ATTENDANCE

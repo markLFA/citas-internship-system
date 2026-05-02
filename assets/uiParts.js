@@ -497,9 +497,24 @@ const UI = (() => {
 
   // ════════════════════════════════════════════════════════
   //  INPUT
-  //  UI.input({ type, placeholder, value, id, name, required, disabled })
+  //  UI.input({ type, placeholder, value, id, name, required,
+  //             disabled, error, color, onChange })
   //
-  //  type: 'text' | 'email' | 'password' | 'number' | 'date' | etc.
+  //  type: 'text' | 'email' | 'password' | 'number' | 'date'
+  //        'tel'  | 'url'   | 'search'   | etc.
+  //        'select' → renders a <select> instead of <input>
+  //
+  //  When type = 'select':
+  //    options:     required. Array of strings or { value, label } objects.
+  //    placeholder: optional first disabled option e.g. 'Choose one…'
+  //    value:       the option value to pre-select
+  //
+  //  Examples:
+  //    UI.input({ type:'select', options:['BSIT','BSCS','BSBA'] })
+  //    UI.input({ type:'select', placeholder:'Pick role…',
+  //               options:[{ value:'intern', label:'Student Intern' },
+  //                        { value:'coordinator', label:'Coordinator' }],
+  //               value:'intern' })
   // ════════════════════════════════════════════════════════
   function input({
     type        = 'text',
@@ -510,8 +525,42 @@ const UI = (() => {
     required    = false,
     disabled    = false,
     error       = false,
+    color       = null,
+    options     = [],    // only used when type === 'select'
     onChange    = null,
   } = {}) {
+
+    // ── SELECT variant ──────────────────────────────────────
+    if (type === 'select') {
+      const sel = el('select', `cui-input${error ? ' cui-input-error' : ''}`);
+      if (id)       sel.id       = id;
+      if (name)     sel.name     = name;
+      if (required) sel.required = true;
+      if (disabled) sel.disabled = true;
+
+      // Optional blank/placeholder first option
+      if (placeholder) {
+        const blank = el('option', '', { value: '', text: placeholder });
+        blank.disabled = true;
+        blank.selected = (value === '' || value == null);
+        sel.appendChild(blank);
+      }
+
+      // Build option elements
+      options.forEach(o => {
+        const v   = typeof o === 'string' ? o       : (o.value ?? '');
+        const lbl = typeof o === 'string' ? o       : (o.label ?? o.value ?? '');
+        const opt = el('option', '', { value: v, text: lbl });
+        if (String(v) === String(value)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      if (onChange) sel.addEventListener('change', onChange);
+      if (color && typeof color === 'object') applyColor(sel, color);
+      return sel;
+    }
+
+    // ── Regular <input> variant ─────────────────────────────
     const inp = el('input', `cui-input${error ? ' cui-input-error' : ''}`);
     inp.type = type;
     if (placeholder) inp.placeholder = placeholder;
@@ -521,6 +570,7 @@ const UI = (() => {
     if (required)    inp.required    = true;
     if (disabled)    inp.disabled    = true;
     if (onChange)    inp.addEventListener('input', onChange);
+    if (color && typeof color === 'object') applyColor(inp, color);
     return inp;
   }
 
