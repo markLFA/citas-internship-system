@@ -35,7 +35,7 @@ switch ($action) {
         }
         break;
     case 'updateInternProfile':
-        updateInternProfile($pdo, $data);
+        updateInternProfile( $data);
         break;
     default:
         echo json_encode([
