@@ -712,7 +712,8 @@ const Profile = {
           size:'sm',
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
           onClick: () => {
-            UI.toast('Profile saved! (Connect to PHP)', 'success');
+            //UI.toast('Profile saved! (Connect to PHP)', 'success');
+            saveProfileChanges(m)
             m.close();
           }
         }),
@@ -721,6 +722,75 @@ const Profile = {
 
     m.open();
   },
+  async saveProfileChanges(modal) {
+    const payload = {
+      action: 'updateInternProfile',
+
+      user: {
+        name: document.getElementById('nameField').value.trim(),
+      },
+
+      profile: {
+        phone: document.getElementById('phoneField').value.trim(),
+        course: document.getElementById('courseField').value,
+        year_level: document.getElementById('yearLevelField').value,
+      },
+
+      internship: {
+        company_name: document.getElementById('companyNameField').value.trim(),
+        position: document.getElementById('positionField').value.trim(),
+        address: document.getElementById('addressField').value.trim(),
+        supervisor: document.getElementById('supervisorField').value.trim(),
+        supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
+        start_date: document.getElementById('startDateField').value || null,
+        end_date: document.getElementById('endDateField').value || null,
+      }
+    };
+
+    try {
+      const response = await fetch('/config/api.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to update profile.');
+      }
+
+      Object.assign(InternData.user, result.user);
+      Object.assign(InternData.profile, result.profile);
+
+      if (!InternData.internships.length) {
+        InternData.internships.push({ company: {} });
+      }
+
+      Object.assign(InternData.internships[0], result.internship);
+      Object.assign(
+        InternData.internships[0].company,
+        result.internship.company
+      );
+
+      UI.toast(result.message, 'success');
+      modal.close();
+
+      const sec = document.getElementById('sec-profile');
+      sec.innerHTML = '';
+      this.build();
+
+    } catch (error) {
+      console.error(error);
+      UI.toast(error.message, 'error');
+    }
+  }
 };
 
 // ─────────────────────────────────────────────────────────────

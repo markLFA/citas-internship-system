@@ -34,6 +34,9 @@ switch ($action) {
             echo json_encode(['error' => 'Missing internId']);
         }
         break;
+    case 'updateInternProfile':
+        updateInternProfile($pdo, $data);
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

@@ -209,3 +209,159 @@ function approvePendingIntern($internId) {
         return false;
     }
 }
+function updateInternProfile(array $data): void
+{
+    $pdo = getDB();
+    if (empty($_SESSION['user']['id'])) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Unauthorized.'
+        ]);
+        return;
+    }
+
+    $userId = (int) $_SESSION['user']['id'];
+
+    $user       = $data['user'] ?? [];
+    $profile    = $data['profile'] ?? [];
+    $internship = $data['internship'] ?? [];
+
+    try {
+        $pdo->beginTransaction();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update users table
+        |--------------------------------------------------------------------------
+        */
+        $stmt = $pdo->prepare("
+            UPDATE users
+            SET name = ?
+            WHERE id = ?
+        ");
+
+        $stmt->execute([
+            trim($user['name'] ?? ''),
+            $userId
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update intern_profiles table
+        |--------------------------------------------------------------------------
+        */
+        $stmt = $pdo->prepare("
+            UPDATE intern_profiles
+            SET
+                phone = ?,
+                course = ?,
+                year_level = ?
+            WHERE user_id = ?
+        ");
+
+        $stmt->execute([
+            trim($profile['phone'] ?? ''),
+            trim($profile['course'] ?? ''),
+            trim($profile['year_level'] ?? ''),
+            $userId
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get active internship
+        |--------------------------------------------------------------------------
+        */
+        $stmt = $pdo->prepare("
+            SELECT id, company_id
+            FROM internships
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        ");
+
+        $stmt->execute([$userId]);
+        $currentInternship = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($currentInternship) {
+            /*
+            --------------------------------------------------------------
+            | Update companies table
+            --------------------------------------------------------------
+            */
+            $stmt = $pdo->prepare("
+                UPDATE companies
+                SET
+                    name = ?,
+                    address = ?
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                trim($internship['company_name'] ?? ''),
+                trim($internship['address'] ?? ''),
+                $currentInternship['company_id']
+            ]);
+
+            /*
+            --------------------------------------------------------------
+            | Update internships table
+            --------------------------------------------------------------
+            */
+            $stmt = $pdo->prepare("
+                UPDATE internships
+                SET
+                    position = ?,
+                    supervisor = ?,
+                    supervisor_phone = ?,
+                    start_date = ?,
+                    end_date = ?
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                trim($internship['position'] ?? ''),
+                trim($internship['supervisor'] ?? ''),
+                trim($internship['supervisor_phone'] ?? ''),
+                !empty($internship['start_date']) ? $internship['start_date'] : null,
+                !empty($internship['end_date']) ? $internship['end_date'] : null,
+                $currentInternship['id']
+            ]);
+        }
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Profile updated successfully.',
+            'user' => [
+                'name' => trim($user['name'] ?? '')
+            ],
+            'profile' => [
+                'phone' => trim($profile['phone'] ?? ''),
+                'course' => trim($profile['course'] ?? ''),
+                'year_level' => trim($profile['year_level'] ?? '')
+            ],
+            'internship' => [
+                'position' => trim($internship['position'] ?? ''),
+                'supervisor' => trim($internship['supervisor'] ?? ''),
+                'supervisor_phone' => trim($internship['supervisor_phone'] ?? ''),
+                'start_date' => !empty($internship['start_date']) ? $internship['start_date'] : null,
+                'end_date' => !empty($internship['end_date']) ? $internship['end_date'] : null,
+                'company' => [
+                    'name' => trim($internship['company_name'] ?? ''),
+                    'address' => trim($internship['address'] ?? '')
+                ]
+            ]
+        ]);
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+    }
+}
