@@ -1,0 +1,1 @@
+[02-May-2026 09:31:29 Europe/Berlin] PHP Parse error:  syntax error, unexpected identifier "trim", expecting "]" in C:\Users\Albos\Desktop\GitHub\citas-internship-system\config\functions.php on line 302

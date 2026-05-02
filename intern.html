@@ -92,7 +92,6 @@ loadProfile();
 /** @type {InternData|null} */
 let InternData;
 
-
 // ─────────────────────────────────────────────────────────────
 //  DATA
 //  PHP: replace with const INTERN = <?= json_encode($intern) ?>;
@@ -749,7 +748,7 @@ const Profile = {
     };
 
     try {
-      const response = await fetch('/config/api.php', {
+      const response = await fetch('config/api.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

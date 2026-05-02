@@ -8,10 +8,19 @@ function getDB() {
   static $pdo = null;
 
   if ($pdo === null) {
-$host = "fdb1034.awardspace.net";
-$user = "4753482_capstone";
-$pass = "Pa_787898_;"; 
-$db   = "4753482_capstone"; 
+/*
+  $host = "localhost";
+  $user = "root";
+  $pass = "";
+*/
+
+  $host = "fdb1034.awardspace.net";
+  $user = "4753482_capstone";
+  $pass = "Pa_787898_;"; 
+
+  $db   = "4753482_capstone"; 
+
+
 
     $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
 
