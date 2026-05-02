@@ -681,23 +681,23 @@ const Profile = {
     section('Internship / Company');
 
     body.appendChild(UI.formGroup('Company Name',
-      UI.input({ id: "CompanyNameField", value: this.company.name, placeholder: 'Company name' })));
+      UI.input({ id: "companyNameField", value: this.company.name, placeholder: 'Company name' })));
 
     body.appendChild(UI.formGroup('Position',
-      UI.input({ id: "Positionfield", value: this.internship.position, placeholder: 'e.g. IT Intern' })));
+      UI.input({ id: "positionField", value: this.internship.position, placeholder: 'e.g. IT Intern' })));
 
     body.appendChild(UI.formGroup('Address',
-      UI.textarea({ id: "Addressfield", value: this.company.address, rows: 2, placeholder: 'Full address' })));
+      UI.textarea({ id: "addressField", value: this.company.address, rows: 2, placeholder: 'Full address' })));
 
     body.appendChild(UI.formGroup('Supervisor',
-      UI.input({ id: "SupervisorField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
+      UI.input({ id: "supervisorField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
 
     body.appendChild(UI.formGroup('Supervisor Number',
-      UI.input({ id: "SupervisorNumberField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
+      UI.input({ id: "supervisorNumberField", value: this.internship.supervisor_phone, placeholder: 'Supervisor Phone Number' })));
 
     const r2 = twoCol();
     r2.appendChild(UI.formGroup('Start Date',
-      UI.input({ id: "StartdateField", type: 'date', value: this.internship.start_date })));
+      UI.input({ id: "startDate Field", type: 'date', value: this.internship.start_date })));
 
     r2.appendChild(UI.formGroup('End Date',
       UI.input({ id: "endDateField", type: 'date', value: this.internship.end_date })));
