@@ -516,6 +516,7 @@ const UI = (() => {
   //                        { value:'coordinator', label:'Coordinator' }],
   //               value:'intern' })
   // ════════════════════════════════════════════════════════
+
   function input({
     type        = 'text',
     placeholder = '',
@@ -531,7 +532,7 @@ const UI = (() => {
   } = {}) {
 
     // ── SELECT variant ──────────────────────────────────────
-    if (type === 'select') {
+    if (type === '') {
       const sel = el('select', `cui-input${error ? ' cui-input-error' : ''}`);
       if (id)       sel.id       = id;
       if (name)     sel.name     = name;
