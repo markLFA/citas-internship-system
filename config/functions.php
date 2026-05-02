@@ -301,7 +301,6 @@ function updateInternProfile(array $data): void
                 trim($internship['address'] ?? ''),
                 $currentInternship['company_id']
             ]);
-            echo 'Company Id: ' . $currentInternship['company_id'];
             /*
             --------------------------------------------------------------
             | Update internships table
