@@ -274,7 +274,7 @@ function updateInternProfile(array $data): void
         $stmt = $pdo->prepare("
             SELECT id, company_id
             FROM internships
-            WHERE user_id = ?
+            WHERE intern_id = ?
             ORDER BY created_at DESC
             LIMIT 1
         ");
