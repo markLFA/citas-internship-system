@@ -41,8 +41,6 @@ switch ($action) {
         echo json_encode([
             "error" => "Invalid action"
         ]);
-        echo "test";
-        echo json_encode(getAllInternData());
         break;
 }
 ?>
