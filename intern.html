@@ -713,7 +713,7 @@ const Profile = {
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
           onClick: () => {
             //UI.toast('Profile saved! (Connect to PHP)', 'success');
-            saveProfileChanges(m)
+            this.saveProfileChanges(m)
             m.close();
           }
         }),
