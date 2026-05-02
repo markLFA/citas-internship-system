@@ -723,6 +723,7 @@ const Profile = {
     m.open();
   },
   async saveProfileChanges(modal) {
+    console.log('Company name to save:', document.getElementById('companyNameField').value);
     const payload = {
       action: 'updateInternProfile',
 
