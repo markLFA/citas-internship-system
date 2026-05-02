@@ -5,3 +5,10 @@ Stack trace:
 #1 C:\Users\Albos\Desktop\GitHub\citas-internship-system\index.php(3): require('C:\\Users\\Albos\\...')
 #2 {main}
   thrown in C:\Users\Albos\Desktop\GitHub\citas-internship-system\config\db.php on line 14
+[02-May-2026 12:53:42 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it in C:\Users\Albos\Desktop\GitHub\citas-internship-system\config\db.php:33
+Stack trace:
+#0 C:\Users\Albos\Desktop\GitHub\citas-internship-system\config\db.php(33): PDO->__construct('mysql:host=loca...', 'root', Object(SensitiveParameterValue), Array)
+#1 C:\Users\Albos\Desktop\GitHub\citas-internship-system\index.php(66): getDB()
+#2 C:\Users\Albos\Desktop\GitHub\citas-internship-system\index.php(113): attempt_login('soblamark@gmail...', '1234567')
+#3 {main}
+  thrown in C:\Users\Albos\Desktop\GitHub\citas-internship-system\config\db.php on line 33
