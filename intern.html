@@ -684,6 +684,8 @@ const Profile = {
 
     r1.appendChild(UI.formGroup('Year level',
       UI.input({ id: "yearLevelField", type:'select', options:['1st Year','2nd Year','3rd Year', '4rth year', 'Iregular'],  value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })));
+    console.log("year level firld "+document.getElementById('yearLevelField').tagName);
+    console.log("Course firld "+document.getElementById('courseField').tagName);
 
     section('Internship / Company');
 
