@@ -809,74 +809,113 @@ const Profile = {
     this.endDateField.value = this.internship?.end_date || '';
   },
 async saveProfileChanges(modal) {
-    console.log('Company name to save:', document.getElementById('companyNameField').value);
-    const payload = {
-      action: 'updateInternProfile',
+  const payload = {
+    action: 'updateInternProfile',
 
-      user: {
-        name: document.getElementById('nameField').value.trim(),
+    user: {
+      name: document.getElementById('nameField').value.trim(),
+    },
+
+    profile: {
+      phone: document.getElementById('phoneField').value.trim(),
+      course: document.getElementById('courseField').value,
+      year_level: document.getElementById('yearLevelField').value,
+    },
+
+    internship: {
+      company_name: document.getElementById('companyNameField').value.trim(),
+      position: document.getElementById('positionField').value.trim(),
+      address: document.getElementById('addressField').value.trim(),
+      supervisor: document.getElementById('supervisorField').value.trim(),
+      supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
+      start_date: document.getElementById('startDateField').value || null,
+      end_date: document.getElementById('endDateField').value || null,
+    }
+  };
+
+  try {
+    const response = await fetch('config/api.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify(payload)
+    });
 
-      profile: {
-        phone: document.getElementById('phoneField').value.trim(),
-        course: document.getElementById('courseField').value,
-        year_level: document.getElementById('yearLevelField').value,
-      },
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-      internship: {
-        company_name: document.getElementById('companyNameField').value.trim(),
-        position: document.getElementById('positionField').value.trim(),
-        address: document.getElementById('addressField').value.trim(),
-        supervisor: document.getElementById('supervisorField').value.trim(),
-        supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
-        start_date: document.getElementById('startDateField').value || null,
-        end_date: document.getElementById('endDateField').value || null,
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update profile.');
+    }
+
+    // Update local data
+    this.applyProfileUpdates(result);
+
+    // Re-render UI
+    const sec = document.getElementById('sec-profile');
+    sec.innerHTML = '';
+    this.build();
+
+    UI.toast(result.message, 'success');
+    modal.close();
+
+  } catch (error) {
+    console.error(error);
+    UI.toast(error.message, 'error');
+  }
+},
+
+
+  applyProfileUpdates(response) {
+    if (!response) return;
+
+
+    if (response.user) {
+      Object.assign(InternData.user, response.user);
+    }
+
+
+    if (response.profile) {
+      Object.assign(InternData.profile, response.profile);
+    }
+
+    if (response.internship) {
+      // Ensure internship exists
+      if (!InternData.internships?.length) {
+        InternData.internships = [{
+          company: {}
+        }];
       }
-    };
-    console.log("payload "+JSON.stringify(payload, null, 2))
-    try {
-      const response = await fetch('config/api.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+
+      const internship = InternData.internships[0];
+
+      // Update internship fields
+      Object.assign(internship, {
+        position: response.internship.position,
+        supervisor: response.internship.supervisor,
+        supervisor_phone: response.internship.supervisor_phone,
+        start_date: response.internship.start_date,
+        end_date: response.internship.end_date
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // Update company fields
+      if (response.internship.company) {
+        internship.company ??= {};
+        Object.assign(internship.company, response.internship.company);
       }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to update profile.');
-      }
-
-      Object.assign(InternData.user, result.user);
-      Object.assign(InternData.profile, result.profile);
-
-      if (!InternData.internships.length) {
-        InternData.internships.push({ company: {} });
-      }
-
-      Object.assign(InternData.internships[0], result.internship);
-      Object.assign(
-        InternData.internships[0].company,
-        result.internship.company
-      );
-
-      UI.toast(result.message, 'success');
-      modal.close();
-
-      const sec = document.getElementById('sec-profile');
-      sec.innerHTML = '';
-      this.build();
-
-    } catch (error) {
-      console.error(error);
-      UI.toast(error.message, 'error');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Optional Convenience References
+    |--------------------------------------------------------------------------
+    */
+    this.internship = InternData.internships?.[0] ?? null;
+    this.company = this.internship?.company ?? null;
   }
 };
 
