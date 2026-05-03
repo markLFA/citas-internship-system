@@ -870,53 +870,58 @@ async saveProfileChanges(modal) {
 },
 
 
-  applyProfileUpdates(response) {
-    if (!response) return;
+applyProfileUpdates(response) {
+  if (!response) return;
 
-
-    if (response.user) {
-      Object.assign(InternData.user, response.user);
-    }
-
-
-    if (response.profile) {
-      Object.assign(InternData.profile, response.profile);
-    }
-
-    if (response.internship) {
-      // Ensure internship exists
-      if (!InternData.internships?.length) {
-        InternData.internships = [{
-          company: {}
-        }];
-      }
-
-      const internship = InternData.internships[0];
-
-      // Update internship fields
-      Object.assign(internship, {
-        position: response.internship.position,
-        supervisor: response.internship.supervisor,
-        supervisor_phone: response.internship.supervisor_phone,
-        start_date: response.internship.start_date,
-        end_date: response.internship.end_date
-      });
-
-      // Update company fields
-      if (response.internship.company) {
-        internship.company ??= {};
-        Object.assign(internship.company, response.internship.company);
-      }
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Optional Convenience References
-    |--------------------------------------------------------------------------
-    */
-    this.internship = InternData.internships?.[0] ?? null;
-    this.company = this.internship?.company ?? null;
+  /*
+  |--------------------------------------------------------------------------
+  | Update User
+  |--------------------------------------------------------------------------
+  */
+  if (response.user) {
+    Object.assign(InternData.user, response.user);
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Update Profile
+  |--------------------------------------------------------------------------
+  */
+  if (response.profile) {
+    Object.assign(InternData.profile, response.profile);
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Update Internship
+  |--------------------------------------------------------------------------
+  */
+  if (response.internship) {
+    if (!InternData.internships?.length) {
+      InternData.internships = [{
+        company: {}
+      }];
+    }
+
+    const internship = InternData.internships[0];
+
+    Object.assign(internship, {
+      position: response.internship.position,
+      supervisor: response.internship.supervisor,
+      supervisor_phone: response.internship.supervisor_phone,
+      start_date: response.internship.start_date,
+      end_date: response.internship.end_date
+    });
+
+    if (response.internship.company) {
+      internship.company ??= {};
+      Object.assign(internship.company, response.internship.company);
+    }
+  }
+
+  // No need to assign this.internship or this.company
+  // if they are implemented as getters.
+}  
 };
 
 // ─────────────────────────────────────────────────────────────
