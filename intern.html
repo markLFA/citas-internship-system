@@ -755,7 +755,7 @@ const Profile = {
         end_date: document.getElementById('endDateField').value || null,
       }
     };
-    console.log("payload "+payload)
+    console.log("payload "+JSON.stringify(payload, null, 2))
     try {
       const response = await fetch('config/api.php', {
         method: 'POST',
