@@ -329,7 +329,8 @@ const Dashboard = {
 
     const row2 = document.createElement('div');
     row2.className = 'pg-grid-2 mt-lg';
-    row2.appendChild(this.profilePreviewCard());
+    this.profilePreviewContainer = document.createElement('div');
+    row2.appendChild(this.profilePreviewContainer);
     row2.appendChild(this.recentAttendanceCard());
     sec.appendChild(row2);
 
@@ -525,7 +526,7 @@ const Dashboard = {
     btn.style.marginTop = '.85rem';
     this.profilePreviewBody.appendChild(btn);
 
-    return UI.card({ title: '🏢 My Internship', body: this.profilePreviewBody });
+    this.profilePreviewContainer.appendChild(UI.card({ title: '🏢 My Internship', body: this.profilePreviewBody }));
   },
     updateProfilePreview() {
       
