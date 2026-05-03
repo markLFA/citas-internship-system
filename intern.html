@@ -499,7 +499,11 @@ const Dashboard = {
   },
 
   profilePreviewCard() {
-    const body = document.createElement('div');
+    if (!this.profilePreviewBody) {
+      this.profilePreviewBody = document.createElement('div');
+    } else {
+      this.profilePreviewBody.innerHTML = '';
+    }
     [
       ['🏢', this.company.name],
       ['📍', (this.company.address ?? '').split(',').slice(-2).join(',').trim() || '—'],
@@ -509,7 +513,7 @@ const Dashboard = {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem;color:#6B3A1F';
       row.innerHTML = `<span style="opacity:.55;flex-shrink:0">${icon}</span><span>${text}</span>`;
-      body.appendChild(row);
+      this.profilePreviewBody.appendChild(row);
     });
 
     const btn = UI.button('View Full Profile →', {
@@ -518,10 +522,13 @@ const Dashboard = {
       onClick: () => navigate('profile'),
     });
     btn.style.marginTop = '.85rem';
-    body.appendChild(btn);
+    this.profilePreviewBody.appendChild(btn);
 
     return UI.card({ title: '🏢 My Internship', body });
   },
+    updateProfilePreview() {
+      
+    },
 
   recentAttendanceCard() {
     return UI.card({
@@ -808,66 +815,66 @@ const Profile = {
     this.startDateField.value = this.internship?.start_date || '';
     this.endDateField.value = this.internship?.end_date || '';
   },
-async saveProfileChanges(modal) {
-  const payload = {
-    action: 'updateInternProfile',
+  async saveProfileChanges(modal) {
+    const payload = {
+      action: 'updateInternProfile',
 
-    user: {
-      name: document.getElementById('nameField').value.trim(),
-    },
-
-    profile: {
-      phone: document.getElementById('phoneField').value.trim(),
-      course: document.getElementById('courseField').value,
-      year_level: document.getElementById('yearLevelField').value,
-    },
-
-    internship: {
-      company_name: document.getElementById('companyNameField').value.trim(),
-      position: document.getElementById('positionField').value.trim(),
-      address: document.getElementById('addressField').value.trim(),
-      supervisor: document.getElementById('supervisorField').value.trim(),
-      supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
-      start_date: document.getElementById('startDateField').value || null,
-      end_date: document.getElementById('endDateField').value || null,
-    }
-  };
-
-  try {
-    const response = await fetch('config/api.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+      user: {
+        name: document.getElementById('nameField').value.trim(),
       },
-      body: JSON.stringify(payload)
-    });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      profile: {
+        phone: document.getElementById('phoneField').value.trim(),
+        course: document.getElementById('courseField').value,
+        year_level: document.getElementById('yearLevelField').value,
+      },
+
+      internship: {
+        company_name: document.getElementById('companyNameField').value.trim(),
+        position: document.getElementById('positionField').value.trim(),
+        address: document.getElementById('addressField').value.trim(),
+        supervisor: document.getElementById('supervisorField').value.trim(),
+        supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
+        start_date: document.getElementById('startDateField').value || null,
+        end_date: document.getElementById('endDateField').value || null,
+      }
+    };
+
+    try {
+      const response = await fetch('config/api.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to update profile.');
+      }
+
+      // Update local data
+      this.applyProfileUpdates(result);
+      Dashboard.profilePreviewCard()
+      // Re-render UI
+      const sec = document.getElementById('sec-profile');
+      sec.innerHTML = '';
+      this.build();
+
+      UI.toast(result.message, 'success');
+      modal.close();
+
+    } catch (error) {
+      console.error(error);
+      UI.toast(error.message, 'error');
     }
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to update profile.');
-    }
-
-    // Update local data
-    this.applyProfileUpdates(result);
-
-    // Re-render UI
-    const sec = document.getElementById('sec-profile');
-    sec.innerHTML = '';
-    this.build();
-
-    UI.toast(result.message, 'success');
-    modal.close();
-
-  } catch (error) {
-    console.error(error);
-    UI.toast(error.message, 'error');
-  }
-},
+  },
 
 
 applyProfileUpdates(response) {
