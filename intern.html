@@ -221,57 +221,64 @@ const Helpers = {
   },
 };
   
-const sidebar = UI.pageSidebar({
-  brand:     'Intern Portal',    // role-specific label
-  brandIcon: '🎒',
-  items: [
-    { section:true, label:'Menu' },
-    { label:'Dashboard',      icon:'📋', active:true,  onClick: () => navigate('dashboard')  },
-    { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
-    { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
-    { label:'Weekly Reports', icon:'📄',
-      badge: REPORTS.filter(r => r.status === 'revision').length || null,
-      onClick: () => navigate('reports') },
-    { section:true, label:'Account' },
-    { label:'Sign Out', icon:'🚪',
-      onClick: () => { 
-        if (confirm('Sign out of CITAS?')) {
-          fetch('config/api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'logout' }),
-          }).then(res => {
-            location.href = '/'; 
-          })
+// Bug fix: sidebar and topbar are built after the API responds so they
+// display the real user name/course instead of the dummy INTERN object.
+let sidebar, navigate;
+
+function initNav() {
+  const userName   = InternData.user.name;
+  const userCourse = InternData.profile?.course ?? 'Intern';
+
+  sidebar = UI.pageSidebar({
+    brand:     'Intern Portal',
+    brandIcon: '🎒',
+    items: [
+      { section:true, label:'Menu' },
+      { label:'Dashboard',      icon:'📋', active:true,  onClick: () => navigate('dashboard')  },
+      { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
+      { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
+      { label:'Weekly Reports', icon:'📄',
+        badge: REPORTS.filter(r => r.status === 'revision').length || null,
+        onClick: () => navigate('reports') },
+      { section:true, label:'Account' },
+      { label:'Sign Out', icon:'🚪',
+        onClick: () => {
+          if (confirm('Sign out of CITAS?')) {
+            fetch('config/api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'logout' }),
+            }).then(() => { location.href = '/'; });
+          }
         }
-      } 
-    },
-  ],
-  footer: Helpers.sidebarFooter(INTERN.name, INTERN.course),
-});
+      },
+    ],
+    footer: Helpers.sidebarFooter(userName, userCourse),
+  });
 
-const topbar = UI.navbar({
-  brand:     'CITAS Internship',            // system brand on navbar
-  brandIcon: '🎓',
-  sidebar,
-  pageTitle: 'Dashboard',
-  right: [
-    UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
-    (() => {
-      const av = UI.avatar(INTERN.name, 'sm');
-      av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-      return av;
-    })(),
-  ],
-});
-document.getElementById('page-main').prepend(topbar.el);
+  const topbar = UI.navbar({
+    brand:     'CITAS Internship',
+    brandIcon: '🎓',
+    sidebar,
+    pageTitle: 'Dashboard',
+    right: [
+      UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
+      (() => {
+        const av = UI.avatar(userName, 'sm');
+        av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+        return av;
+      })(),
+    ],
+  });
+  document.getElementById('page-main').prepend(topbar.el);
 
-function navigate(name) {
-  document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + name).classList.add('active');
-  sidebar.setActive(SECTIONS[name]);
-  const center = document.querySelector('.cui-navbar-center');
-  if (center) center.textContent = SECTIONS[name];
+  navigate = function(name) {
+    document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + name).classList.add('active');
+    sidebar.setActive(SECTIONS[name]);
+    const center = document.querySelector('.cui-navbar-center');
+    if (center) center.textContent = SECTIONS[name];
+  };
 }
 
 
@@ -426,7 +433,7 @@ const Dashboard = {
       ['📅', 'Projected finish',    projStr],
       ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
       ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
-      ['📄', 'Reports submitted',   INTERN.reportsSubmitted + ' of ~14 expected'],
+      ['📄', 'Reports submitted',   (InternData.internships[0]?.reports_submitted ?? 0) + ' of ~14 expected'],
     ].forEach(([icon, label, value]) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
@@ -495,7 +502,7 @@ const Dashboard = {
     const body = document.createElement('div');
     [
       ['🏢', this.company.name],
-      ['📍', this.company.address.split(',').slice(-2).join(',').trim()],
+      ['📍', (this.company.address ?? '').split(',').slice(-2).join(',').trim() || '—'],
       ['👤', 'Supervisor: ' + this.internship.supervisor],
       ['📅', this.internship.start_date + ' → ' + this.internship.end_date],
     ].forEach(([icon, text]) => {
@@ -712,9 +719,9 @@ const Profile = {
           size:'sm',
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
           onClick: () => {
-            //UI.toast('Profile saved! (Connect to PHP)', 'success');
-            this.saveProfileChanges(m)
-            m.close();
+            // Bug fix: do NOT call m.close() here — saveProfileChanges()
+            // is async and handles closing the modal itself on success/failure.
+            this.saveProfileChanges(m);
           }
         }),
       ],
@@ -833,22 +840,28 @@ const Attendance = {
 
   // Big hours number + stat strip + progress bar
   hoursCard() {
-    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    // Bug fix: was using stale INTERN dummy object — now reads from InternData
+    const internship = InternData.internships?.[0] ?? {};
+    const total    = internship.total_hours    ?? 0;
+    const days     = internship.days_present   ?? 0;
+    const required = InternData.profile?.required_hours ?? 500;
+    const pct      = required ? Math.round((total / required) * 100) : 0;
+
     const body = document.createElement('div');
 
     const big = document.createElement('div');
     big.style.cssText = 'text-align:center;padding:1rem 0';
     big.innerHTML = `
       <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">
-        ${INTERN.totalHours}h
+        ${total}h
       </div>
-      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${INTERN.reqHours}h required</div>`;
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${required}h required</div>`;
     body.appendChild(big);
 
     body.appendChild(UI.statRow([
-      { value: INTERN.daysPresent,                           label: 'Days Present', color: '#EA580C' },
-      { value: (INTERN.reqHours - INTERN.totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
-      { value: pct + '%',                                    label: 'Complete',     color: '#10B981' },
+      { value: days,                    label: 'Days Present', color: '#EA580C' },
+      { value: (required - total) + 'h', label: 'Hours Left',  color: '#6B3A1F' },
+      { value: pct + '%',               label: 'Complete',     color: '#10B981' },
     ]));
 
     const lbl = document.createElement('p');
@@ -1077,10 +1090,13 @@ fetch('config/api.php', {
 
   console.log('InternData:', InternData);
 
-  Dashboard.build();
-  Profile.build();
+  // Build nav first so navigate() is defined before sections call it
+  initNav();
+
+  Dashboard .build();
+  Profile   .build();
   Attendance.build();
-  Reports.build();
+  Reports   .build();
 })
 .catch(error => {
   console.error('Fetch error:', error);

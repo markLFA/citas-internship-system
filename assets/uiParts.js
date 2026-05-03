@@ -532,7 +532,7 @@ const UI = (() => {
   } = {}) {
 
     // ── SELECT variant ──────────────────────────────────────
-    if (type === '') {
+    if (type === 'select') {
       const sel = el('select', `cui-input${error ? ' cui-input-error' : ''}`);
       if (id)       sel.id       = id;
       if (name)     sel.name     = name;
