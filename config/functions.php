@@ -494,3 +494,62 @@ function submitWeeklyReport(): void
 
     exit;
 }
+function getInternReports(): array
+{
+    if (empty($_SESSION['user']['id'])) return [];
+
+    $pdo    = getDB();
+    $userId = (int) $_SESSION['user']['id'];
+
+    try {
+        // Fetch all reports for this intern, newest first
+        $stmt = $pdo->prepare("
+            SELECT
+                r.id,
+                r.week_label,
+                r.week_start,
+                r.description,
+                r.status,
+                r.feedback,
+                r.uploaded_at,
+                r.reviewed_at
+            FROM weekly_reports r
+            WHERE r.intern_id = :intern_id
+            ORDER BY r.week_start DESC
+        ");
+        $stmt->execute([':intern_id' => $userId]);
+        $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($reports)) return [];
+
+        // Fetch all files for these reports in one query
+        $reportIds    = array_column($reports, 'id');
+        $placeholders = implode(',', array_fill(0, count($reportIds), '?'));
+
+        $stmt = $pdo->prepare("
+            SELECT report_id, file_name, file_path, file_size, mime_type
+            FROM   weekly_report_files
+            WHERE  report_id IN ($placeholders)
+            ORDER BY id ASC
+        ");
+        $stmt->execute($reportIds);
+        $allFiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Group files by report_id for easy lookup
+        $filesByReport = [];
+        foreach ($allFiles as $f) {
+            $filesByReport[$f['report_id']][] = $f;
+        }
+
+        // Attach files array to each report
+        foreach ($reports as &$report) {
+            $report['files'] = $filesByReport[$report['id']] ?? [];
+        }
+
+        return $reports;
+
+    } catch (PDOException $e) {
+        error_log('getInternReports(): ' . $e->getMessage());
+        return [];
+    }
+}

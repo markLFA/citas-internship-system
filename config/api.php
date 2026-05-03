@@ -40,7 +40,9 @@ switch ($action) {
     case 'submitWeeklyReport':
         submitWeeklyReport();
         break;
-    default:
+    case 'getInternReports':
+        echo json_encode(getInternReports());
+        break;    default:
         echo json_encode([
             "error" => "Invalid action"
         ]);
