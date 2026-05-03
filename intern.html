@@ -500,7 +500,8 @@ const Dashboard = {
 
   profilePreviewCard() {
     if (!this.profilePreviewBody) {
-      this.profilePreviewBody = document.createElement('div');
+      this.profilePreviewBody = document.createElement('div', id );
+      this.profilePreviewBody.id = 'profile-preview-body';
     } else {
       this.profilePreviewBody.innerHTML = '';
     }
