@@ -364,3 +364,133 @@ function updateInternProfile(array $data): void
         ]);
     }
 }
+
+function submitWeeklyReport(): void
+{
+    $pdo = getDB();
+    header('Content-Type: application/json');
+
+    try {
+        // Verify login
+        if (empty($_SESSION['user']['id'])) {
+            throw new Exception('You must be logged in.');
+        }
+
+        $internId    = (int) $_SESSION['user']['id'];
+        $weekLabel   = trim($_POST['week_label'] ?? '');
+        $weekStart   = trim($_POST['week_start'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        // Validation
+        if ($weekLabel === '') {
+            throw new Exception('Week label is required.');
+        }
+
+        if ($weekStart === '') {
+            throw new Exception('Week start date is required.');
+        }
+
+        if (!isset($_FILES['report_file'])) {
+            throw new Exception('No file uploaded.');
+        }
+
+        $file = $_FILES['report_file'];
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('File upload failed.');
+        }
+
+        // File validation
+        $maxSize = 10 * 1024 * 1024; // 10 MB
+
+        if ($file['size'] > $maxSize) {
+            throw new Exception('File exceeds 10 MB limit.');
+        }
+
+        $allowedExtensions = [
+            'pdf',
+            'doc',
+            'docx',
+            'png',
+            'jpg',
+            'jpeg'
+        ];
+
+        $originalName = $file['name'];
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, $allowedExtensions, true)) {
+            throw new Exception('Invalid file type.');
+        }
+
+        // Create upload directory
+        $uploadDir = __DIR__ . '/../uploads/weekly_reports/';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        // Generate unique filename
+        $storedName = sprintf(
+            'report_%d_%s.%s',
+            $internId,
+            uniqid(),
+            $extension
+        );
+
+        $absolutePath = $uploadDir . $storedName;
+        $relativePath = 'uploads/weekly_reports/' . $storedName;
+
+        if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
+            throw new Exception('Failed to save uploaded file.');
+        }
+
+        // Save to database
+        $stmt = $pdo->prepare("
+            INSERT INTO weekly_reports (
+                intern_id,
+                week_label,
+                week_start,
+                description,
+                file_path,
+                file_name,
+                file_size,
+                status
+            ) VALUES (
+                :intern_id,
+                :week_label,
+                :week_start,
+                :description,
+                :file_path,
+                :file_name,
+                :file_size,
+                'pending'
+            )
+        ");
+
+        $stmt->execute([
+            ':intern_id'   => $internId,
+            ':week_label'  => $weekLabel,
+            ':week_start'  => $weekStart,
+            ':description' => $description ?: null,
+            ':file_path'   => $relativePath,
+            ':file_name'   => $originalName,
+            ':file_size'   => $file['size']
+        ]);
+
+        echo json_encode([
+            'success'   => true,
+            'message'   => 'Weekly report submitted successfully.',
+            'report_id' => $pdo->lastInsertId()
+        ]);
+
+    } catch (Throwable $e) {
+        http_response_code(400);
+
+        echo json_encode([
+            'error' => $e->getMessage()
+        ]);
+    }
+
+    exit;
+}

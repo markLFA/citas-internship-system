@@ -37,6 +37,9 @@ switch ($action) {
     case 'updateInternProfile':
         updateInternProfile( $data);
         break;
+    case 'submitWeeklyReport':
+        submitWeeklyReport();
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

@@ -985,40 +985,127 @@ const Reports = {
   submitCard() {
     const body = document.createElement('div');
 
-    body.appendChild(UI.formGroup('Week Label',
-      UI.input({ id:'rpt-week', placeholder:'e.g. Week 14 (Apr 21–25)', required: true }),
-      '', { required: true }));
+    body.appendChild(UI.formGroup(
+      'Week Label',
+      UI.input({
+        id: 'rpt-week',
+        placeholder: 'e.g. Week 14 (Apr 21–25)',
+        required: true
+      }),
+      '',
+      { required: true }
+    ));
 
-    body.appendChild(UI.formGroup('Week Start Date',
-      UI.input({ type:'date', id:'rpt-date', required: true })));
+    body.appendChild(UI.formGroup(
+      'Week Start Date',
+      UI.input({
+        type: 'date',
+        id: 'rpt-date',
+        required: true
+      })
+    ));
 
-    body.appendChild(UI.formGroup('Description (optional)',
-      UI.textarea({ id:'rpt-desc', placeholder:'What tasks did you accomplish this week?', rows: 3 })));
+    body.appendChild(UI.formGroup(
+      'Description (Optional)',
+      UI.textarea({
+        id: 'rpt-desc',
+        rows: 3,
+        placeholder: 'What tasks did you accomplish this week?'
+      })
+    ));
 
-    body.appendChild(UI.formGroup('Report File',
+    body.appendChild(UI.formGroup(
+      'Report File',
       UI.uploadZone({
-        label:  'Click to browse or drag & drop',
-        hint:   'PDF, DOC, DOCX, PNG, JPG — max 10 MB',
+        id: 'rpt-file',
+        name: 'report_file',
         accept: '.pdf,.doc,.docx,.png,.jpg,.jpeg',
-        name:   'report_file',
-        onFile: f => UI.toast('Selected: ' + f.name, 'info'),
+        label: 'Click to browse or drag & drop',
+        hint: 'PDF, DOC, DOCX, PNG, JPG — Max 10 MB',
+        onFile: file => UI.toast(`Selected: ${file.name}`, 'info')
       })
     ));
 
     body.appendChild(UI.button('📤 Submit Report', {
-      block: true, size: 'lg',
-      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-      onClick: () => {
-        const w = document.getElementById('rpt-week').value.trim();
-        if (!w) { UI.toast('Please enter a week label.', 'danger'); return; }
-        UI.toast('Report submitted! (Connect to PHP to save)', 'success');
+      block: true,
+      size: 'lg',
+      color: {
+        base: '#EA580C',
+        hover: '#C2410C',
+        text: '#FFFFFF'
       },
+      onClick: async (btn) => {
+        const weekLabel  = document.getElementById('rpt-week').value.trim();
+        const weekStart  = document.getElementById('rpt-date').value;
+        const description = document.getElementById('rpt-desc').value.trim();
+        const fileInput  = document.getElementById('rpt-file');
+        const file       = fileInput?.files?.[0];
+
+        if (!weekLabel) {
+          UI.toast('Please enter a week label.', 'danger');
+          return;
+        }
+
+        if (!weekStart) {
+          UI.toast('Please select a week start date.', 'danger');
+          return;
+        }
+
+        if (!file) {
+          UI.toast('Please select a report file.', 'danger');
+          return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+          UI.toast('File must not exceed 10 MB.', 'danger');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('action', 'submitWeeklyReport');
+        formData.append('week_label', weekLabel);
+        formData.append('week_start', weekStart);
+        formData.append('description', description);
+        formData.append('report_file', file);
+
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Uploading...';
+
+          const response = await fetch('config/api.php', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || data.error) {
+            throw new Error(data.error || 'Upload failed.');
+          }
+
+          UI.toast(data.message || 'Report submitted successfully!', 'success');
+
+          // Reset form
+          document.getElementById('rpt-week').value = '';
+          document.getElementById('rpt-date').value = '';
+          document.getElementById('rpt-desc').value = '';
+          fileInput.value = '';
+
+        } catch (error) {
+          UI.toast(error.message, 'danger');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '📤 Submit Report';
+        }
+      }
     }));
 
-    return UI.card({ title: '📤 Submit New Report', body });
+    return UI.card({
+      title: '📤 Submit New Report',
+      body
+    });
   },
-
-  // Submitted reports table with status badges + feedback rows
   tableCard() {
     const statusClass = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
     const statusLabel = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
