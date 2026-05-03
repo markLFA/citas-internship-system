@@ -38,7 +38,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 'use strict';
-console.log("heekjhihwuihehiveuhivehohoh")
 /*
 async function loadProfile() {
     const response = await fetch('config/api.php', {
@@ -682,11 +681,10 @@ const Profile = {
     const r1 = twoCol();
     r1.appendChild(UI.formGroup('Course',
       UI.input({ id: "courseField", type:'select', options:['BSIT','BSCS','BSBA'],  value: InternData.profile.course, placeholder: 'e.g. BSIT' })));
-
-    r1.appendChild(UI.formGroup('Year level',
-      UI.input({ id: "yearLevelField", type:'select', options:['1st Year','2nd Year','3rd Year', '4rth year', 'Iregular'],  value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })));
-    console.log("year level firld "+document.getElementById('yearLevelField').tagName);
-    console.log("Course firld "+document.getElementById('courseField').tagName);
+    
+      const yearLevel = UI.input({ id: "yearLevelField", type:'select', options:['1st Year','2nd Year','3rd Year', '4rth year', 'Iregular'],  value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })
+    r1.appendChild(UI.formGroup('Year level', yearLevel));
+    console.log("year level firld "+yearLevel.tagName);
 
     section('Internship / Company');
 
