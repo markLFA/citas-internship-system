@@ -654,6 +654,13 @@ const Profile = {
   },
 
   openEditModal() {
+    // Reuse existing modal
+    if (this.editModal) {
+      this.populateEditModal();
+      this.editModal.open();
+      return;
+    }
+
     const body = document.createElement('div');
 
     const section = label => {
@@ -670,67 +677,138 @@ const Profile = {
       return d;
     };
 
+    /* ---------------- PERSONAL INFORMATION ---------------- */
+
     section('Personal Information');
 
-    body.appendChild(UI.formGroup('Full Name',
-      UI.input({ id: "nameField", value: InternData.user.name, placeholder: 'Full name' })));
+    this.nameField = UI.input({
+      id: 'nameField',
+      placeholder: 'Full name'
+    });
 
-    body.appendChild(UI.formGroup('Phone',
-      UI.input({ id: "phoneField", value: InternData.profile.phone, placeholder: '+63 9xx xxx xxxx' })));
+    this.phoneField = UI.input({
+      id: 'phoneField',
+      placeholder: '+63 9xx xxx xxxx'
+    });
+
+    this.courseField = UI.input({
+      id: 'courseField',
+      type: 'select',
+      options: ['BSIT', 'BSCS', 'BSBA']
+    });
+
+    this.yearLevelField = UI.input({
+      id: 'yearLevelField',
+      type: 'select',
+      options: [
+        '1st Year',
+        '2nd Year',
+        '3rd Year',
+        '4th Year',
+        'Irregular'
+      ]
+    });
+
+    body.appendChild(UI.formGroup('Full Name', this.nameField));
+    body.appendChild(UI.formGroup('Phone', this.phoneField));
 
     const r1 = twoCol();
-    r1.appendChild(UI.formGroup('Course',
-      UI.input({ id: "courseField", type:'select', options:['BSIT','BSCS','BSBA'],  value: InternData.profile.course, placeholder: 'e.g. BSIT' })));
-    
-      const yearLevel = UI.input({ id: "yearLevelField", type:'select', options:['1st Year','2nd Year','3rd Year', '4rth year', 'Iregular'],  value: InternData.profile.year_level, placeholder: 'e.g. 4th Year' })
-    r1.appendChild(UI.formGroup('Year level', yearLevel));
-    console.log("year level firld "+yearLevel.tagName);
+    r1.appendChild(UI.formGroup('Course', this.courseField));
+    r1.appendChild(UI.formGroup('Year Level', this.yearLevelField));
+
+    /* ---------------- INTERNSHIP / COMPANY ---------------- */
 
     section('Internship / Company');
 
-    body.appendChild(UI.formGroup('Company Name',
-      UI.input({ id: "companyNameField", value: this.company.name, placeholder: 'Company name' })));
+    this.companyNameField = UI.input({
+      id: 'companyNameField',
+      placeholder: 'Company name'
+    });
 
-    body.appendChild(UI.formGroup('Position',
-      UI.input({ id: "positionField", value: this.internship.position, placeholder: 'e.g. IT Intern' })));
+    this.positionField = UI.input({
+      id: 'positionField',
+      placeholder: 'e.g. IT Intern'
+    });
 
-    body.appendChild(UI.formGroup('Address',
-      UI.textarea({ id: "addressField", value: this.company.address, rows: 2, placeholder: 'Full address' })));
+    this.addressField = UI.textarea({
+      id: 'addressField',
+      rows: 2,
+      placeholder: 'Full address'
+    });
 
-    body.appendChild(UI.formGroup('Supervisor',
-      UI.input({ id: "supervisorField", value: this.internship.supervisor, placeholder: 'Supervisor name' })));
+    this.supervisorField = UI.input({
+      id: 'supervisorField',
+      placeholder: 'Supervisor name'
+    });
 
-    body.appendChild(UI.formGroup('Supervisor Number',
-      UI.input({ id: "supervisorNumberField", value: this.internship.supervisor_phone, placeholder: 'Supervisor Phone Number' })));
+    this.supervisorNumberField = UI.input({
+      id: 'supervisorNumberField',
+      placeholder: 'Supervisor Phone Number'
+    });
+
+    this.startDateField = UI.input({
+      id: 'startDateField',
+      type: 'date'
+    });
+
+    this.endDateField = UI.input({
+      id: 'endDateField',
+      type: 'date'
+    });
+
+    body.appendChild(UI.formGroup('Company Name', this.companyNameField));
+    body.appendChild(UI.formGroup('Position', this.positionField));
+    body.appendChild(UI.formGroup('Address', this.addressField));
+    body.appendChild(UI.formGroup('Supervisor', this.supervisorField));
+    body.appendChild(UI.formGroup('Supervisor Number', this.supervisorNumberField));
 
     const r2 = twoCol();
-    r2.appendChild(UI.formGroup('Start Date',
-      UI.input({ id: "startDateField", type: 'date', value: this.internship.start_date })));
+    r2.appendChild(UI.formGroup('Start Date', this.startDateField));
+    r2.appendChild(UI.formGroup('End Date', this.endDateField));
 
-    r2.appendChild(UI.formGroup('End Date',
-      UI.input({ id: "endDateField", type: 'date', value: this.internship.end_date })));
+    /* ---------------- MODAL ---------------- */
 
-    const m = UI.modal({
+    this.editModal = UI.modal({
       title: '✏️ Edit Profile',
       body,
       size: 'lg',
       footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        UI.button('Save Changes', {
-          size:'sm',
-          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-          onClick: () => {
-            // Bug fix: do NOT call m.close() here — saveProfileChanges()
-            // is async and handles closing the modal itself on success/failure.
-            this.saveProfileChanges(m);
-          }
+        UI.button('Cancel', {
+          variant: 'ghost',
+          size: 'sm',
+          onClick: () => this.editModal.close()
         }),
-      ],
+        UI.button('Save Changes', {
+          size: 'sm',
+          color: {
+            base: '#EA580C',
+            hover: '#C2410C',
+            text: '#fff'
+          },
+          onClick: () => this.saveProfileChanges(this.editModal)
+        })
+      ]
     });
 
-    m.open();
+    this.populateEditModal();
+    this.editModal.open();
   },
-  async saveProfileChanges(modal) {
+
+  populateEditModal() {
+    this.nameField.value = InternData.user?.name || '';
+    this.phoneField.value = InternData.profile?.phone || '';
+    this.courseField.value = InternData.profile?.course || '';
+    this.yearLevelField.value = InternData.profile?.year_level || '';
+
+    this.companyNameField.value = this.company?.name || '';
+    this.positionField.value = this.internship?.position || '';
+    this.addressField.value = this.company?.address || '';
+    this.supervisorField.value = this.internship?.supervisor || '';
+    this.supervisorNumberField.value = this.internship?.supervisor_phone || '';
+    this.startDateField.value = this.internship?.start_date || '';
+    this.endDateField.value = this.internship?.end_date || '';
+  },
+async saveProfileChanges(modal) {
     console.log('Company name to save:', document.getElementById('companyNameField').value);
     const payload = {
       action: 'updateInternProfile',
@@ -1176,7 +1254,7 @@ fetch('config/api.php', {
 .then(data => {
   InternData = data;
 
-  console.log('InternData:', InternData);
+ // console.log('InternData:', InternData);
 
   // Build nav first so navigate() is defined before sections call it
   initNav();
