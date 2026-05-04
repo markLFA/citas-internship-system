@@ -22,7 +22,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/db.php';
 
 // Use define() not const — const with expressions requires PHP 8+
-define('UPLOAD_DIR',   __DIR__ . '/uploads/reports/');
+define('UPLOAD_DIR', dirname(__DIR__) . '/uploads/reports/');
 define('MAX_BYTES',    10485760);    // 10 MB = 10 * 1024 * 1024
 define('ALLOWED_EXTS', ['pdf','doc','docx','png','jpg','jpeg']);
 
