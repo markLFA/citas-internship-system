@@ -823,9 +823,8 @@ const Interns = {
   renderTable() {
     const wrap = document.getElementById('interns-table-wrap');
     wrap.innerHTML = '';
-    wrap.appendChild(UI.loading());
+    wrap.appendChild(UI.loader());
     this.getInternsList().then(() => {
-      wrap.innerHTML = '';
       const list = this.filteredList();
       if (!wrap) return;
       wrap.innerHTML = '';
