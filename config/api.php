@@ -46,13 +46,13 @@ switch ($action) {
     case 'getCoordinatorInternDatas':
         echo json_encode(getCoordinatorInternDatas());
         break;
-case 'setCurrentPage':
+    case 'setCurrentPage':
 
-    $page = $input['page'] ?? null;
+        $page = $input['page'] ?? null;
 
-    echo json_encode(
-        setCurrentPage($page)
-    );
+        echo json_encode(
+            setCurrentPage($page)
+        );
 
     break;
     case 'getCurrentPage':
