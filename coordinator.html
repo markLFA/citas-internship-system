@@ -328,16 +328,7 @@ const topbar = UI.navbar({
 });
 document.getElementById('page-main').prepend(topbar.el);
 
-function navigate(name) {
-  document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + name).classList.add('active');
-  sidebar.setActive(SECTIONS[name]);
-  const center = document.querySelector('.cui-navbar-center');
-  if (center) center.textContent = SECTIONS[name];
-  // Charts must be drawn after their canvas is visible
-  if (name === 'analytics') setTimeout(() => Analytics.drawAllCharts(), 30);
-  setCurrentPage(name)
-}
+
 async function setCurrentPage(page) {
 
   try {
@@ -365,6 +356,17 @@ async function setCurrentPage(page) {
       error: 'Failed to save current page'
     };
   }
+}
+
+function navigate(name) {
+  document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  sidebar.setActive(SECTIONS[name]);
+  const center = document.querySelector('.cui-navbar-center');
+  if (center) center.textContent = SECTIONS[name];
+  // Charts must be drawn after their canvas is visible
+  if (name === 'analytics') setTimeout(() => Analytics.drawAllCharts(), 30);
+  setCurrentPage(name)
 }
 
 // ─────────────────────────────────────────────────────────────
