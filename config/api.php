@@ -48,6 +48,7 @@ switch ($action) {
         break;
     case 'setCurrentPage':
         $page = $data['page'] ?? null;
+        echo "Received page: " . ($page ?? 'null') . "\n"; // Debug log
         if (!$page) {
             echo json_encode([
                 "error" => "Missing page"
