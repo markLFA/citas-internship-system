@@ -46,6 +46,23 @@ switch ($action) {
     case 'getCoordinatorInternDatas':
         echo json_encode(getCoordinatorInternDatas());
         break;
+    case 'setCurrentPage':
+        $page = $input['page'] ?? null;
+        if (!$page) {
+            echo json_encode([
+                "error" => "Missing page"
+            ]);
+            break;
+        }
+        echo json_encode(
+            setCurrentPage($page)
+        );
+        break;
+    case 'getCurrentPage':
+        echo json_encode(
+            getCurrentPage()
+        );
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

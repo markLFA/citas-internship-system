@@ -336,8 +336,36 @@ function navigate(name) {
   if (center) center.textContent = SECTIONS[name];
   // Charts must be drawn after their canvas is visible
   if (name === 'analytics') setTimeout(() => Analytics.drawAllCharts(), 30);
+  setCurrentPage(name)
 }
+async function setCurrentPage(page) {
 
+  try {
+
+    const res = await fetch('config/api.php', {
+      method: 'POST',
+
+      headers: {
+        'Content-Type': 'application/json'
+      },
+
+      body: JSON.stringify({
+        action: 'setCurrentPage',
+        page
+      })
+    });
+
+    return await res.json();
+
+  } catch (err) {
+
+    console.error(err);
+
+    return {
+      error: 'Failed to save current page'
+    };
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 //  DASHBOARD
@@ -823,7 +851,7 @@ const Interns = {
   renderTable() {
     const wrap = document.getElementById('interns-table-wrap');
     wrap.innerHTML = '';
-    wrap.appendChild(UI.loader());
+   // wrap.appendChild(UI.loader());
     this.getInternsList().then(() => {
       const list = this.filteredList();
       if (!wrap) return;
@@ -1646,17 +1674,54 @@ const Analytics = {
     this.drawDeptChart();
   },
 };
+async function getCurrentPage() {
 
+  try {
 
+    const res = await fetch('config/api.php', {
+      method: 'POST',
+
+      headers: {
+        'Content-Type': 'application/json'
+      },
+
+      body: JSON.stringify({
+        action: 'getCurrentPage'
+      })
+    });
+
+    return await res.json();
+
+  } catch (err) {
+
+    console.error(err);
+
+    return {
+      error: 'Failed to get current page'
+    };
+  }
+}
+getCurrentPage().then(data => {
+  Dashboard    .build();
+  Analytics    .build();
+  Approvals    .build();
+  Interns      .build();
+  Reports      .build();
+  Announcements.build();
+  if (data.error) {
+    console.error(data.error);
+    return;
+  }
+  const page = data.page || 'dashboard';
+  document.getElementById('nav-' + page)?.classList.add('active');
+  navigate(page)
+  }).catch(err => {
+    console.error('Error fetching current page:', err);
+});
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
-Dashboard    .build();
-Analytics    .build();
-Approvals    .build();
-Interns      .build();
-Reports      .build();
-Announcements.build();
+
 </script>
 </body>
 </html>

@@ -690,3 +690,36 @@ function getCoordinatorInternDatas() {
 
     return $internDatas;
 }
+// -----------------------------------
+// Save current page to session
+// -----------------------------------
+
+function setCurrentPage($page) {
+
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    $_SESSION['currentPage'] = $page;
+
+    return [
+        "success" => true,
+        "currentPage" => $page
+    ];
+}
+
+
+// -----------------------------------
+// Get current page from session
+// -----------------------------------
+
+function getCurrentPage() {
+
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    return [
+        "currentPage" => $_SESSION['currentPage'] ?? null
+    ];
+}

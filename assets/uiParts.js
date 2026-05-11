@@ -1408,7 +1408,7 @@ const UI = (() => {
     table, avatar, dropdown,
     tabs, progress, divider,
     profileCard, uploadZone, companyInfoCard, infoRow,
-    empty, spinner, skeleton, chip, loader,
+    empty, spinner, skeleton, chip, loader
   };
 
 })();
