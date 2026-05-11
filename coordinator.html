@@ -1714,6 +1714,7 @@ getCurrentPage().then(data => {
     console.error(data.error);
     return;
   }
+  console.log('Current page:', JSON.stringify(data));
   const page = data.page || 'dashboard';
   document.getElementById('nav-' + page)?.classList.add('active');
   navigate(page)
