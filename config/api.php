@@ -46,19 +46,15 @@ switch ($action) {
     case 'getCoordinatorInternDatas':
         echo json_encode(getCoordinatorInternDatas());
         break;
-    case 'setCurrentPage':
-        $page = $data['page'] ?? null;
-        echo "Received page: " . ($page ?? 'null') . "\n"; // Debug log
-        if (!$page) {
-            echo json_encode([
-                "error" => "Missing page"
-            ]);
-            break;
-        }
-        echo json_encode(
-            setCurrentPage($page)
-        );
-        break;
+case 'setCurrentPage':
+
+    $page = $input['page'] ?? null;
+
+    echo json_encode(
+        setCurrentPage($page)
+    );
+
+    break;
     case 'getCurrentPage':
         echo json_encode(
             getCurrentPage()
