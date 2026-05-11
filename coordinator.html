@@ -799,7 +799,15 @@ const Interns = {
     ));
 
     sec.appendChild( this.filterBar()      );
+    sec.appendChild(
+      UI.button("Save Interns Table", {
+      size: 'sm',
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick,
+      })
+    );
     sec.appendChild( this.tableContainer() );
+
     this.renderTable();
   },
 
