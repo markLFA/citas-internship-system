@@ -553,3 +553,140 @@ function getInternReports(): array
         return [];
     }
 }
+
+function getCoordinatorInternDatas() {
+    if (!isset($_SESSION['user']['id'])) {
+        return [];
+    }
+
+    $pdo = getDB();
+    $coordinatorId = $_SESSION['user']['id'];
+
+    // -------------------------------------------------
+    // Get all interns handled by this coordinator
+    // -------------------------------------------------
+    $stmt = $pdo->prepare("
+        SELECT 
+            u.id,
+            u.name,
+            u.email,
+
+            ip.course,
+            ip.year_level,
+            ip.phone,
+            ip.required_hours,
+            ip.joined_date
+
+        FROM intern_profiles ip
+
+        INNER JOIN users u
+            ON u.id = ip.user_id
+
+        WHERE ip.coordinator_id = ?
+
+        ORDER BY u.name ASC
+    ");
+
+    $stmt->execute([$coordinatorId]);
+
+    $internUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $internDatas = [];
+
+    // -------------------------------------------------
+    // Build complete intern data structure
+    // -------------------------------------------------
+    foreach ($internUsers as $intern) {
+
+        $internId = $intern['id'];
+
+        // ---------------------------------------------
+        // Get internships + company
+        // ---------------------------------------------
+        $stmt = $pdo->prepare("
+            SELECT 
+                i.id,
+                i.position,
+                i.supervisor,
+                i.supervisor_phone,
+                i.start_date,
+                i.end_date,
+                i.status,
+                i.created_at,
+                i.total_hours,
+                i.days_present,
+                i.reports_submitted,
+
+                c.id AS company_id,
+                c.name AS company_name,
+                c.address,
+                c.phone AS company_phone,
+                c.email AS company_email,
+                c.created_at AS company_created
+
+            FROM internships i
+
+            LEFT JOIN companies c
+                ON c.id = i.company_id
+
+            WHERE i.intern_id = ?
+
+            ORDER BY i.created_at DESC
+        ");
+
+        $stmt->execute([$internId]);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $internships = [];
+
+        foreach ($rows as $row) {
+
+            $internships[] = [
+                "id" => $row["id"],
+                "position" => $row["position"],
+                "supervisor" => $row["supervisor"],
+                "supervisor_phone" => $row["supervisor_phone"],
+                "start_date" => $row["start_date"],
+                "end_date" => $row["end_date"],
+                "status" => $row["status"],
+                "created_at" => $row["created_at"],
+                "total_hours" => $row["total_hours"],
+                "days_present" => $row["days_present"],
+                "reports_submitted" => $row["reports_submitted"],
+
+                "company" => [
+                    "id" => $row["company_id"],
+                    "name" => $row["company_name"],
+                    "address" => $row["address"],
+                    "phone" => $row["company_phone"],
+                    "email" => $row["company_email"],
+                    "created_at" => $row["company_created"]
+                ]
+            ];
+        }
+
+        // ---------------------------------------------
+        // Final intern data structure
+        // ---------------------------------------------
+        $internDatas[] = [
+            "user" => [
+                "id" => $intern["id"],
+                "name" => $intern["name"],
+                "email" => $intern["email"]
+            ],
+
+            "profile" => [
+                "course" => $intern["course"],
+                "year_level" => $intern["year_level"],
+                "phone" => $intern["phone"],
+                "required_hours" => $intern["required_hours"],
+                "joined_date" => $intern["joined_date"]
+            ],
+
+            "internships" => $internships
+        ];
+    }
+
+    return $internDatas;
+}

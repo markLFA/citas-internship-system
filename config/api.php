@@ -42,7 +42,11 @@ switch ($action) {
         break;
     case 'getInternReports':
         echo json_encode(getInternReports());
-        break;    default:
+        break;
+    case 'getCoordinatorInternDatas':
+        echo json_encode(getCoordinatorInternDatas());
+        break;
+    default:
         echo json_encode([
             "error" => "Invalid action"
         ]);

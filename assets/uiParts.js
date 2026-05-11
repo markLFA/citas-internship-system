@@ -1365,7 +1365,40 @@ const UI = (() => {
 
     return wrap;
   }
+// -----------------------------------
+// Loading Spinner Creator
+// -----------------------------------
 
+  function loader({
+    size = 42,
+    text = 'Loading...',
+    centered = true
+  } = {}) {
+
+    const wrap = document.createElement('div');
+
+    wrap.className = 'cui-loader-wrap';
+
+    if (centered) {
+      wrap.classList.add('centered');
+    }
+
+    const spinner = document.createElement('div');
+
+    spinner.className = 'cui-loader-spinner';
+
+    spinner.style.width  = size + 'px';
+    spinner.style.height = size + 'px';
+
+    const label = document.createElement('div');
+
+    label.className = 'cui-loader-text';
+    label.textContent = text;
+
+    wrap.append(spinner, label);
+
+    return wrap;
+  }
   // ── Expose public API ──────────────────────────────────────
   return {
     button, card, statCard, statRow,
@@ -1375,7 +1408,7 @@ const UI = (() => {
     table, avatar, dropdown,
     tabs, progress, divider,
     profileCard, uploadZone, companyInfoCard, infoRow,
-    empty, spinner, skeleton, chip,
+    empty, spinner, skeleton, chip, loader,
   };
 
 })();

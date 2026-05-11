@@ -87,6 +87,7 @@ const COORDINATOR = {
   role:  'Coordinator',
 };
 
+let INTERNS_LIST = []
 // Approved interns (status = 'approved' in DB)
 let INTERNS = [
   { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
@@ -772,6 +773,7 @@ const Interns = {
 
   // Search + dept filter + sort controls
   filterBar() {
+
     const bar = document.createElement('div');
     bar.className = 'cui-filter-bar';
 
@@ -819,41 +821,47 @@ const Interns = {
   },
 
   renderTable() {
-    const list = this.filteredList();
     const wrap = document.getElementById('interns-table-wrap');
-    if (!wrap) return;
     wrap.innerHTML = '';
+    wrap.appendChild(UI.loading());
+    this.getInternsList().then(() => {
+      wrap.innerHTML = '';
+      const list = this.filteredList();
+      if (!wrap) return;
+      wrap.innerHTML = '';
 
-    const tbl = UI.table([
-      { key:'name', label:'Intern',
-        render: (v, row) => {
-          const cell = document.createElement('div');
-          cell.style.cssText = 'display:flex;align-items:center;gap:.65rem';
-          const info = document.createElement('div');
-          info.innerHTML = `
-            <div style="font-weight:700;color:#1A0A00">${v}</div>
-            <div style="font-size:.75rem;color:#9A6647">${row.email}</div>`;
-          cell.append(Helpers.internAvatar(v), info);
-          return cell;
-        }},
-      { key:'dept',        label:'Dept'   },
-      { key:'school',      label:'School',   render: v => `<span style="font-size:.82rem;color:#9A6647">${v}</span>` },
-      { key:'company',     label:'Company',  render: v => `<span style="font-size:.82rem">${v}</span>` },
-      { key:'daysPresent', label:'Days',     align:'center', render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }) },
-      { key:'totalHours',  label:'Hours',    align:'center', render: v => `<strong style="color:#EA580C">${v}h</strong>` },
-      { key:'reports',     label:'Reports',  align:'center', render: v => UI.badge(v, { base:'#DBEAFE', text:'#1E40AF' }) },
-      { key:'id', label:'', align:'center',
-        render: (_, row) => Helpers.ghostBtn('View', () => this.openDetailModal(row)) },
-    ], list, {
-      hoverable: true,
-      emptyText: 'No interns match your filters.',
-    });
+      const tbl = UI.table([
+        { key:'name', label:'Intern',
+          render: (v, row) => {
+            const cell = document.createElement('div');
+            cell.style.cssText = 'display:flex;align-items:center;gap:.65rem';
+            const info = document.createElement('div');
+            info.innerHTML = `
+              <div style="font-weight:700;color:#1A0A00">${v}</div>
+              <div style="font-size:.75rem;color:#9A6647">${row.email}</div>`;
+            cell.append(Helpers.internAvatar(v), info);
+            return cell;
+          }},
+        { key:'dept',        label:'Dept'   },
+        { key:'school',      label:'School',   render: v => `<span style="font-size:.82rem;color:#9A6647">${v}</span>` },
+        { key:'company',     label:'Company',  render: v => `<span style="font-size:.82rem">${v}</span>` },
+        { key:'daysPresent', label:'Days',     align:'center', render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }) },
+        { key:'totalHours',  label:'Hours',    align:'center', render: v => `<strong style="color:#EA580C">${v}h</strong>` },
+        { key:'reports',     label:'Reports',  align:'center', render: v => UI.badge(v, { base:'#DBEAFE', text:'#1E40AF' }) },
+        { key:'id', label:'', align:'center',
+          render: (_, row) => Helpers.ghostBtn('View', () => this.openDetailModal(row)) },
+      ], list, {
+        hoverable: true,
+        emptyText: 'No interns match your filters.',
+      });
 
-    wrap.appendChild(UI.card({
-      title:   `Showing ${list.length} intern${list.length !== 1 ? 's' : ''}`,
-      padding: false,
-      body:    tbl,
-    }));
+      wrap.appendChild(UI.card({
+        title:   `Showing ${list.length} intern${list.length !== 1 ? 's' : ''}`,
+        padding: false,
+        body:    tbl,
+      }));
+
+    })
   },
 
   // Intern detail modal
@@ -902,6 +910,37 @@ const Interns = {
     });
     m.open();
   },
+  async getInternsList() {
+
+    try {
+
+      const res = await fetch('config/api.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+          action: 'getCoordinatorInternDatas'
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        console.error(data.error || 'Failed to fetch intern data');
+        INTERNS_LIST = [];
+      }
+
+      INTERNS_LIST = data;
+
+    } catch (err) {
+
+      console.error('Fetch error:', err);
+      INTERNS_LIST = [];
+    }
+  }
+
 };
 
 

@@ -1699,3 +1699,45 @@
 
 /* Gap utility */
 .mt-lg { margin-top: 1.4rem; }
+
+/* -----------------------------------
+   Loader
+----------------------------------- */
+
+.cui-loader-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .85rem;
+  padding: 1.25rem;
+}
+
+.cui-loader-wrap.centered {
+  justify-content: center;
+  min-height: 250px;
+}
+
+.cui-loader-spinner {
+  border: 4px solid #FED7AA;
+  border-top: 4px solid #EA580C;
+  border-radius: 50%;
+  animation: cuiSpin .8s linear infinite;
+  box-sizing: border-box;
+}
+
+.cui-loader-text {
+  font-size: .9rem;
+  font-weight: 600;
+  color: #9A6647;
+  font-family: Inter, sans-serif;
+}
+
+@keyframes cuiSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
