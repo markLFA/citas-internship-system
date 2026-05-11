@@ -47,7 +47,7 @@ switch ($action) {
         echo json_encode(getCoordinatorInternDatas());
         break;
     case 'setCurrentPage':
-        $page = $input['page'] ?? null;
+        $page = $data['page'] ?? null;
         if (!$page) {
             echo json_encode([
                 "error" => "Missing page"
