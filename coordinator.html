@@ -1717,7 +1717,7 @@ getCurrentPage().then(data => {
     return;
   }
   console.log('Current page:', JSON.stringify(data));
-  const page = data.page || 'dashboard';
+  const page = data.currentPage || 'dashboard';
   document.getElementById('nav-' + page)?.classList.add('active');
   navigate(page)
   }).catch(err => {
