@@ -345,8 +345,9 @@ async function setCurrentPage(page) {
         page: page
       })
     });
-
-    return await res.json();
+    const data = await res.json();
+    console.log('Set current page response:', data);
+    return data;
 
   } catch (err) {
 
