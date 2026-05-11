@@ -48,7 +48,7 @@ switch ($action) {
         break;
     case 'setCurrentPage':
 
-        $page = $input['page'] ?? null;
+        $page = $data['page'] ?? null;
 
         echo json_encode(
             setCurrentPage($page)
