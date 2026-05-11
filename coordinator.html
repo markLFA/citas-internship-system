@@ -345,9 +345,9 @@ async function setCurrentPage(page) {
         page: page
       })
     });
-    console.warn("JS PAGE: "+page);
+   // console.warn("JS PAGE: "+page);
     const data = await res.json();
-    console.log('Set current page response:', data);
+   // console.log('Set current page response:', data);
     return data;
 
   } catch (err) {
@@ -855,7 +855,7 @@ const Interns = {
   renderTable() {
     const wrap = document.getElementById('interns-table-wrap');
     wrap.innerHTML = '';
-   // wrap.appendChild(UI.loader());
+    wrap.appendChild(UI.spinner("50%"));
     this.getInternsList().then(() => {
       const list = this.filteredList();
       if (!wrap) return;
@@ -1716,7 +1716,7 @@ getCurrentPage().then(data => {
     console.error(data.error);
     return;
   }
-  console.log('Current page:', JSON.stringify(data));
+  //console.log('Current page:', JSON.stringify(data));
   const page = data.currentPage || 'dashboard';
   document.getElementById('nav-' + page)?.classList.add('active');
   navigate(page)
