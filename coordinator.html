@@ -807,7 +807,13 @@ const Interns = {
     const hdrActions = document.createElement('div');
     hdrActions.style.cssText = 'display:flex;gap:.5rem;align-items:center';
    // hdrActions.appendChild(exportDrop);
-    hdrActions.appendChild(Helpers.orangeBtn('⬇ Export', () => Interns.openRegisterModal()));
+   const exportBtn = UI.button('⬇ Export ', {
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick: () => {
+        console.log('Exporting CSV for all active interns');
+        }
+    });
+    hdrActions.appendChild(exportBtn);
 
     sec.appendChild(Helpers.pageHeader(
       'Interns',
