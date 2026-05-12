@@ -793,19 +793,30 @@ const Interns = {
   build() {
     const sec = document.getElementById('sec-interns');
 
+    const exportDrop = UI.dropdown(
+      Helpers.ghostBtn('⬇ Export', null),
+      [
+        { label: '📋 All Active Interns',    onClick: () => Interns.exportCSV('active', '') },
+        { label: '⏳ Include Pending',        onClick: () => Interns.exportCSV('all',    '') },
+        { divider: true },
+        { label: '📂 BSIT only',             onClick: () => Interns.exportCSV('active', 'BSIT') },
+        { label: '📂 BSCS only',             onClick: () => Interns.exportCSV('active', 'BSCS') },
+        { label: '📂 BSBA only',             onClick: () => Interns.exportCSV('active', 'BSBA') },
+      ]
+    );
+    const hdrActions = document.createElement('div');
+    hdrActions.style.cssText = 'display:flex;gap:.5rem;align-items:center';
+   // hdrActions.appendChild(exportDrop);
+    hdrActions.appendChild(Helpers.orangeBtn('⬇ Export', () => Interns.openRegisterModal()));
+
     sec.appendChild(Helpers.pageHeader(
       'Interns',
-      INTERNS.length + ' interns enrolled'
+      INTERNS.length + ' interns enrolled',
+      hdrActions
     ));
 
-    sec.appendChild( this.filterBar()      );
-    sec.appendChild(
-      UI.button("Export Interns Table", {
-      size: 'md',
-      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-      onClick: () => {},
-      })
-    );
+
+    sec.appendChild( this.filterBar());
     //sec.appendChild(document.createElement('br'));
     sec.appendChild( this.tableContainer() );
 
