@@ -883,7 +883,6 @@ const Interns = {
     wrap.innerHTML = '';
     wrap.appendChild(UI.spinner("50%"));
     this.getInternsList().then(() => {
-      console.log('IInternList '+JSON.stringify(INTERNS_LIST, null, 2));
       const list = this.filteredList();
       if (!wrap) return;
       wrap.innerHTML = '';
@@ -984,6 +983,7 @@ const Interns = {
       });
 
       const data = await res.json();
+      console.log('InternList ' + JSON.stringify(data, null, 2));
 
       if (!res.ok || data.error) {
         console.error(data.error || 'Failed to fetch intern data');
