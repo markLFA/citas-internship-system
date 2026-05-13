@@ -74,6 +74,7 @@
 
 <script src="assets/uiParts.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
 'use strict';
 
@@ -810,8 +811,9 @@ const Interns = {
    const exportBtn = UI.button('⬇ Export ', {
       color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
       onClick: () => {
-        console.log('Exporting CSV for all active interns');
-        }
+        console.log('Exporting  for all active interns');
+        this.downloadExcel(this.tableData);
+      }
     });
     hdrActions.appendChild(exportBtn);
 
@@ -869,6 +871,9 @@ const Interns = {
 
     return INTERNS_LIST
 
+      // -----------------------------------
+      // Flatten needed fields only
+      // -----------------------------------
       .map(i => {
 
         const internship = i.internships?.[0] || {};
@@ -944,6 +949,7 @@ const Interns = {
     this.getInternsList().then(() => {
 
       const list = this.filteredList();
+      this.tableData = list;
 
       wrap.innerHTML = '';
 
@@ -1215,8 +1221,27 @@ const Interns = {
       console.error('Fetch error:', err);
       INTERNS_LIST = [];
     }
-  }
+  },
+  downloadExcel(data) {
+    if (!data || !data.length) {
+      UI.toast('Table is empty or not loaded yet.', 'info');
+      return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(data);
 
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      'Interns'
+    );
+
+    XLSX.writeFile(
+      workbook,
+      'interns.xlsx'
+    );
+  }
 };
 
 
