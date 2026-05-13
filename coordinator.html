@@ -883,6 +883,7 @@ const Interns = {
     wrap.innerHTML = '';
     wrap.appendChild(UI.spinner("50%"));
     this.getInternsList().then(() => {
+      console.log('IInternList '+JSON.stringify(INTERNS_LIST, null, 2));
       const list = this.filteredList();
       if (!wrap) return;
       wrap.innerHTML = '';
