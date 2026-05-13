@@ -867,11 +867,8 @@ const Interns = {
 
   filteredList() {
 
-    return INTERNS_LIST.data
+    return INTERNS_LIST
 
-      // -----------------------------------
-      // Flatten needed fields only
-      // -----------------------------------
       .map(i => {
 
         const internship = i.internships?.[0] || {};
