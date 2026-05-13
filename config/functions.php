@@ -582,7 +582,7 @@ function getCoordinatorInternDatas() {
         INNER JOIN users u
             ON u.id = ip.user_id
 
-        WHERE ip.coordinator_id = ?
+        WHERE ip.coordinator_id = ? and u.is_active = 1 and u.role = 'intern'
 
         ORDER BY u.name ASC
     ");
