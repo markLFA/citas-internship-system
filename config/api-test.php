@@ -9,7 +9,7 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     echo json_encode([
         'success' => true,
-        'data'    => getPendingInterns()
+        'data'    => getCoordinatorInternDatas()
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {
