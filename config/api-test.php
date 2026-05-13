@@ -1,10 +1,12 @@
 <?php
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+session_start();
 
 require_once __DIR__ . '/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
+echo "USER " . $_SESSION['user']['name'] . " (ID: " . $_SESSION['user']['id'] . ", ROLE: " . $_SESSION['user']['role'] . ")\n";
 
 try {
     echo json_encode([
