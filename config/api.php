@@ -60,6 +60,18 @@ switch ($action) {
             getCurrentPage()
         );
         break;
+    case 'addAnnouncement':
+        $title = $data['title'] ?? '';
+        $body = $data['body'] ?? '';
+        $isPinned = $data['isPinned'] ?? 0;
+
+        if (empty($title) || empty($body)) {
+            echo json_encode(['success' => false, 'message' => 'Title and Body are required.']);
+        } else {
+            // This calls the function we created in functions.php
+            echo json_encode(addAnnouncement($title, $body, $isPinned));
+        }
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

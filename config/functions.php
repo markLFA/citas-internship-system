@@ -723,3 +723,96 @@ function getCurrentPage() {
         "currentPage" => $_SESSION['currentPage'] ?? null
     ];
 }
+
+function getAnnouncements() {
+    if (!isset($_SESSION['user']['id']) || !isset($_SESSION['user']['role'])) {
+        return [];
+    }
+
+    $pdo = getDB();
+    $userId = $_SESSION['user']['id'];
+    $userRole = $_SESSION['user']['role'];
+    $targetCoordinatorId = null;
+
+    if ($userRole === 'coordinator') {
+        // If coordinator, they see their own announcements
+        $targetCoordinatorId = $userId;
+    } elseif ($userRole === 'intern') {
+        // If intern, find who their coordinator is from intern_profiles
+        $stmt = $pdo->prepare("SELECT coordinator_id FROM intern_profiles WHERE user_id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($profile) {
+            $targetCoordinatorId = $profile['coordinator_id'];
+        }
+    }
+
+    // If we couldn't find a coordinator ID (or user has no coordinator), return empty
+    if (!$targetCoordinatorId) {
+        return [];
+    }
+
+    // Fetch announcements ordered by pinned status first, then newest date
+    $stmt = $pdo->prepare("
+        SELECT 
+            id,
+            title,
+            body,
+            is_pinned,
+            created_at,
+            updated_at
+        FROM announcements
+        WHERE coordinator_id = ?
+        ORDER BY is_pinned DESC, created_at DESC
+    ");
+
+    $stmt->execute([$targetCoordinatorId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+function addAnnouncement($title, $body, $isPinned = 0) {
+    // Only coordinators should be allowed to add announcements
+    if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {
+        return [
+            'success' => false,
+            'message' => 'Unauthorized: Only coordinators can create announcements.'
+        ];
+    }
+
+    $pdo = getDB();
+    $coordinatorId = $_SESSION['user']['id'];
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO announcements (
+                coordinator_id, 
+                title, 
+                body, 
+                is_pinned, 
+                created_at
+            ) VALUES (?, ?, ?, ?, NOW())
+        ");
+
+        $result = $stmt->execute([
+            $coordinatorId,
+            trim($title),
+            trim($body),
+            $isPinned ? 1 : 0
+        ]);
+
+        if ($result) {
+            return [
+                'success' => true, 
+                'message' => 'Announcement posted successfully!',
+                'id' => $pdo->lastInsertId()
+            ];
+        }
+
+        return ['success' => false, 'message' => 'Failed to save announcement.'];
+
+    } catch (PDOException $e) {
+        // Log error and return a clean message
+        error_log("Add Announcement Error: " . $e->getMessage());
+        return ['success' => false, 'message' => 'A database error occurred.'];
+    }
+}

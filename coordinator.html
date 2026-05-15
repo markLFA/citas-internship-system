@@ -1327,26 +1327,45 @@ const Announcements = {
   },
 
   openCreateModal() {
-    const m = UI.modal({
-      title: '📢 New Announcement', body: this.buildForm(), size: 'lg',
-      footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        Helpers.orangeBtn('Post Announcement', () => {
-          const t = document.getElementById('ann-form-title')?.value.trim();
-          const b = document.getElementById('ann-form-body')?.value.trim();
-          if (!t || !b) { UI.toast('Please fill in all fields.', 'danger'); return; }
-          ANNOUNCEMENTS.unshift({
-            id: nextAnnId++, title:t, body:b,
-            pinned: document.getElementById('ann-form-pin')?.checked ?? false,
-            author: COORDINATOR.name,
-            date:   new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
-          });
-          this.renderList(); m.close();
-          UI.toast('Announcement posted!', 'success');
-        }),
-      ],
-    });
-    m.open();
+      const m = UI.modal({
+          title: '📢 New Announcement', 
+          body: this.buildForm(), 
+          size: 'lg',
+          footer: [
+              UI.button('Cancel', { variant: 'ghost', size: 'sm', onClick: () => m.close() }),
+              Helpers.orangeBtn('Post Announcement', async () => {
+                  const t = document.getElementById('ann-form-title')?.value.trim();
+                  const b = document.getElementById('ann-form-body')?.value.trim();
+                  const p = document.getElementById('ann-form-pin')?.checked ?? false;
+
+                  if (!t || !b) { 
+                      UI.toast('Please fill in all fields.', 'danger'); 
+                      return; 
+                  }
+                  const result = await this.postAnnouncement(t, b, p);
+
+                  if (result.success) {
+                      ANNOUNCEMENTS.unshift({
+                          id: result.id,
+                          title: t,
+                          body: b,
+                          pinned: p,
+                          author: COORDINATOR.name,
+                          date: new Date().toLocaleDateString('en-US', { 
+                              month: 'short', day: 'numeric', year: 'numeric' 
+                          }),
+                      });
+
+                      this.renderList();
+                      m.close();
+                      UI.toast('Announcement posted!', 'success');
+                  } else {
+                      UI.toast(result.message, 'danger');
+                  }
+              }),
+          ],
+      });
+      m.open();
   },
 
   openEditModal(ann) {
@@ -1369,6 +1388,25 @@ const Announcements = {
     });
     m.open();
   },
+async postAnnouncement(title, body, isPinned) {
+    try {
+        const response = await fetch('config/api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'addAnnouncement',
+                title: title,
+                body: body,
+                isPinned: isPinned ? 1 : 0
+            })
+        });
+
+        return await response.json();
+    } catch (error) {
+        console.error('Fetch Error:', error);
+        return { success: false, message: 'Network error. Please try again.' };
+    }
+},
 };
 
 
