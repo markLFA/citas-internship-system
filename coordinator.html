@@ -1480,7 +1480,7 @@ async fetchAnnouncements() {
   },
   async updateAnnouncement(id, title, body, isPinned) {
       try {
-          const response = await fetch('api.php', {
+          const response = await fetch('config/api.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1499,7 +1499,7 @@ async fetchAnnouncements() {
 
   async removeAnnouncement(id) {
       try {
-          const response = await fetch('api.php', {
+          const response = await fetch('config/api.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'deleteAnnouncement', id: id })
