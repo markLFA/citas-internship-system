@@ -75,6 +75,18 @@ switch ($action) {
             echo json_encode(addAnnouncement($title, $body, $isPinned));
         }
         break;
+    case 'updateAnnouncement':
+        echo json_encode(updateAnnouncement(
+            $data['id'], 
+            $data['title'], 
+            $data['body'], 
+            $data['isPinned']
+        ));
+        break;
+
+    case 'deleteAnnouncement':
+        echo json_encode(deleteAnnouncement($data['id']));
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

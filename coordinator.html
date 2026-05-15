@@ -1197,7 +1197,7 @@ const Interns = {
       });
 
       const data = await res.json();
-      console.log('InternList ' + JSON.stringify(data, null, 2));
+      //console.log('InternList ' + JSON.stringify(data, null, 2));
 
       if (!res.ok || data.error) {
         console.error(data.error || 'Failed to fetch intern data');
@@ -1294,12 +1294,17 @@ const Announcements = {
     actions.appendChild(UI.button('🗑 Delete', {
       variant:'ghost', size:'sm',
       color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
-      onClick: () => {
+    onClick: async () => {
         if (!confirm(`Delete "${ann.title}"?`)) return;
-        ANNOUNCEMENTS = ANNOUNCEMENTS.filter(a => a.id !== ann.id);
-        this.renderList();
-        UI.toast('Deleted.', 'danger');
-      },
+        const result = await this.removeAnnouncement(ann.id);
+        if (result.success) {
+            ANNOUNCEMENTS = ANNOUNCEMENTS.filter(a => a.id !== ann.id);
+            this.renderList();
+            UI.toast('Deleted.', 'danger');
+        } else {
+            UI.toast(result.message, 'danger');
+        }
+    }
     }));
 
     wrap.append(body, actions);
@@ -1363,24 +1368,30 @@ const Announcements = {
   },
 
   openEditModal(ann) {
-    const m = UI.modal({
-      title: '✏️ Edit Announcement',
-      body:  this.buildForm({ title:ann.title, body:ann.body, pinned:ann.pinned }),
-      size:  'lg',
-      footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        Helpers.orangeBtn('Save Changes', () => {
-          const t = document.getElementById('ann-form-title')?.value.trim();
-          const b = document.getElementById('ann-form-body')?.value.trim();
-          if (!t || !b) { UI.toast('Please fill in all fields.', 'danger'); return; }
-          ann.title=t; ann.body=b;
-          ann.pinned = document.getElementById('ann-form-pin')?.checked ?? false;
-          this.renderList(); m.close();
-          UI.toast('Updated.', 'success');
-        }),
-      ],
-    });
-    m.open();
+      const m = UI.modal({
+          title: '✏️ Edit Announcement',
+          body: this.buildForm(ann),
+          footer: [
+              UI.button('Cancel', { variant:'ghost', onClick: () => m.close() }),
+              Helpers.orangeBtn('Save Changes', async () => {
+                  const t = document.getElementById('ann-form-title').value;
+                  const b = document.getElementById('ann-form-body').value;
+                  const p = document.getElementById('ann-form-pin').checked;
+
+                  const result = await this.updateAnnouncement(ann.id, t, b, p);
+                  if (result.success) {
+                      ann.title = t;
+                      ann.body = b;
+                      ann.pinned = p;
+                      
+                      this.renderList();
+                      m.close();
+                      UI.toast('Announcement updated!', 'success');
+                  }
+              })
+          ]
+      });
+      m.open();
   },
   async fetchAnnouncements() {
       try {
@@ -1428,6 +1439,37 @@ const Announcements = {
           return { success: false, message: 'Network error. Please try again.' };
       }
   },
+  async updateAnnouncement(id, title, body, isPinned) {
+      try {
+          const response = await fetch('api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  action: 'updateAnnouncement',
+                  id: id,
+                  title: title,
+                  body: body,
+                  isPinned: isPinned ? 1 : 0
+              })
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Network error.' };
+      }
+  },
+
+  async removeAnnouncement(id) {
+      try {
+          const response = await fetch('api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'deleteAnnouncement', id: id })
+          });
+          return await response.json();
+      } catch (error) {
+          return { success: false, message: 'Network error.' };
+      }
+  }
 };
 
 

@@ -816,3 +816,41 @@ function addAnnouncement($title, $body, $isPinned = 0) {
         return ['success' => false, 'message' => 'A database error occurred.'];
     }
 }
+function updateAnnouncement($id, $title, $body, $isPinned) {
+    if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {
+        return ['success' => false, 'message' => 'Unauthorized.'];
+    }
+
+    $pdo = getDB();
+    $coordinatorId = $_SESSION['user']['id'];
+
+    $stmt = $pdo->prepare("
+        UPDATE announcements 
+        SET title = ?, body = ?, is_pinned = ?, updated_at = NOW() 
+        WHERE id = ? AND coordinator_id = ?
+    ");
+    
+    $success = $stmt->execute([trim($title), trim($body), $isPinned ? 1 : 0, $id, $coordinatorId]);
+    
+    return [
+        'success' => $success,
+        'message' => $success ? 'Updated successfully!' : 'Update failed or unauthorized.'
+    ];
+}
+
+function deleteAnnouncement($id) {
+    if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {
+        return ['success' => false, 'message' => 'Unauthorized.'];
+    }
+
+    $pdo = getDB();
+    $coordinatorId = $_SESSION['user']['id'];
+
+    $stmt = $pdo->prepare("DELETE FROM announcements WHERE id = ? AND coordinator_id = ?");
+    $success = $stmt->execute([$id, $coordinatorId]);
+
+    return [
+        'success' => $success,
+        'message' => $success ? 'Deleted successfully!' : 'Delete failed or unauthorized.'
+    ];
+}
