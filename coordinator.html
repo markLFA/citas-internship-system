@@ -1253,21 +1253,49 @@ const Announcements = {
     this.renderList();
   },
 
-  renderList() {
+renderList() {
     const wrap = document.getElementById('ann-list-wrap');
-
     if (!wrap) return;
-    this.fetchAnnouncements().then(() => {
+
+    // Remove the .then() and fetch call from here!
     wrap.innerHTML = '';
+    
     if (!ANNOUNCEMENTS.length) {
       wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
         Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())));
       return;
     }
-    [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
-      .forEach(ann => wrap.appendChild(this.annItem(ann)));    
-    });
 
+    [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
+      .forEach(ann => wrap.appendChild(this.annItem(ann)));
+  },
+
+  async fetchAnnouncements() {
+      try {
+          const response = await fetch('config/api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'getAnnouncements' })
+          });
+
+          const data = await response.json();
+
+          ANNOUNCEMENTS = data.map(ann => ({
+              id: ann.id,
+              title: ann.title,
+              body: ann.body,
+              pinned: parseInt(ann.is_pinned) === 1,
+              author: "Coordinator", 
+              date: new Date(ann.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', day: 'numeric', year: 'numeric' 
+              })
+          }));
+
+          this.renderList(); 
+      } catch (error) {
+          console.error('Error fetching announcements:', error);
+          UI.toast('Could not load announcements.', 'danger');
+      }
   },
 
   annItem(ann) {
