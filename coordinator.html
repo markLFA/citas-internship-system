@@ -1328,6 +1328,7 @@ async fetchAnnouncements() {
       ann.pinned = !ann.pinned;
       this.renderList();
       UI.toast(ann.pinned ? 'Pinned.' : 'Unpinned.', 'info');
+      this.togglePin(ann)
     }));
     actions.appendChild(Helpers.ghostBtn('✏️ Edit', () => this.openEditModal(ann)));
     actions.appendChild(UI.button('🗑 Delete', {
@@ -1451,6 +1452,24 @@ async fetchAnnouncements() {
           ]
       });
       m.open();
+  },
+  async togglePin(ann) {
+      const newPinnedStatus = !ann.pinned;
+      
+      const result = await this.updateAnnouncement(
+          ann.id, 
+          ann.title, 
+          ann.body, 
+          newPinnedStatus
+      );
+
+      if (result.success) {
+          ann.pinned = newPinnedStatus;
+          this.renderList(); 
+          UI.toast(ann.pinned ? 'Announcement Pinned' : 'Announcement Unpinned', 'info');
+      } else {
+          UI.toast(result.message || 'Failed to update pin status', 'danger');
+      }
   },
   async fetchAnnouncements() {
       try {
