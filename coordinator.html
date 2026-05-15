@@ -1240,45 +1240,54 @@ const Interns = {
 // ─────────────────────────────────────────────────────────────
 const Announcements = {
 
-  build() {
+build() {
     const sec = document.getElementById('sec-announcements');
+    if (!sec) return; // Safety check
+
     sec.appendChild(Helpers.pageHeader(
       'Announcements',
       'Post updates and notices for all interns',
       Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())
     ));
+
     const listWrap = document.createElement('div');
     listWrap.id = 'ann-list-wrap';
     sec.appendChild(listWrap);
-    this.renderList();
+
+    // CHANGE THIS: Call fetch instead of render
+    this.fetchAnnouncements(); 
   },
 
-renderList() {
-    const wrap = document.getElementById('ann-list-wrap');
-    if (!wrap) return;
+  renderList() {
+      const wrap = document.getElementById('ann-list-wrap');
+      if (!wrap) return;
 
-    // Remove the .then() and fetch call from here!
-    wrap.innerHTML = '';
-    
-    if (!ANNOUNCEMENTS.length) {
-      wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
-        Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())));
-      return;
-    }
+      // Remove the .then() and fetch call from here!
+      wrap.innerHTML = '';
+      
+      if (!ANNOUNCEMENTS.length) {
+        wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
+          Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())));
+        return;
+      }
 
-    [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
-      .forEach(ann => wrap.appendChild(this.annItem(ann)));
-  },
+      [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
+        .forEach(ann => wrap.appendChild(this.annItem(ann)));
+    },
 
-  async fetchAnnouncements() {
+async fetchAnnouncements() {
+      const wrap = document.getElementById('ann-list-wrap');
+      if (wrap) wrap.innerHTML = '<p style="padding:2rem; text-align:center; color:#6B3A1F;">Loading announcements...</p>';
+
       try {
-          const response = await fetch('config/api.php', {
+          const response = await fetch('config/api.php', { // Ensure this path is correct!
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'getAnnouncements' })
           });
 
           const data = await response.json();
+          console.log("Data received:", data); // Check your browser console!
 
           ANNOUNCEMENTS = data.map(ann => ({
               id: ann.id,
@@ -1294,10 +1303,12 @@ renderList() {
           this.renderList(); 
       } catch (error) {
           console.error('Error fetching announcements:', error);
+          if (wrap) wrap.innerHTML = '';
           UI.toast('Could not load announcements.', 'danger');
       }
   },
-
+  
+  
   annItem(ann) {
     const wrap = document.createElement('div');
     wrap.className = 'ann-item' + (ann.pinned ? ' pinned' : '');
