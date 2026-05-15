@@ -1350,18 +1350,38 @@ async fetchAnnouncements() {
     return wrap;
   },
 
-  buildForm({ title='', body='', pinned=false } = {}) {
-    const wrap = document.createElement('div');
-    wrap.appendChild(UI.formGroup('Title',
-      UI.input({ id:'ann-form-title', value:title, placeholder:'Announcement title', required:true }),
-      '', { required:true }));
-    wrap.appendChild(UI.formGroup('Message',
-      UI.textarea({ id:'ann-form-body', value:body, placeholder:'Write your message…', rows:5 })));
-    const pinLabel = document.createElement('label');
-    pinLabel.style.cssText = 'display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#6B3A1F;margin-top:.5rem';
-    pinLabel.innerHTML = `<input type="checkbox" id="ann-form-pin" ${pinned?'checked':''} style="width:15px;height:15px;accent-color:#EA580C"> 📌 Pin this announcement`;
-    wrap.appendChild(pinLabel);
-    return wrap;
+// Store the form reference outside the function so it persists
+  formCache: null,
+  buildForm({ title = '', body = '', pinned = false } = {}) {
+      // 1. If form doesn't exist yet, create it once
+      if (!this.formCache) {
+          const wrap = document.createElement('div');
+          
+          wrap.appendChild(UI.formGroup('Title',
+              UI.input({ id: 'ann-form-title', placeholder: 'Announcement title', required: true }),
+              '', { required: true }));
+              
+          wrap.appendChild(UI.formGroup('Message',
+              UI.textarea({ id: 'ann-form-body', placeholder: 'Write your message…', rows: 5 })));
+              
+          const pinLabel = document.createElement('label');
+          pinLabel.style.cssText = 'display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#6B3A1F;margin-top:.5rem';
+          pinLabel.innerHTML = `<input type="checkbox" id="ann-form-pin" style="width:15px;height:15px;accent-color:#EA580C"> 📌 Pin this announcement`;
+          
+          wrap.appendChild(pinLabel);
+          this.formCache = wrap;
+      }
+
+      // 2. Update the existing elements with the new values
+      const titleInput = this.formCache.querySelector('#ann-form-title');
+      const bodyInput = this.formCache.querySelector('#ann-form-body');
+      const pinInput = this.formCache.querySelector('#ann-form-pin');
+
+      if (titleInput) titleInput.value = title;
+      if (bodyInput) bodyInput.value = body;
+      if (pinInput) pinInput.checked = pinned;
+
+      return this.formCache;
   },
 
   openCreateModal() {
