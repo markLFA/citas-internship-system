@@ -60,6 +60,9 @@ switch ($action) {
             getCurrentPage()
         );
         break;
+    case 'getAnnouncements':
+        echo json_encode(getAnnouncements());
+        break;
     case 'addAnnouncement':
         $title = $data['title'] ?? '';
         $body = $data['body'] ?? '';

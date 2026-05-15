@@ -1265,7 +1265,9 @@ const Announcements = {
 
   renderList() {
     const wrap = document.getElementById('ann-list-wrap');
+
     if (!wrap) return;
+    this.fetchAnnouncements().then(() => {
     wrap.innerHTML = '';
     if (!ANNOUNCEMENTS.length) {
       wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
@@ -1273,7 +1275,9 @@ const Announcements = {
       return;
     }
     [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
-      .forEach(ann => wrap.appendChild(this.annItem(ann)));
+      .forEach(ann => wrap.appendChild(this.annItem(ann)));    
+    });
+
   },
 
   annItem(ann) {
@@ -1388,25 +1392,52 @@ const Announcements = {
     });
     m.open();
   },
-async postAnnouncement(title, body, isPinned) {
-    try {
-        const response = await fetch('config/api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'addAnnouncement',
-                title: title,
-                body: body,
-                isPinned: isPinned ? 1 : 0
-            })
-        });
+  async fetchAnnouncements() {
+      try {
+          const response = await fetch('api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'getAnnouncements' })
+          });
 
-        return await response.json();
-    } catch (error) {
-        console.error('Fetch Error:', error);
-        return { success: false, message: 'Network error. Please try again.' };
-    }
-},
+          const data = await response.json();
+
+          ANNOUNCEMENTS = data.map(ann => ({
+              id: ann.id,
+              title: ann.title,
+              body: ann.body,
+              pinned: parseInt(ann.is_pinned) === 1,
+              author: "Coordinator", // Or you can include the name in the PHP SQL Join
+              date: new Date(ann.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', day: 'numeric', year: 'numeric' 
+              })
+          }));
+
+          this.renderList();
+      } catch (error) {
+          console.error('Error fetching announcements:', error);
+          UI.toast('Could not load announcements.', 'danger');
+      }
+  },
+  async postAnnouncement(title, body, isPinned) {
+      try {
+          const response = await fetch('config/api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  action: 'addAnnouncement',
+                  title: title,
+                  body: body,
+                  isPinned: isPinned ? 1 : 0
+              })
+          });
+
+          return await response.json();
+      } catch (error) {
+          console.error('Fetch Error:', error);
+          return { success: false, message: 'Network error. Please try again.' };
+      }
+  },
 };
 
 
