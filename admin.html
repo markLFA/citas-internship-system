@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CITAS — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/uiParts.css">
+  <style>
+    body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
+    .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
+
+    /* Coordinator card */
+    .coord-card {
+      background: #fff;
+      border: 1px solid #FED7AA;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: .7rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      transition: box-shadow .15s;
+    }
+    .coord-card:hover   { box-shadow: 0 4px 12px rgba(234,88,12,.1); }
+    .coord-card.pending { border-color: #F59E0B; background: #FFFBEB; }
+    .coord-card.inactive{ border-color: #E5E7EB; background: #F9FAFB; }
+    .coord-info         { flex: 1; min-width: 180px; }
+    .coord-name         { font-family: Sora,sans-serif; font-weight:700; color:#1A0A00; font-size:.95rem; }
+    .coord-meta         { font-size:.78rem; color:#9A6647; margin-top:.2rem; }
+    .coord-actions      { display:flex; gap:.4rem; flex-wrap:wrap; flex-shrink:0; }
+    @media(max-width:480px) {
+      .coord-actions { width:100%; justify-content:flex-end; }
+    }
+
+    /* Recent registration item */
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .6rem 0;
+      border-bottom: 1px solid #FFF0E0;
+    }
+    .recent-item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+<div class="cui-page-layout">
+  <div class="cui-page-main" id="page-main">
+    <div class="cui-page-content">
+      <section class="cui-section active" id="sec-dashboard"></section>
+      <section class="cui-section"        id="sec-coordinators"></section>
+      <section class="cui-section"        id="sec-interns"></section>
+    </div>
+  </div>
+</div>
+
+<script src="assets/uiParts.js"></script>
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────
+//  DATA  (loaded from API — not hardcoded)
+// ─────────────────────────────────────────────────────────────
+const ADMIN = {
+  name:  'Administrator',
+  email: 'admin@citas.edu',
+  role:  'admin',
+};
+
+let STATS        = {};
+let COORDINATORS = [];  // all coordinators (pending + active + inactive)
+
+
+// ─────────────────────────────────────────────────────────────
+//  SECTION MAP
+// ─────────────────────────────────────────────────────────────
+const SECTIONS = {
+  dashboard:    'Dashboard',
+  coordinators: 'Coordinators',
+  interns:      'Interns Overview',
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  SHARED HELPERS  (defined FIRST — used by sidebar below)
+// ─────────────────────────────────────────────────────────────
+const Helpers = {
+
+  pageHeader(title, subtitle = '', action = null) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cui-page-header';
+    const left = document.createElement('div');
+    left.innerHTML = `
+      <div class="cui-page-title">${title}</div>
+      ${subtitle ? `<div class="cui-page-subtitle">${subtitle}</div>` : ''}`;
+    wrap.appendChild(left);
+    if (action) wrap.appendChild(action);
+    return wrap;
+  },
+
+  orangeBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick,
+    });
+  },
+
+  ghostBtn(label, onClick) {
+    return UI.button(label, {
+      variant: 'ghost', size: 'sm',
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick,
+    });
+  },
+
+  greenBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#10B981', hover:'#059669', text:'#fff' },
+      onClick,
+    });
+  },
+
+  redBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
+      onClick,
+    });
+  },
+
+  warningBtn(label, onClick) {
+    return UI.button(label, {
+      size: 'sm',
+      color: { base:'#FFFBEB', hover:'#FEF3C7', text:'#92400E', border:'#FDE68A' },
+      onClick,
+    });
+  },
+
+  avatar(name, size = 'sm') {
+    const av = UI.avatar(name, size);
+    av.style.background = 'linear-gradient(135deg,#6366F1,#4F46E5)';
+    av.style.flexShrink  = '0';
+    return av;
+  },
+
+  sidebarFooter() {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:.65rem';
+    const av = UI.avatar(ADMIN.name, 'sm');
+    av.style.cssText = 'background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.35)';
+    const info = document.createElement('div');
+    info.style.minWidth = '0';
+    info.innerHTML = `
+      <div style="font-size:.85rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ADMIN.name}</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.6)">System Admin</div>`;
+    wrap.append(av, info);
+    return wrap;
+  },
+
+  refreshCard(id, buildFn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    el.appendChild(buildFn());
+  },
+
+  // Generic API call helper
+  async api(action, extra = {}) {
+    const res  = await fetch('config/api.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action, ...extra }),
+    });
+    return res.json();
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────────────────────
+const sidebar = UI.pageSidebar({
+  brand:     'Admin Panel',
+  brandIcon: '🛡️',
+  items: [
+    { section: true, label: 'Menu' },
+    { label: 'Dashboard',        icon: '🏠', active: true,  onClick: () => navigate('dashboard')    },
+    { label: 'Coordinators',     icon: '🗂️',               onClick: () => navigate('coordinators') },
+    { label: 'Interns Overview', icon: '👥',               onClick: () => navigate('interns')      },
+    { section: true, label: 'Account' },
+    { label: 'Sign Out', icon: '🚪',
+      onClick: () => {
+        if (!confirm('Sign out?')) return;
+        Helpers.api('logout').finally(() => { location.href = 'index.php'; });
+      }
+    },
+  ],
+  footer: Helpers.sidebarFooter(),
+});
+
+const topbar = UI.navbar({
+  brand: 'CITAS', brandIcon: '🎓',
+  sidebar,
+  pageTitle: 'Dashboard',
+  right: [
+    UI.badge('Admin', { base:'#EEF2FF', text:'#4338CA', border:'#C7D2FE' }),
+    (() => {
+      const av = UI.avatar(ADMIN.name, 'sm');
+      av.style.background = 'linear-gradient(135deg,#6366F1,#4F46E5)';
+      return av;
+    })(),
+  ],
+});
+document.getElementById('page-main').prepend(topbar.el);
+
+function navigate(name) {
+  document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  sidebar.setActive(SECTIONS[name]);
+  const center = document.querySelector('.cui-navbar-center');
+  if (center) center.textContent = SECTIONS[name];
+}
+
+
+// ─────────────────────────────────────────────────────────────
+//  DASHBOARD
+// ─────────────────────────────────────────────────────────────
+const Dashboard = {
+
+  build() {
+    const sec  = document.getElementById('sec-dashboard');
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+    sec.appendChild(Helpers.pageHeader(
+      `${greet}, Admin! 👋`,
+      new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
+    ));
+
+    // Stat cards slot — refreshed after API responds
+    const statSlot = document.createElement('div');
+    statSlot.id = 'dash-stat-slot';
+    statSlot.appendChild(UI.loading({ style:'bar', label:'Loading stats…' }));
+    sec.appendChild(statSlot);
+
+    const row = document.createElement('div');
+    row.className = 'pg-grid-2 mt-lg';
+    row.style.alignItems = 'start';
+
+    // Pending coordinators preview
+    const pendingSlot = document.createElement('div');
+    pendingSlot.id = 'dash-pending-slot';
+    pendingSlot.appendChild(UI.loading({ style:'skeleton', rows:3, card:true }));
+    row.appendChild(pendingSlot);
+
+    // Recent registrations
+    const recentSlot = document.createElement('div');
+    recentSlot.id = 'dash-recent-slot';
+    recentSlot.appendChild(UI.loading({ style:'skeleton', rows:4, card:true }));
+    row.appendChild(recentSlot);
+
+    sec.appendChild(row);
+
+    // Load data
+    this.loadStats();
+  },
+
+  async loadStats() {
+    try {
+      STATS = await Helpers.api('getSystemStats');
+    } catch (_) {
+      STATS = {};
+    }
+
+    // Refresh stat strip
+    Helpers.refreshCard('dash-stat-slot', () => this.statStrip());
+
+    // Refresh pending coordinators preview
+    Helpers.refreshCard('dash-pending-slot', () => this.pendingCoordsCard());
+
+    // Refresh recent registrations
+    Helpers.refreshCard('dash-recent-slot', () => this.recentRegistrationsCard());
+
+    // Update sidebar pending badge
+    const pending = (STATS.pending_coordinators ?? 0);
+    const badgeEl = document.querySelector('.cui-ps-btn-badge');
+    if (badgeEl && pending > 0) badgeEl.textContent = pending;
+  },
+
+  statStrip() {
+    const wrap = document.createElement('div');
+    wrap.className = 'pg-grid-4';
+    [
+      { v: STATS.total_coordinators   ?? 0, l: 'Coordinators',        i: '🗂️', c: { base:'#EEF2FF', text:'#4338CA' } },
+      { v: STATS.pending_coordinators ?? 0, l: 'Pending Coordinators',i: '⏳', c: { base:'#FFFBEB', text:'#92400E' } },
+      { v: STATS.total_interns        ?? 0, l: 'Active Interns',      i: '👥', c: { base:'#FFF7ED', text:'#EA580C' } },
+      { v: STATS.total_reports        ?? 0, l: 'Total Reports',       i: '📄', c: 'info' },
+    ].forEach(s => wrap.appendChild(UI.statCard(s.v, s.l, s.i, s.c)));
+    return wrap;
+  },
+
+  // Shows up to 3 pending coordinator registrations
+  pendingCoordsCard() {
+    const pending = COORDINATORS.filter(c => !c.is_active);
+    const body    = document.createElement('div');
+
+    if (!pending.length) {
+      body.appendChild(UI.empty('✅', 'No pending coordinators', 'All coordinator accounts have been reviewed.'));
+    } else {
+      pending.slice(0, 3).forEach(coord => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #FFF0E0';
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML  = `
+          <div style="font-weight:700;font-size:.875rem;color:#1A0A00">${coord.name}</div>
+          <div style="font-size:.75rem;color:#9A6647">${coord.email}</div>`;
+        item.append(Helpers.avatar(coord.name), info,
+          Helpers.greenBtn('✅ Approve', () => Coordinators.approve(coord.id)));
+        body.appendChild(item);
+      });
+
+      if (pending.length > 3) {
+        const more = document.createElement('p');
+        more.style.cssText = 'font-size:.78rem;color:#9A6647;text-align:center;padding:.5rem 0 0';
+        more.textContent   = `+${pending.length - 3} more pending`;
+        body.appendChild(more);
+      }
+    }
+
+    return UI.card({
+      title: '⏳ Pending Coordinator Approvals',
+      headerActions: UI.badge(pending.length, { base:'#FFFBEB', text:'#92400E' }),
+      body,
+      footer: pending.length ? [Helpers.ghostBtn('Manage all →', () => navigate('coordinators'))] : [],
+    });
+  },
+
+  // Recent registrations (any role)
+  recentRegistrationsCard() {
+    const recent = STATS.recent_registrations ?? [];
+    const body   = document.createElement('div');
+
+    if (!recent.length) {
+      body.appendChild(UI.empty('📭', 'No recent registrations', ''));
+    } else {
+      recent.forEach(u => {
+        const item = document.createElement('div');
+        item.className = 'recent-item';
+
+        const av = UI.avatar(u.name, 'sm');
+        av.style.background = u.role === 'coordinator'
+          ? 'linear-gradient(135deg,#6366F1,#4F46E5)'
+          : 'linear-gradient(135deg,#FF6B00,#EA580C)';
+
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML  = `
+          <div style="font-weight:600;font-size:.85rem;color:#1A0A00">${u.name}</div>
+          <div style="font-size:.73rem;color:#9A6647">${u.email}</div>`;
+
+        const statusBadge = document.createElement('div');
+        statusBadge.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:.25rem';
+        statusBadge.appendChild(UI.badge(
+          u.role === 'coordinator' ? '🗂️ Coordinator' : '🎒 Intern',
+          u.role === 'coordinator'
+            ? { base:'#EEF2FF', text:'#4338CA' }
+            : { base:'#FFF7ED', text:'#EA580C' }
+        ));
+        statusBadge.appendChild(UI.badge(
+          u.is_active ? 'Active' : '⏳ Pending',
+          u.is_active ? { base:'#D1FAE5', text:'#065F46' } : { base:'#FFFBEB', text:'#92400E' }
+        ));
+
+        item.append(av, info, statusBadge);
+        body.appendChild(item);
+      });
+    }
+
+    return UI.card({ title: '🕐 Recent Registrations', body });
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  COORDINATORS
+// ─────────────────────────────────────────────────────────────
+const Coordinators = {
+
+  // Current tab: 'pending' | 'active' | 'inactive'
+  currentTab: 'pending',
+
+  build() {
+    const sec = document.getElementById('sec-coordinators');
+    sec.innerHTML = '';
+
+    sec.appendChild(Helpers.pageHeader(
+      'Coordinators',
+      'Manage coordinator account access'
+    ));
+
+    // Tab buttons
+    sec.appendChild(this.tabs());
+
+    // List container
+    const listWrap = document.createElement('div');
+    listWrap.id = 'coordinators-list-wrap';
+    listWrap.appendChild(UI.loading({ style:'skeleton', rows:4 }));
+    sec.appendChild(listWrap);
+
+    this.loadAndRender();
+  },
+
+  // Pill tabs: Pending / Active / Inactive
+  tabs() {
+    const wrap = document.createElement('div');
+    wrap.id    = 'coord-tabs';
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem';
+
+    [
+      { value:'pending',  label:'⏳ Pending'  },
+      { value:'active',   label:'✅ Active'   },
+      { value:'inactive', label:'🚫 Inactive' },
+    ].forEach(t => {
+      const btn = document.createElement('button');
+      btn.style.cssText = 'padding:.4rem .9rem;border-radius:20px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1.5px solid #FED7AA;background:#fff;color:#9A6647';
+      btn.textContent   = t.label;
+      btn.dataset.tab   = t.value;
+
+      if (this.currentTab === t.value) this._activateTab(btn);
+
+      btn.addEventListener('click', () => {
+        this.currentTab = t.value;
+        wrap.querySelectorAll('button').forEach(b => {
+          b.style.background  = '#fff';
+          b.style.borderColor = '#FED7AA';
+          b.style.color       = '#9A6647';
+        });
+        this._activateTab(btn);
+        this.renderList();
+      });
+
+      wrap.appendChild(btn);
+    });
+    return wrap;
+  },
+
+  _activateTab(btn) {
+    btn.style.background  = '#EA580C';
+    btn.style.borderColor = '#EA580C';
+    btn.style.color       = '#fff';
+  },
+
+  async loadAndRender() {
+    try {
+      COORDINATORS = await Helpers.api('getAllCoordinators');
+      if (!Array.isArray(COORDINATORS)) COORDINATORS = [];
+    } catch (_) {
+      COORDINATORS = [];
+    }
+    this.renderList();
+  },
+
+  renderList() {
+    const wrap = document.getElementById('coordinators-list-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+
+    const filtered = COORDINATORS.filter(c => {
+      if (this.currentTab === 'pending')  return !parseInt(c.is_active);
+      if (this.currentTab === 'active')   return  parseInt(c.is_active);
+      if (this.currentTab === 'inactive') return !parseInt(c.is_active);
+      return true;
+    });
+
+    // Re-label: 'inactive' tab = same as pending (is_active = 0) but with different actions
+    // We differentiate visually by actions shown
+
+    if (!filtered.length) {
+      const msgs = {
+        pending:  ['⏳', 'No pending coordinators', 'All registrations have been reviewed.'],
+        active:   ['✅', 'No active coordinators',  'Approve a coordinator from the Pending tab.'],
+        inactive: ['🚫', 'No inactive coordinators','All coordinators are currently active.'],
+      };
+      const [icon, title, sub] = msgs[this.currentTab] ?? ['📭','None',''];
+      wrap.appendChild(UI.empty(icon, title, sub));
+      return;
+    }
+
+    const info = document.createElement('p');
+    info.style.cssText = 'font-size:.83rem;color:#9A6647;margin-bottom:1rem';
+    info.textContent   = `${filtered.length} coordinator${filtered.length !== 1 ? 's' : ''}`;
+    wrap.appendChild(info);
+
+    filtered.forEach(coord => wrap.appendChild(this.coordCard(coord)));
+  },
+
+  coordCard(coord) {
+    const isActive  = parseInt(coord.is_active);
+    const isPending = !isActive && this.currentTab === 'pending';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'coord-card' + (isPending ? ' pending' : !isActive ? ' inactive' : '');
+    wrap.id        = 'coord-card-' + coord.id;
+
+    // Avatar
+    wrap.appendChild(Helpers.avatar(coord.name, 'md'));
+
+    // Info
+    const info = document.createElement('div');
+    info.className = 'coord-info';
+    info.innerHTML = `
+      <div class="coord-name">${coord.name}</div>
+      <div class="coord-meta">${coord.email}</div>
+      <div style="font-size:.72rem;color:#C4845A;margin-top:.2rem">
+        Registered: ${new Date(coord.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+      </div>`;
+    wrap.appendChild(info);
+
+    // Status badge
+    const badge = document.createElement('div');
+    badge.style.flexShrink = '0';
+    badge.appendChild(UI.badge(
+      isActive ? '✅ Active' : '⏳ Pending',
+      isActive
+        ? { base:'#D1FAE5', text:'#065F46' }
+        : { base:'#FFFBEB', text:'#92400E' }
+    ));
+    wrap.appendChild(badge);
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'coord-actions';
+
+    if (!isActive) {
+      // Approve
+      actions.appendChild(Helpers.greenBtn('✅ Approve', () => this.approve(coord.id)));
+      // Delete pending account
+      actions.appendChild(Helpers.redBtn('🗑 Delete', () => this.delete(coord.id, coord.name)));
+    } else {
+      // View details
+      actions.appendChild(Helpers.ghostBtn('👁 View', () => this.openDetailModal(coord)));
+      // Deactivate
+      actions.appendChild(Helpers.warningBtn('🚫 Deactivate', () => this.deactivate(coord.id, coord.name)));
+      // Delete
+      actions.appendChild(Helpers.redBtn('🗑 Delete', () => this.delete(coord.id, coord.name)));
+    }
+
+    wrap.appendChild(actions);
+    return wrap;
+  },
+
+  // Coordinator detail modal
+  openDetailModal(coord) {
+    const body = document.createElement('div');
+
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
+    const info = document.createElement('div');
+    info.innerHTML = `
+      <div style="font-family:Sora,sans-serif;font-size:1.05rem;font-weight:800;color:#1A0A00">${coord.name}</div>
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${coord.email}</div>`;
+    hdr.append(Helpers.avatar(coord.name, 'lg'), info);
+    body.appendChild(hdr);
+
+    [
+      ['📧', 'Email',       coord.email],
+      ['🗓️', 'Registered', new Date(coord.created_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],
+      ['🔘', 'Status',     parseInt(coord.is_active) ? 'Active' : 'Pending / Inactive'],
+    ].forEach(([icon, label, value]) => body.appendChild(UI.infoRow(icon, label, value)));
+
+    const m = UI.modal({
+      title: '🗂️ Coordinator Details', body, size: 'lg',
+      footer: [
+        UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        Helpers.warningBtn('🚫 Deactivate', () => { this.deactivate(coord.id, coord.name); m.close(); }),
+        Helpers.redBtn('🗑 Delete',          () => { this.delete(coord.id, coord.name);     m.close(); }),
+      ],
+    });
+    m.open();
+  },
+
+  // ── Actions ───────────────────────────────────────────────
+
+  async approve(id) {
+    try {
+      const res = await Helpers.api('approveCoordinator', { coordinatorId: id });
+      if (!res.success) { UI.toast('❌ ' + (res.error ?? 'Approval failed.'), 'danger'); return; }
+      const coord = COORDINATORS.find(c => c.id === id);
+      if (coord) coord.is_active = '1';
+      this.renderList();
+      Dashboard.loadStats();  // refresh dashboard numbers
+      UI.toast(`✅ ${coord?.name ?? 'Coordinator'} approved — they can now log in.`, 'success');
+    } catch (_) {
+      UI.toast('❌ Network error.', 'danger');
+    }
+  },
+
+  async deactivate(id, name) {
+    if (!confirm(`Deactivate ${name}?\nThey will not be able to log in until reactivated.`)) return;
+    try {
+      const res = await Helpers.api('deactivateCoordinator', { coordinatorId: id });
+      if (!res.success) { UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger'); return; }
+      const coord = COORDINATORS.find(c => c.id === id);
+      if (coord) coord.is_active = '0';
+      this.renderList();
+      Dashboard.loadStats();
+      UI.toast(`🚫 ${name} has been deactivated.`, 'info');
+    } catch (_) {
+      UI.toast('❌ Network error.', 'danger');
+    }
+  },
+
+  async delete(id, name) {
+    if (!confirm(`Permanently delete ${name}'s account?\nThis cannot be undone.`)) return;
+    try {
+      const res = await Helpers.api('deleteCoordinator', { coordinatorId: id });
+      if (!res.success) { UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger'); return; }
+      COORDINATORS = COORDINATORS.filter(c => c.id !== id);
+      this.renderList();
+      Dashboard.loadStats();
+      UI.toast(`🗑 ${name}'s account has been deleted.`, 'danger');
+    } catch (_) {
+      UI.toast('❌ Network error.', 'danger');
+    }
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  INTERNS OVERVIEW  (read-only — management is coordinator's job)
+// ─────────────────────────────────────────────────────────────
+const Interns = {
+
+  build() {
+    const sec = document.getElementById('sec-interns');
+    sec.appendChild(Helpers.pageHeader(
+      'Interns Overview',
+      'System-wide intern statistics'
+    ));
+
+    // Stat cards
+    const grid = document.createElement('div');
+    grid.className = 'pg-grid-4';
+    [
+      { v: STATS.total_interns    ?? 0, l:'Active Interns',   i:'👥', c:{ base:'#FFF7ED', text:'#EA580C' } },
+      { v: STATS.pending_interns  ?? 0, l:'Pending Approval', i:'⏳', c:{ base:'#FFFBEB', text:'#92400E' } },
+      { v: STATS.total_reports    ?? 0, l:'Reports Filed',    i:'📄', c:'info' },
+      { v: STATS.total_companies  ?? 0, l:'Host Companies',   i:'🏢', c:'success' },
+    ].forEach(s => grid.appendChild(UI.statCard(s.v, s.l, s.i, s.c)));
+    sec.appendChild(grid);
+
+    // Info notice
+    const notice = document.createElement('div');
+    notice.style.cssText = 'padding:1rem 1.25rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;font-size:.84rem;color:#6B3A1F;margin-top:1rem';
+    notice.innerHTML = `
+      ℹ️ <strong>Intern management is handled by Coordinators.</strong>
+      This overview shows system-wide counts only. To review individual intern records,
+      approve/reject registrations, or give report feedback — use the
+      <strong>Coordinator Panel</strong>.`;
+    sec.appendChild(notice);
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
+//  BOOT
+// ─────────────────────────────────────────────────────────────
+async function boot() {
+  // Load coordinators list first so Dashboard pending card has data
+  try {
+    COORDINATORS = await Helpers.api('getAllCoordinators');
+    if (!Array.isArray(COORDINATORS)) COORDINATORS = [];
+  } catch (_) {
+    COORDINATORS = [];
+  }
+
+  Dashboard   .build();
+  Coordinators.build();
+  Interns     .build();
+}
+
+boot();
+</script>
+</body>
+</html>

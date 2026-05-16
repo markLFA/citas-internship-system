@@ -854,3 +854,145 @@ function deleteAnnouncement($id) {
         'message' => $success ? 'Deleted successfully!' : 'Delete failed or unauthorized.'
     ];
 }
+
+
+
+// ════════════════════════════════════════════════════════════
+//  ADMIN FUNCTIONS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * System-wide stats for the admin dashboard.
+ */
+function getSystemStats(): array
+{
+    $pdo = getDB();
+    try {
+        $stats = [];
+
+        // Total active interns
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role='intern' AND is_active=1");
+        $stats['total_interns'] = (int)$stmt->fetchColumn();
+
+        // Pending interns
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role='intern' AND is_active=0");
+        $stats['pending_interns'] = (int)$stmt->fetchColumn();
+
+        // Total active coordinators
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role='coordinator' AND is_active=1");
+        $stats['total_coordinators'] = (int)$stmt->fetchColumn();
+
+        // Pending coordinators
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role='coordinator' AND is_active=0");
+        $stats['pending_coordinators'] = (int)$stmt->fetchColumn();
+
+        // Total reports
+        $stmt = $pdo->query("SELECT COUNT(*) FROM weekly_reports");
+        $stats['total_reports'] = (int)$stmt->fetchColumn();
+
+        // Total companies
+        $stmt = $pdo->query("SELECT COUNT(*) FROM companies WHERE name != 'Not yet assigned'");
+        $stats['total_companies'] = (int)$stmt->fetchColumn();
+
+        // Recent registrations (last 5, any role)
+        $stmt = $pdo->query("
+            SELECT id, name, email, role, is_active, created_at
+            FROM users
+            WHERE role != 'admin'
+            ORDER BY created_at DESC
+            LIMIT 5
+        ");
+        $stats['recent_registrations'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $stats;
+
+    } catch (PDOException $e) {
+        error_log('getSystemStats(): ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Get all coordinator accounts (pending + active).
+ */
+function getAllCoordinators(): array
+{
+    $pdo = getDB();
+    try {
+        $stmt = $pdo->query("
+            SELECT id, name, email, is_active, created_at
+            FROM users
+            WHERE role = 'coordinator'
+            ORDER BY is_active ASC, created_at DESC
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('getAllCoordinators(): ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Approve a coordinator account (set is_active = 1).
+ */
+function approveCoordinator(int $id): array
+{
+    $pdo = getDB();
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE users SET is_active = 1
+            WHERE id = ? AND role = 'coordinator'
+        ");
+        $stmt->execute([$id]);
+        return $stmt->rowCount()
+            ? ['success' => true]
+            : ['success' => false, 'error' => 'Coordinator not found.'];
+    } catch (PDOException $e) {
+        error_log('approveCoordinator(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}
+
+/**
+ * Deactivate a coordinator account (set is_active = 0).
+ * Does NOT delete — account can be reactivated.
+ */
+function deactivateCoordinator(int $id): array
+{
+    $pdo = getDB();
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE users SET is_active = 0
+            WHERE id = ? AND role = 'coordinator'
+        ");
+        $stmt->execute([$id]);
+        return $stmt->rowCount()
+            ? ['success' => true]
+            : ['success' => false, 'error' => 'Coordinator not found.'];
+    } catch (PDOException $e) {
+        error_log('deactivateCoordinator(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}
+
+/**
+ * Permanently delete a coordinator account.
+ */
+function deleteCoordinator(int $id): array
+{
+    $pdo = getDB();
+    try {
+        // Safety: never allow deleting an admin account this way
+        $stmt = $pdo->prepare("
+            DELETE FROM users
+            WHERE id = ? AND role = 'coordinator'
+        ");
+        $stmt->execute([$id]);
+        return $stmt->rowCount()
+            ? ['success' => true]
+            : ['success' => false, 'error' => 'Coordinator not found.'];
+    } catch (PDOException $e) {
+        error_log('deleteCoordinator(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}

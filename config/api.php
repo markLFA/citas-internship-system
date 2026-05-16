@@ -87,6 +87,40 @@ switch ($action) {
     case 'deleteAnnouncement':
         echo json_encode(deleteAnnouncement($data['id']));
         break;
+    // ── Admin actions ──────────────────────────────────────────
+    case 'getSystemStats':
+        if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+            echo json_encode(['error' => 'Unauthorized']); break;
+        }
+        echo json_encode(getSystemStats());
+        break;
+    case 'getAllCoordinators':
+        if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+            echo json_encode(['error' => 'Unauthorized']); break;
+        }
+        echo json_encode(getAllCoordinators());
+        break;
+    case 'approveCoordinator':
+        if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+            echo json_encode(['error' => 'Unauthorized']); break;
+        }
+        $id = (int)($data['coordinatorId'] ?? 0);
+        echo json_encode($id ? approveCoordinator($id) : ['success'=>false,'error'=>'Missing coordinatorId']);
+        break;
+    case 'deactivateCoordinator':
+        if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+            echo json_encode(['error' => 'Unauthorized']); break;
+        }
+        $id = (int)($data['coordinatorId'] ?? 0);
+        echo json_encode($id ? deactivateCoordinator($id) : ['success'=>false,'error'=>'Missing coordinatorId']);
+        break;
+    case 'deleteCoordinator':
+        if (($_SESSION['user']['role'] ?? '') !== 'admin') {
+            echo json_encode(['error' => 'Unauthorized']); break;
+        }
+        $id = (int)($data['coordinatorId'] ?? 0);
+        echo json_encode($id ? deleteCoordinator($id) : ['success'=>false,'error'=>'Missing coordinatorId']);
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"
