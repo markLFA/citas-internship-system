@@ -82,6 +82,100 @@ const UI = (() => {
     }
     return true;
   }
+// ════════════════════════════════════════════════════════════
+//  PASTE THIS JS BLOCK into uiParts.js
+//  ─────────────────────────────────────────────────────────
+//  Find the final  return { button, card, ... }  line at the
+//  bottom of the file. Paste this ABOVE that line.
+//  Then add  loading  to the return object list.
+//
+//  Example:
+//    return {
+//      button, card, statCard, statRow,
+//      loading,          ← add this
+//      modal, sidebar, ...
+//    };
+// ════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────
+  //  LOADING
+  //  UI.loading(options)
+  //
+  //  style:  'spinner'  — spinning orange ring  (default)
+  //          'dots'     — three bouncing dots
+  //          'bar'      — sliding progress bar
+  //          'skeleton' — shimmer placeholder rows
+  //
+  //  size:   'sm' | 'md' | 'lg'   (default: 'md')
+  //  label:  optional string shown below the indicator
+  //  card:   true → wraps result in a white .cui-card
+  //  rows:   number of skeleton rows  (default: 3, skeleton only)
+  //
+  //  Examples:
+  //    sec.appendChild( UI.loading() )
+  //    slot.appendChild( UI.loading({ style:'dots', label:'Fetching data…' }) )
+  //    slot.appendChild( UI.loading({ style:'skeleton', rows:5, card:true }) )
+  //    slot.appendChild( UI.loading({ style:'bar',  label:'Loading interns…', card:true }) )
+  // ────────────────────────────────────────────────────────
+  function loading({
+    style = 'spinner',
+    size  = 'md',
+    label = '',
+    card  = false,
+    rows  = 3,
+  } = {}) {
+
+    const wrap = el('div', `cui-loading cui-loading-${style} cui-loading-${size}`);
+
+    // ── Spinner ─────────────────────────────────────────────
+    if (style === 'spinner') {
+      wrap.appendChild(el('div', 'cui-loading-ring'));
+      if (label) wrap.appendChild(el('p', 'cui-loading-label', { text: label }));
+    }
+
+    // ── Dots ────────────────────────────────────────────────
+    else if (style === 'dots') {
+      const row = el('div', 'cui-loading-dots');
+      for (let i = 0; i < 3; i++) row.appendChild(el('span', 'cui-loading-dot'));
+      wrap.appendChild(row);
+      if (label) wrap.appendChild(el('p', 'cui-loading-label', { text: label }));
+    }
+
+    // ── Bar ─────────────────────────────────────────────────
+    else if (style === 'bar') {
+      if (label) wrap.appendChild(el('p', 'cui-loading-bar-label', { text: label }));
+      const track = el('div', 'cui-loading-bar-track');
+      track.appendChild(el('div', 'cui-loading-bar-fill'));
+      wrap.appendChild(track);
+    }
+
+    // ── Skeleton ─────────────────────────────────────────────
+    else if (style === 'skeleton') {
+      wrap.classList.add('cui-loading-skeleton-wrap');
+      const widths = ['100%', '85%', '70%', '90%', '60%'];
+      for (let i = 0; i < rows; i++) {
+        const line = el('div', 'cui-skeleton');
+        line.style.width  = widths[i % widths.length];
+        line.style.height = '14px';
+        line.style.borderRadius = '6px';
+        line.style.marginBottom = '.55rem';
+        wrap.appendChild(line);
+      }
+    }
+
+    // ── Wrap in card if requested ─────────────────────────────
+    if (card) {
+      const cardEl = el('div', 'cui-card');
+      const bodyEl = el('div', 'cui-card-body');
+      bodyEl.appendChild(wrap);
+      cardEl.appendChild(bodyEl);
+      return cardEl;
+    }
+
+    return wrap;
+  }
+
+
 
   // ════════════════════════════════════════════════════════
   //  BUTTON
@@ -1401,7 +1495,7 @@ const UI = (() => {
   }
   // ── Expose public API ──────────────────────────────────────
   return {
-    button, card, statCard, statRow,
+    loading, button, card, statCard, statRow,
     modal, sidebar, topbar, navbar, sidebarPanel, pageSidebar,
     badge, alert, toast,
     input, textarea, select, formGroup,
