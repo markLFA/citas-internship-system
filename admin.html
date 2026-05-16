@@ -246,7 +246,7 @@ const Dashboard = {
     // Stat cards slot — refreshed after API responds
     const statSlot = document.createElement('div');
     statSlot.id = 'dash-stat-slot';
-    statSlot.appendChild(UI.loading({ style:'bar', label:'Loading stats…' }));
+   // statSlot.appendChild(UI.loading({ style:'bar', label:'Loading stats…' }));
     sec.appendChild(statSlot);
 
     const row = document.createElement('div');
@@ -256,13 +256,13 @@ const Dashboard = {
     // Pending coordinators preview
     const pendingSlot = document.createElement('div');
     pendingSlot.id = 'dash-pending-slot';
-    pendingSlot.appendChild(UI.loading({ style:'skeleton', rows:3, card:true }));
+   // pendingSlot.appendChild(UI.loading({ style:'skeleton', rows:3, card:true }));
     row.appendChild(pendingSlot);
 
     // Recent registrations
     const recentSlot = document.createElement('div');
     recentSlot.id = 'dash-recent-slot';
-    recentSlot.appendChild(UI.loading({ style:'skeleton', rows:4, card:true }));
+    //recentSlot.appendChild(UI.loading({ style:'skeleton', rows:4, card:true }));
     row.appendChild(recentSlot);
 
     sec.appendChild(row);
@@ -411,7 +411,7 @@ const Coordinators = {
     // List container
     const listWrap = document.createElement('div');
     listWrap.id = 'coordinators-list-wrap';
-    listWrap.appendChild(UI.loading({ style:'skeleton', rows:4 }));
+    //listWrap.appendChild(UI.loading({ style:'skeleton', rows:4 }));
     sec.appendChild(listWrap);
 
     this.loadAndRender();
