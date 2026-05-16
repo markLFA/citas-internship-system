@@ -1,3 +1,11 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['user']) || $_SESSION['user'] === null) {
+    header("Location: index.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -253,6 +261,14 @@ const Helpers = {
     if (!el) return;
     el.innerHTML = '';
     el.appendChild(buildFn());
+  },
+  async api(action, extra = {}) {
+    const res  = await fetch('config/api.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action, ...extra }),
+    });
+    return res.json();
   },
 };
 
