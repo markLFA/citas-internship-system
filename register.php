@@ -73,6 +73,11 @@ function validate(array $data): array {
             $errors[] = 'Coordinator is required for interns.';
     }
 
+    // Terms and Conditions enforcement
+    if (empty($data['terms'])) {
+        $errors[] = 'You must read and agree to the Terms and Services to register.';
+    }
+
     return $errors;
 }
 
@@ -186,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'coordinator_id'   => post('coordinator_id'),
         'password'         => $_POST['password']         ?? '',
         'confirm_password' => $_POST['confirm_password'] ?? '',
+        'terms'            => post('terms'),
     ];
 
     // Step 1 — validate fields
@@ -355,6 +361,15 @@ $coordinators = getCoordinators();
     input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
     input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
+    /* Terms checkbox custom style */
+    .terms-field { display: flex; align-items: flex-start; gap: .6rem; margin: 1.25rem 0 .5rem; }
+    .terms-field input[type="checkbox"] {
+      accent-color: var(--o2); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0;
+    }
+    .terms-field label { font-size: .8rem; font-weight: 500; color: var(--text-dark); cursor: pointer; line-height: 1.4; }
+    .terms-field a { color: var(--o2); font-weight: 600; text-decoration: none; }
+    .terms-field a:hover { text-decoration: underline; }
+
     /* Two-column row */
     .field-row { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
     @media(max-width:480px){ .field-row{grid-template-columns:1fr;} }
@@ -429,7 +444,6 @@ $coordinators = getCoordinators();
 
     <form method="POST" action="" novalidate>
 
-      <!-- ── Personal Information ──────────────────────────── -->
       <div class="section-label">Personal Information</div>
 
       <div class="field">
@@ -453,7 +467,6 @@ $coordinators = getCoordinators();
         <div class="hint">Use your official school email if applicable.</div>
       </div>
 
-      <!-- ── Account Setup ─────────────────────────────────── -->
       <div class="section-label">Account Setup</div>
 
       <div class="field">
@@ -464,7 +477,6 @@ $coordinators = getCoordinators();
           <option value="coordinator" <?= post('role')==='coordinator' ? 'selected' : '' ?>>🗂 Internship Coordinator</option>
         </select>
 
-        <!-- Shows below the select based on chosen role -->
         <div class="role-info" id="info-intern">
           ⏳ Intern accounts require coordinator approval before you can log in.
         </div>
@@ -473,7 +485,6 @@ $coordinators = getCoordinators();
         </div>
       </div>
 
-      <!-- ── Replace the entire Internship Details section ───────── -->
       <div id="intern-fields">
         <div class="section-label">Internship Details</div>
 
@@ -547,7 +558,6 @@ $coordinators = getCoordinators();
         </p>
       </div>
 
-      <!-- ── Password ──────────────────────────────────────── -->
       <div class="section-label">Password</div>
 
       <div class="field-row">
@@ -568,6 +578,13 @@ $coordinators = getCoordinators();
               placeholder="Repeat password" required autocomplete="new-password">
           </div>
         </div>
+      </div>
+
+      <div class="terms-field">
+        <input type="checkbox" id="terms" name="terms" value="yes" <?= post('terms') === 'yes' ? 'checked' : '' ?> required>
+        <label for="terms">
+          I read and agree to the <a href="#" onclick="alert('Terms of Service:\n\nThis application is strictly for academic and capstone evaluation deployment purposes. All logged data including profiles, attendance, logs, and information uploaded will safely map into the project platform databases.'); return false;">Terms and Services</a> and data privacy guidelines for academic evaluation.
+        </label>
       </div>
 
       <button class="btn-submit" type="submit">Create Account →</button>
