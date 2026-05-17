@@ -23,7 +23,7 @@ function getDB() {
 
   $host = "localhost";
   $user = "u537499572_internship";
-  $pass = "Pa_787898_;"; 
+  $pass = "Pa537499572"; 
   $db   = "u537499572_internship"; 
 
     $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
