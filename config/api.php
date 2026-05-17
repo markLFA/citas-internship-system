@@ -121,6 +121,22 @@ switch ($action) {
         $id = (int)($data['coordinatorId'] ?? 0);
         echo json_encode($id ? deleteCoordinator($id) : ['success'=>false,'error'=>'Missing coordinatorId']);
         break;
+    // ── Attendance actions ────────────────────────────────────
+    case 'timeIn':
+        echo json_encode(timeIn());
+        break;
+    case 'timeOut':
+        echo json_encode(timeOut());
+        break;
+    case 'getAttendanceLogs':
+        echo json_encode(getAttendanceLogs());
+        break;
+    case 'getTodayLog':
+        echo json_encode(getTodayLog() ?? (object)[]);
+        break;
+    case 'updateTimeLog':
+        echo json_encode(updateTimeLog($data));
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

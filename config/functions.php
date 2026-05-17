@@ -996,3 +996,223 @@ function deleteCoordinator(int $id): array
         return ['success' => false, 'error' => 'Database error.'];
     }
 }
+
+// ════════════════════════════════════════════════════════════
+//  ATTENDANCE FUNCTIONS
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Get today's time log for the logged-in intern.
+ * Returns the row or null if nothing logged yet today.
+ */
+function getTodayLog(): ?array
+{
+    if (empty($_SESSION['user']['id'])) return null;
+    $pdo  = getDB();
+    $stmt = $pdo->prepare("
+        SELECT * FROM time_logs
+        WHERE intern_id = ? AND log_date = CURDATE()
+        LIMIT 1
+    ");
+    $stmt->execute([$_SESSION['user']['id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+ 
+/**
+ * Clock in the intern for today.
+ * Fails if already timed in today.
+ */
+function timeIn(): array
+{
+    if (empty($_SESSION['user']['id'])) return ['success'=>false,'error'=>'Not logged in.'];
+    $pdo    = getDB();
+    $userId = (int)$_SESSION['user']['id'];
+ 
+    // Check if already has a log today
+    $existing = getTodayLog();
+    if ($existing) {
+        if ($existing['time_out']) {
+            return ['success'=>false,'error'=>'Already completed for today.','state'=>'done'];
+        }
+        return ['success'=>false,'error'=>'Already timed in.','state'=>'in','log'=>$existing];
+    }
+ 
+    try {
+        $now = date('Y-m-d H:i:s');
+        $stmt = $pdo->prepare("
+            INSERT INTO time_logs (intern_id, log_date, time_in)
+            VALUES (?, CURDATE(), ?)
+        ");
+        $stmt->execute([$userId, $now]);
+        $logId = (int)$pdo->lastInsertId();
+ 
+        // Also update days_present in internships
+        $pdo->prepare("
+            UPDATE internships
+            SET days_present = (
+                SELECT COUNT(*) FROM time_logs
+                WHERE intern_id = ? AND time_out IS NOT NULL
+            )
+            WHERE intern_id = ?
+        ")->execute([$userId, $userId]);
+ 
+        return [
+            'success'  => true,
+            'state'    => 'in',
+            'time_in'  => $now,
+            'log_id'   => $logId,
+        ];
+    } catch (PDOException $e) {
+        error_log('timeIn(): '.$e->getMessage());
+        return ['success'=>false,'error'=>'Database error.'];
+    }
+}
+ 
+/**
+ * Clock out the intern for today.
+ * Calculates total hours and updates the internship summary.
+ */
+function timeOut(): array
+{
+    if (empty($_SESSION['user']['id'])) return ['success'=>false,'error'=>'Not logged in.'];
+    $pdo    = getDB();
+    $userId = (int)$_SESSION['user']['id'];
+ 
+    $existing = getTodayLog();
+    if (!$existing)            return ['success'=>false,'error'=>'You have not timed in today.'];
+    if ($existing['time_out']) return ['success'=>false,'error'=>'Already timed out today.','state'=>'done'];
+ 
+    try {
+        $now        = date('Y-m-d H:i:s');
+        $totalHours = (strtotime($now) - strtotime($existing['time_in'])) / 3600;
+ 
+        $pdo->prepare("
+            UPDATE time_logs
+            SET time_out = ?, total_hours = ?
+            WHERE id = ?
+        ")->execute([$now, round($totalHours, 2), $existing['id']]);
+ 
+        // Recompute internship totals
+        recalcInternshipHours($userId, $pdo);
+ 
+        return [
+            'success'     => true,
+            'state'       => 'done',
+            'time_in'     => $existing['time_in'],
+            'time_out'    => $now,
+            'total_hours' => round($totalHours, 2),
+        ];
+    } catch (PDOException $e) {
+        error_log('timeOut(): '.$e->getMessage());
+        return ['success'=>false,'error'=>'Database error.'];
+    }
+}
+ 
+/**
+ * Get all attendance logs for the intern, newest first.
+ */
+function getAttendanceLogs(): array
+{
+    if (empty($_SESSION['user']['id'])) return [];
+    $pdo  = getDB();
+    $stmt = $pdo->prepare("
+        SELECT id, log_date, time_in, time_out, total_hours, notes
+        FROM time_logs
+        WHERE intern_id = ?
+        ORDER BY log_date DESC
+    ");
+    $stmt->execute([$_SESSION['user']['id']]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+ 
+/**
+ * Edit an existing time log entry.
+ * Both time_in and time_out are required — recalculates total_hours.
+ * Verifies the log belongs to the logged-in intern.
+ */
+function updateTimeLog(array $data): array
+{
+    if (empty($_SESSION['user']['id'])) return ['success'=>false,'error'=>'Not logged in.'];
+    $pdo    = getDB();
+    $userId = (int)$_SESSION['user']['id'];
+    $logId  = (int)($data['log_id'] ?? 0);
+ 
+    if (!$logId) return ['success'=>false,'error'=>'Missing log_id.'];
+ 
+    // Validate that this log belongs to the intern
+    $stmt = $pdo->prepare("SELECT id, log_date FROM time_logs WHERE id=? AND intern_id=?");
+    $stmt->execute([$logId, $userId]);
+    $log = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$log) return ['success'=>false,'error'=>'Log not found.'];
+ 
+    $date    = $log['log_date'];                       // keep existing date
+    $timeIn  = $date . ' ' . ($data['time_in']  ?? '08:00') . ':00';
+    $timeOut = !empty($data['time_out'])
+             ? $date . ' ' . $data['time_out'] . ':00'
+             : null;
+ 
+    // time_out must be after time_in
+    if ($timeOut && strtotime($timeOut) <= strtotime($timeIn)) {
+        return ['success'=>false,'error'=>'Time out must be after time in.'];
+    }
+ 
+    $totalHours = $timeOut
+        ? round((strtotime($timeOut) - strtotime($timeIn)) / 3600, 2)
+        : null;
+ 
+    try {
+        $pdo->prepare("
+            UPDATE time_logs
+            SET time_in=?, time_out=?, total_hours=?, notes=?
+            WHERE id=? AND intern_id=?
+        ")->execute([
+            $timeIn,
+            $timeOut,
+            $totalHours,
+            trim($data['notes'] ?? ''),
+            $logId,
+            $userId,
+        ]);
+ 
+        recalcInternshipHours($userId, $pdo);
+ 
+        // Return updated internship totals so the frontend can refresh
+        $stmt = $pdo->prepare("
+            SELECT total_hours, days_present FROM internships WHERE intern_id=? LIMIT 1
+        ");
+        $stmt->execute([$userId]);
+        $internship = $stmt->fetch(PDO::FETCH_ASSOC);
+ 
+        return [
+            'success'     => true,
+            'log_id'      => $logId,
+            'time_in'     => $timeIn,
+            'time_out'    => $timeOut,
+            'total_hours' => $totalHours,
+            'internship'  => $internship,
+        ];
+    } catch (PDOException $e) {
+        error_log('updateTimeLog(): '.$e->getMessage());
+        return ['success'=>false,'error'=>'Database error.'];
+    }
+}
+ 
+/**
+ * Recompute total_hours and days_present in the internships table.
+ * Called after any time log change.
+ */
+function recalcInternshipHours(int $userId, PDO $pdo): void
+{
+    $pdo->prepare("
+        UPDATE internships
+        SET
+            total_hours  = COALESCE(
+                (SELECT SUM(total_hours) FROM time_logs
+                 WHERE intern_id=? AND total_hours IS NOT NULL), 0),
+            days_present = (
+                SELECT COUNT(*) FROM time_logs
+                WHERE intern_id=? AND time_out IS NOT NULL)
+        WHERE intern_id=?
+    ")->execute([$userId, $userId, $userId]);
+}
