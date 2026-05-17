@@ -3,7 +3,7 @@ require 'config/db.php';
 
 // ── 2. SESSION ───────────────────────────────────────────────
 session_start();
-
+$db = getDB();
 // Already logged in? Send straight to dashboard.
 if (isset($_SESSION['user'])) {
     redirect_to_dashboard($_SESSION['user']['role']);
