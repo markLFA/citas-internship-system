@@ -25,8 +25,8 @@ function h(string $str): string {
  */
 function redirect_to_dashboard(string $role): void {
     $map = [
-        'intern'      => 'intern.php',
-        'coordinator' => 'coordinator.php',
+        'intern'      => 'intern.html',
+        'coordinator' => 'coordinator.html',
         'admin'       => 'admin.php',
     ];
     header('Location: ' . ($map[$role] ?? 'login.php'));
