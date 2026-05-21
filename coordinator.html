@@ -2173,7 +2173,7 @@ async function getCurrentPage() {
 // ─────────────────────────────────────────────────────────────
 Helpers.api ("getSessionUser").then(data => {
   if (data.error) {
-    location.href = '/'; 
+    window.location.href = '/'; 
     return;
   } else {
     COORDINATOR = data.user;
