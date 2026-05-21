@@ -83,13 +83,10 @@
 //  DATA
 //  PHP: replace blocks with json_encode() output
 // ─────────────────────────────────────────────────────────────
-let COORDINATOR = {
-  name:  'Dr. Maria Santos',
-  email: 'msantos@samar.edu.ph',
-  role:  'Coordinator',
-};
+let COORDINATOR = {};
+let INTERNS_LIST = [];
+let PENDING = [];
 
-let INTERNS_LIST = []
 // Approved interns (status = 'approved' in DB)
 let INTERNS = [
   { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
@@ -115,9 +112,6 @@ let INTERNS = [
   { id:21, name:'maria Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:112,  daysPresent:15, reports:4 },
   { id:22, name:'andress Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
 ];
-
-
-let PENDING = []
 
 async function getPendingInterns() {
   try {
