@@ -889,8 +889,10 @@ const Interns = {
         return {
 
           // User
+          id: i.user?.id || '',
           name: i.user?.name || '',
           email: i.user?.email || '',
+          dept: i.profile?.position || '',
 
           // Company
           company: company.name || '',
