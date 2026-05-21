@@ -2172,8 +2172,8 @@ async function getCurrentPage() {
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
 Helpers.api ("getSessionUser").then(data => {
-  if (data.error) {
-    window.location.href = '/'; 
+  if (!data.success) {
+    window.location.href = 'https://palegoldenrod-raven-703625.hostingersite.com'; 
     return;
   } else {
     COORDINATOR = data.user;
