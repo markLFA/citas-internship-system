@@ -2163,24 +2163,7 @@ async function getCurrentPage() {
     };
   }
 }
-getCurrentPage().then(data => {
-  Dashboard    .build();
-  Analytics    .build();
-  Approvals    .build();
-  Interns      .build();
-  Reports      .build();
-  Announcements.build();
-  if (data.error) {
-    console.error(data.error);
-    return;
-  }
-  //console.log('Current page:', JSON.stringify(data));
-  const page = data.currentPage || 'dashboard';
-  document.getElementById('nav-' + page)?.classList.add('active');
-  navigate(page)
-  }).catch(err => {
-    console.error('Error fetching current page:', err);
-});
+
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
@@ -2190,6 +2173,24 @@ Helpers.api ("getSessionUser").then(data => {
     return;
   } else {
     COORDINATOR = data.user;
+    Helpers.api ("getCurrentPage").then(data => {
+      Dashboard    .build();
+      Analytics    .build();
+      Approvals    .build();
+      Interns      .build();
+      Reports      .build();
+      Announcements.build();
+      if (data.error) {
+        console.error(data.error);
+        return;
+      }
+      //console.log('Current page:', JSON.stringify(data));
+      const page = data.currentPage || 'dashboard';
+      document.getElementById('nav-' + page)?.classList.add('active');
+      navigate(page)
+      }).catch(err => {
+        console.error('Error fetching current page:', err);
+    });
   }
 
   
