@@ -83,10 +83,9 @@
 //  DATA
 //  PHP: replace blocks with json_encode() output
 // ─────────────────────────────────────────────────────────────
-let COORDINATOR = {};
-let INTERNS_LIST = [];
-let PENDING = [];
+let COORDINATOR = {}
 
+let INTERNS_LIST = []
 // Approved interns (status = 'approved' in DB)
 let INTERNS = [
   { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
@@ -112,6 +111,9 @@ let INTERNS = [
   { id:21, name:'maria Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:112,  daysPresent:15, reports:4 },
   { id:22, name:'andress Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
 ];
+
+
+let PENDING = []
 
 async function getPendingInterns() {
   try {
@@ -2133,34 +2135,8 @@ const Analytics = {
     this.drawAttendanceTrendChart();
     this.drawDeptChart();
   },
+
 };
-
-  try {
-
-    const res = await fetch('config/api.php', {
-      method: 'POST',
-
-      headers: {
-        'Content-Type': 'application/json'
-      },
-
-      body: JSON.stringify({
-        action: 'getCurrentPage'
-      })
-    });
-
-    return await res.json();
-
-  } catch (err) {
-
-    console.error(err);
-
-    return {
-      error: 'Failed to get current page'
-    };
-  }
-}
-
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
