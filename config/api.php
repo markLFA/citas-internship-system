@@ -13,6 +13,9 @@ $data = json_decode(file_get_contents("php://input"), true);
 $action = $data['action'] ?? '';
 
 switch ($action) {
+case 'getSessionUser':
+        echo json_encode(getSessionUser());
+        break;
     case 'logout':
         logout();
         break;

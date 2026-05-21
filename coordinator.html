@@ -83,7 +83,7 @@
 //  DATA
 //  PHP: replace blocks with json_encode() output
 // ─────────────────────────────────────────────────────────────
-const COORDINATOR = {
+let COORDINATOR = {
   name:  'Dr. Maria Santos',
   email: 'msantos@samar.edu.ph',
   role:  'Coordinator',
@@ -2184,7 +2184,16 @@ getCurrentPage().then(data => {
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
+Helpers.api ("getSessionUser").then(data => {
+  if (data.error) {
+    location.href = '/'; 
+    return;
+  } else {
+    console.log("data "+JSON.stringify(data, null, 2));
+  }
 
+  
+})
 </script>
 </body>
 </html>

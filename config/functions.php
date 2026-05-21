@@ -1,5 +1,17 @@
 <?php
 require 'db.php';
+function getSessionUser() {
+    if (isset($_SESSION['user'])) {
+        return [
+            'success' => true,
+            'user' => $_SESSION['user']
+        ];
+    }
+    return [
+        'success' => false,
+        'message' => 'No active user session found.'
+    ];
+}
 function getUsers() {
   global $conn;
   $user = $_SESSION['user'];
