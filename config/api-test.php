@@ -11,7 +11,7 @@ echo "USER " . $_SESSION['user']['name'] . " (ID: " . $_SESSION['user']['id'] . 
 try {
     echo json_encode([
         'success' => true,
-        'data'    => getCoordinatorInternDatas()
+        'data'    => generateWeeklyCoordinatorSummary()
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {

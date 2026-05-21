@@ -93,31 +93,9 @@ initializeSpinner ()
 let COORDINATOR = {}
 
 let INTERNS_LIST = []
-// Approved interns (status = 'approved' in DB)
-let INTERNS = [
-  { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
-  { id:2, name:'Maria Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:96,  daysPresent:18, reports:5 },
-  { id:3, name:'Pedro Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
-  { id:4, name:'Ana Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:112, daysPresent:21, reports:6 },
-  { id:5, name:'Carlo Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:80,  daysPresent:15, reports:4 },
-  { id:6, name:'Liza Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:144, daysPresent:27, reports:7 },
-  { id:7, name:'jose dela cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
-  { id:8, name:'Anna Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:96,  daysPresent:18, reports:5 },
-  { id:9, name:'anton Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
-  { id:10, name:'maria Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:102, daysPresent:21, reports:6 },
-  { id:11, name:'andress Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:99,  daysPresent:15, reports:4 },
-  { id:12, name:'Sarah Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
-  { id:13, name:'Pedro Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
-  { id:14, name:'Ana Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:112, daysPresent:21, reports:6 },
-  { id:15, name:'Carlo Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:80,  daysPresent:15, reports:4 },
-  { id:16, name:'Liza Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:144, daysPresent:27, reports:7 },
-  { id:17, name:'jose dela cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:188, daysPresent:24, reports:6 },
-  { id:18, name:'Anna Reyes',     email:'maria@samar.edu.ph',  dept:'BSCS', school:'Samar College',  company:'DataSoft Solutions',  supervisor:'Ms. Villanueva', totalHours:111,  daysPresent:18, reports:5 },
-  { id:19, name:'anton Santos',    email:'pedro@samar.edu.ph',  dept:'BSIT', school:'Eastern Samar',  company:'NetCom PH',           supervisor:'Mr. Cruz',       totalHours:64,  daysPresent:12, reports:3 },
-  { id:20, name:'joel Villanueva',  email:'ana@samar.edu.ph',    dept:'BSBA', school:'Samar College',  company:'MerCom Trading',      supervisor:'Mr. Dela Cruz',  totalHours:99, daysPresent:21, reports:6 },
-  { id:21, name:'maria Mendoza',   email:'carlo@samar.edu.ph',  dept:'BSCS', school:'Eastern Samar',  company:'SoftWave Inc.',        supervisor:'Ms. Santos',     totalHours:112,  daysPresent:15, reports:4 },
-  { id:22, name:'andress Fernandez',  email:'liza@samar.edu.ph',   dept:'BSBA', school:'Samar College',  company:'PrimeCo Corp.',        supervisor:'Engr. Reyes',    totalHours:122, daysPresent:27, reports:7 },
-];
+// Filtered INTERN_LIST to only include the info below
+//  { id:1, name:'Juan dela Cruz',  email:'juan@samar.edu.ph',   dept:'BSIT', school:'Samar College',  company:'TechHub Innovations', supervisor:'Engr. Santos',   totalHours:128, daysPresent:24, reports:6 },
+let INTERNS = [];
 
 
 let PENDING = []

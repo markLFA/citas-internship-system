@@ -866,7 +866,98 @@ function deleteAnnouncement($id) {
         'message' => $success ? 'Deleted successfully!' : 'Delete failed or unauthorized.'
     ];
 }
+<?php
 
+/**
+ * Calculates the weekly average of time logs for the current week 
+ * and saves/updates the summary in the coordinator_weekly_hours_summary table.
+ *
+ * @return array Status array indicating success or failure.
+ */
+function generateWeeklyCoordinatorSummary() {
+    try {
+        // 1. Use your existing database connection function
+        $pdo = getDB(); 
+        
+        // Ensure PDO is set to throw exceptions for clean error handling
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // 2. Calculate Current Week Dates (Monday to Sunday)
+        $monday = new DateTime('monday this week');
+        $sunday = new DateTime('sunday this week');
+        
+        $weekStart = $monday->format('Y-m-d 00:00:00');
+        $weekEnd   = $sunday->format('Y-m-d 23:59:59');
+
+        // 3. Query to aggregate time_logs by coordinator for the current week
+        $sql = "
+            SELECT 
+                coordinator_id,
+                COUNT(DISTINCT intern_id) AS total_interns,
+                SUM(duration_hours) AS total_hours,
+                ROUND(SUM(duration_hours) / COUNT(DISTINCT intern_id), 2) AS batch_avg_hours
+            FROM time_logs
+            WHERE coordinator_id IS NOT NULL
+              AND log_date BETWEEN :week_start AND :week_end
+            GROUP BY coordinator_id
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'week_start' => $weekStart,
+            'week_end'   => $weekEnd
+        ]);
+        
+        $summaries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($summaries)) {
+            return [
+                'status'  => 'success',
+                'message' => 'No time logs found to process for the current week.'
+            ];
+        }
+
+        // 4. Insert or Update the summary table
+        $insertSql = "
+            INSERT INTO coordinator_weekly_hours_summary 
+                (coordinator_id, week_start, week_end, total_interns, total_hours, batch_avg_hours, created_at)
+            VALUES 
+                (:coordinator_id, :week_start, :week_end, :total_interns, :total_hours, :batch_avg_hours, NOW())
+            ON DUPLICATE KEY UPDATE
+                total_interns   = VALUES(total_interns),
+                total_hours     = VALUES(total_hours),
+                batch_avg_hours = VALUES(batch_avg_hours),
+                created_at      = NOW()
+        ";
+
+        $insertStmt = $pdo->prepare($insertSql);
+
+        foreach ($summaries as $row) {
+            $insertStmt->execute([
+                'coordinator_id'  => $row['coordinator_id'],
+                'week_start'      => $monday->format('Y-m-d'), 
+                'week_end'        => $sunday->format('Y-m-d'),
+                'total_interns'   => $row['total_interns'],
+                'total_hours'     => $row['total_hours'],
+                'batch_avg_hours' => $row['batch_avg_hours']
+            ]);
+        }
+
+        return [
+            'status'  => 'success',
+            'message' => 'Successfully processed summaries for ' . count($summaries) . ' coordinator(s).'
+        ];
+
+    } catch (PDOException $e) {
+        // Log database errors silently and return a clean response to the API
+        error_log("[" . date('Y-m-d H:i:s') . "] Summary Calculation Error: " . $e->getMessage());
+        
+        return [
+            'status'  => 'error',
+            'message' => 'Internal database error processing summary calculations.'
+        ];
+    }
+}
 
 
 // ════════════════════════════════════════════════════════════
