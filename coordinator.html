@@ -265,68 +265,72 @@ const Helpers = {
   },
 };
 
+let sidebar;
+let topbar;
+function buildNavBar () {
+  // ─────────────────────────────────────────────────────────────
+  //  NAVIGATION  (sidebar + navbar — defined after Helpers)
+  // ─────────────────────────────────────────────────────────────
+  sidebar = UI.pageSidebar({
+    brand:     'Coordinator Panel',
+    brandIcon: '🗂️',
+    items: [
+      { section:true, label:'Menu' },
+      { label:'Dashboard',        icon:'🏠', active:true,
+        onClick: () => navigate('dashboard') },
+      { label:'Analytics',        icon:'📊',
+        onClick: () => navigate('analytics') },
+      { label:'Pending Approvals',icon:'⏳',
+        badge: PENDING.length || null,
+        onClick: () => {
+          navigate('approvals')
+          Approvals.build();
 
-// ─────────────────────────────────────────────────────────────
-//  NAVIGATION  (sidebar + navbar — defined after Helpers)
-// ─────────────────────────────────────────────────────────────
-const sidebar = UI.pageSidebar({
-  brand:     'Coordinator Panel',
-  brandIcon: '🗂️',
-  items: [
-    { section:true, label:'Menu' },
-    { label:'Dashboard',        icon:'🏠', active:true,
-      onClick: () => navigate('dashboard') },
-    { label:'Analytics',        icon:'📊',
-      onClick: () => navigate('analytics') },
-    { label:'Pending Approvals',icon:'⏳',
-      badge: PENDING.length || null,
-      onClick: () => {
-        navigate('approvals')
-        Approvals.build();
+        } },
+      { label:'Interns',          icon:'👥',
+        onClick: () => navigate('interns') },
+      { label:'Weekly Reports',   icon:'📄',
+        badge: REPORTS.filter(r => r.status === 'pending').length || null,
+        onClick: () => navigate('reports') },
+      { label:'Announcements',    icon:'📢',
+        badge: ANNOUNCEMENTS.filter(a => a.pinned).length || null,
+        onClick: () => navigate('announcements') },
+      { section:true, label:'Account' },
+      { label:'Sign Out', icon:'🚪',
+        onClick: () => { 
+          if (confirm('Sign out of CITAS?')) {
+            fetch('config/api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'logout' }),
+            }).then(res => {
+              location.href = '/'; 
+            })
+          }
+        } 
+      },
+    ],
+    footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
+  });
 
-      } },
-    { label:'Interns',          icon:'👥',
-      onClick: () => navigate('interns') },
-    { label:'Weekly Reports',   icon:'📄',
-      badge: REPORTS.filter(r => r.status === 'pending').length || null,
-      onClick: () => navigate('reports') },
-    { label:'Announcements',    icon:'📢',
-      badge: ANNOUNCEMENTS.filter(a => a.pinned).length || null,
-      onClick: () => navigate('announcements') },
-    { section:true, label:'Account' },
-    { label:'Sign Out', icon:'🚪',
-      onClick: () => { 
-        if (confirm('Sign out of CITAS?')) {
-          fetch('config/api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'logout' }),
-          }).then(res => {
-            location.href = '/'; 
-          })
-        }
-      } 
-    },
-  ],
-  footer: Helpers.sidebarFooter(COORDINATOR.name, COORDINATOR.role),
-});
+  // Navbar matches intern page: CITAS brand + divider + page title
+  topbar = UI.navbar({
+    brand:     'CITAS',
+    brandIcon: '🎓',
+    sidebar,
+    pageTitle: 'Dashboard',
+    right: [
+      UI.badge('Coordinator', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
+      (() => {
+        const av = UI.avatar(COORDINATOR.name, 'sm');
+        av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+        return av;
+      })(),
+    ],
+  });
+  document.getElementById('page-main').prepend(topbar.el);
+}
 
-// Navbar matches intern page: CITAS brand + divider + page title
-const topbar = UI.navbar({
-  brand:     'CITAS',
-  brandIcon: '🎓',
-  sidebar,
-  pageTitle: 'Dashboard',
-  right: [
-    UI.badge('Coordinator', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
-    (() => {
-      const av = UI.avatar(COORDINATOR.name, 'sm');
-      av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-      return av;
-    })(),
-  ],
-});
-document.getElementById('page-main').prepend(topbar.el);
 
 
 async function setCurrentPage(page) {
@@ -2173,6 +2177,7 @@ Helpers.api ("getSessionUser").then(data => {
     return;
   } else {
     COORDINATOR = data.user;
+    buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
       Dashboard    .build();
       Analytics    .build();
