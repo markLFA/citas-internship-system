@@ -78,11 +78,18 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
 'use strict';
-
+function initializeSpinner () {
+  const sec  = document.getElementById('sec-dashboard');
+  sec.appendChild(
+      UI.spinner("120px")
+    );
+}
+initializeSpinner () 
 // ─────────────────────────────────────────────────────────────
 //  DATA
 //  PHP: replace blocks with json_encode() output
 // ─────────────────────────────────────────────────────────────
+
 let COORDINATOR = {}
 
 let INTERNS_LIST = []
@@ -378,6 +385,7 @@ const Dashboard = {
 
   build() {
     const sec  = document.getElementById('sec-dashboard');
+    sec.innerHTML = '';
     const hour = new Date().getHours();
     const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -2148,12 +2156,14 @@ Helpers.api ("getSessionUser").then(data => {
     COORDINATOR = data.user;
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
-      Dashboard    .build();
-      Analytics    .build();
-      Approvals    .build();
-      Interns      .build();
-      Reports      .build();
-      Announcements.build();
+      Interns.getInternsList().then(() => {
+        Dashboard    .build();
+        Analytics    .build();
+        Approvals    .build();
+        Interns      .build();
+        Reports      .build();
+        Announcements.build();
+      })
       if (data.error) {
         console.error(data.error);
         return;
