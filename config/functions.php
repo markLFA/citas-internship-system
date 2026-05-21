@@ -866,8 +866,6 @@ function deleteAnnouncement($id) {
         'message' => $success ? 'Deleted successfully!' : 'Delete failed or unauthorized.'
     ];
 }
-<?php
-
 /**
  * Calculates the weekly average of time logs for the current week 
  * and saves/updates the summary in the coordinator_weekly_hours_summary table.
