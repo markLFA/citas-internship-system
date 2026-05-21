@@ -2189,7 +2189,7 @@ Helpers.api ("getSessionUser").then(data => {
     location.href = '/'; 
     return;
   } else {
-    console.log("data "+JSON.stringify(data, null, 2));
+    COORDINATOR = data.user;
   }
 
   
