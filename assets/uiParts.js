@@ -953,9 +953,16 @@ const UI = (() => {
   //  UI.spinner('sm')      → small
   //  UI.spinner('lg')      → large
   // ════════════════════════════════════════════════════════
-  function spinner(size = '') {
-    return el('div', `cui-spinner${size ? ' cui-spinner-' + size : ''}`);
+function spinner(size = '24px') {
+  const spinnerEl = el('div', 'cui-spinner');
+  
+  // Apply the custom size as a CSS variable if provided
+  if (size) {
+    spinnerEl.style.setProperty('--spinner-size', size);
   }
+  
+  return spinnerEl;
+}
 
   // ════════════════════════════════════════════════════════
   //  SKELETON LOADER

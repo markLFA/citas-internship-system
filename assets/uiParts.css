@@ -770,19 +770,25 @@
 .cui-empty-msg   { font-size: .875rem; line-height: 1.6; }
 
 /* ══════════════════════════════════════════════════════════════
-   SPINNER / LOADER
+   SPINNER / LOADER (Adjustable)
 ══════════════════════════════════════════════════════════════ */
 .cui-spinner {
+  --spinner-size: 24px; /* Default fallback size */
+  
   display: inline-block;
-  width: 24px; height: 24px;
-  border: 3px solid var(--c-gray-200);
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  
+  /* Scale the border thickness relative to the size */
+  border: calc(var(--spinner-size) / 8) solid var(--c-gray-200);
   border-top-color: var(--c-primary);
   border-radius: 50%;
   animation: cuiSpin .6s linear infinite;
 }
-.cui-spinner-sm { width: 16px; height: 16px; border-width: 2px; }
-.cui-spinner-lg { width: 36px; height: 36px; border-width: 4px; }
-@keyframes cuiSpin { to { transform: rotate(360deg); } }
+
+@keyframes cuiSpin { 
+  to { transform: rotate(360deg); } 
+}
 
 /* ══════════════════════════════════════════════════════════════
    SKELETON LOADER
