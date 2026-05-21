@@ -1814,7 +1814,7 @@ const Analytics = {
     row2.className = 'pg-grid-2 mt-lg';
     row2.style.alignItems = 'start';
     row2.appendChild( this.attendanceTrendCard()   );
-    row2.appendChild( this.deptComparisonCard()    );
+    //row2.appendChild( this.deptComparisonCard()    );
     sec.appendChild(row2);
 
     // Behind schedule table
@@ -2026,7 +2026,7 @@ const Analytics = {
     });
   },
 
-  // ── Department comparison horizontal bar chart ─────────────
+  /* ── Department comparison horizontal bar chart ─────────────
   deptComparisonCard() {
     const canvas = document.createElement('canvas');
     canvas.id     = 'chart-dept';
@@ -2037,7 +2037,7 @@ const Analytics = {
       body:  canvas,
     });
   },
-
+  */
   drawDeptChart() {
     const ctx = document.getElementById('chart-dept');
     if (!ctx) return;
@@ -2140,7 +2140,6 @@ const Analytics = {
     this.drawDeptChart();
   },
 };
-async function getCurrentPage() {
 
   try {
 
@@ -2197,8 +2196,6 @@ Helpers.api ("getSessionUser").then(data => {
         console.error('Error fetching current page:', err);
     });
   }
-
-  
 })
 </script>
 </body>
