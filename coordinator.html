@@ -2159,7 +2159,8 @@ Helpers.api ("getSessionUser").then(data => {
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
       Interns.getInternsList().then(() => {
-        console.log(JSON.stringify(Interns.filteredList(), null, 2))
+        INTERNS = Interns.filteredList()
+        console.log(JSON.stringify(INTERNS, null, 2))
         Dashboard    .build();
         Analytics    .build();
         Approvals    .build();
