@@ -395,7 +395,7 @@ const Dashboard = {
       ['📅', 'Projected finish',    projStr],
       ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
       ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
-      ['📄', 'Reports submitted',   INTERN.reportsSubmitted + ' of ~14 expected'],
+      ['📄', 'Reports submitted',   InternData.internships[0].reports_submitted + ' of ~14 expected'],
     ].forEach(([icon, label, value]) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
