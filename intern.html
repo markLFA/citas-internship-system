@@ -217,7 +217,7 @@ const topbar = UI.navbar({
   right: [
     UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
     (() => {
-      const av = UI.avatar(INTERN.name, 'sm');
+      const av = UI.avatar(InternData.name, 'sm');
       av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
       return av;
     })(),
