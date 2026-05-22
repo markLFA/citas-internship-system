@@ -1295,12 +1295,12 @@ const Reports = {
         }},
       { key:'date', label:'Uploaded',
         render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
-    ], REPORTS, { hoverable: true });
+    ], REPORTS_DATA, { hoverable: true });
 
     // Inject feedback rows beneath rows that have feedback
     const tbody = tbl.querySelector('tbody');
     let offset  = 0;
-    REPORTS.forEach((r, i) => {
+    REPORTS_DATA.forEach((r, i) => {
       if (!r.feedback) return;
       const fr = tbody.insertRow(i + 1 + offset++);
       fr.innerHTML = `
@@ -1313,7 +1313,7 @@ const Reports = {
     return UI.card({
       title: '📋 Submitted Reports',
       padding: false,
-      headerActions: UI.badge(REPORTS.length + ' submitted', 'warning'),
+      headerActions: UI.badge(REPORTS_DATA.length + ' submitted', 'warning'),
       body: tbl,
     });
   },
