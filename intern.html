@@ -94,60 +94,11 @@ loadProfile();
 let InternData;
 
 // ─────────────────────────────────────────────────────────────
-//  DATA
-//  PHP: replace with const INTERN = <?= json_encode($intern) ?>;
+//  DATA  — all loaded from API at boot, no hardcoded values
 // ─────────────────────────────────────────────────────────────
-/*
-*/
-let INTERN = {
-  name:          'Juan dela Cruz',
-  email:         'juan@samar.edu.ph',
-  phone:         '+63 912 345 6789',
-  school:        'Samar College',
-  course:        'BSIT',
-  yearLevel:     '4th Year',
-  joined:        'January 13, 2026',
-  company:       'TechHub Innovations Inc.',
-  position:      'IT Intern',
-  address:       '123 Bonifacio St., Catbalogan City, Samar',
-  supervisor:    'Engr. Romeo Santos',
-  companyEmail:  'hr@techhubinnovations.ph',
-  companyPhone:  '+63 55 123 4567',
-  startDate:     'January 13, 2026',
-  endDate:       'May 30, 2026',
-  reqHours:      500,
-  totalHours:    128,
-  daysPresent:   24,
-  reportsSubmitted: 6,
-};
-
-const ANNOUNCEMENTS = [
-  { id:1, pinned:true,  title:'Required Documents Reminder',
-    body:"Submit your MOA and endorsement letter on or before April 30.",
-    author:'Dr. Santos', date:'Apr 20, 2026' },
-  { id:2, pinned:false, title:'Weekly Report Deadline',
-    body:'Week 14 reports must be submitted no later than Friday 5:00 PM.',
-    author:'Dr. Santos', date:'Apr 18, 2026' },
-  { id:3, pinned:false, title:'Holiday Notice',
-    body:'The office will be closed on April 25. Adjust attendance accordingly.',
-    author:'Ms. Reyes', date:'Apr 15, 2026' },
-];
-
-const ATTENDANCE_LOG = [
-  { date:'Apr 23, 2026', timeIn:'8:02 AM', timeOut:'5:04 PM', hours:8.97 },
-  { date:'Apr 22, 2026', timeIn:'8:15 AM', timeOut:'5:00 PM', hours:8.75 },
-  { date:'Apr 21, 2026', timeIn:'7:58 AM', timeOut:'5:10 PM', hours:9.20 },
-  { date:'Apr 18, 2026', timeIn:'8:05 AM', timeOut:'5:03 PM', hours:8.97 },
-  { date:'Apr 17, 2026', timeIn:'8:30 AM', timeOut:'5:00 PM', hours:8.50 },
-  { date:'Apr 16, 2026', timeIn:'8:00 AM', timeOut:'5:00 PM', hours:9.00 },
-];
-
-const REPORTS = [
-  { week:'Week 14 (Apr 21–25)', file:'week14_report.pdf', status:'pending',  date:'Apr 23, 2026', feedback:'' },
-  { week:'Week 13 (Apr 14–18)', file:'week13_report.pdf', status:'approved', date:'Apr 18, 2026', feedback:'Great work this week!' },
-  { week:'Week 12 (Apr 7–11)',  file:'week12_report.pdf', status:'revision', date:'Apr 11, 2026', feedback:'Add more detail on daily tasks.' },
-  { week:'Week 11 (Mar 31–Apr 4)', file:'week11_report.pdf', status:'reviewed', date:'Apr 4, 2026', feedback:'' },
-];
+let ANNOUNCEMENTS  = [];   // from getAnnouncements
+let ATTENDANCE_LOG = [];   // from getAttendanceLogs
+let REPORTS_DATA   = [];   // from getInternReports
 
 
 // ─────────────────────────────────────────────────────────────
@@ -185,15 +136,23 @@ const Helpers = {
     return wrap;
   },
 
-  // Single announcement item element
+  // Single announcement item — handles both API format (is_pinned, created_at)
+  // and legacy format (pinned, date, author)
   annItem(ann) {
+    const pinned = ann.pinned || parseInt(ann.is_pinned);
+    const date   = ann.date
+      || (ann.created_at
+          ? new Date(ann.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+          : '');
+    const author = ann.author || 'Coordinator';
+
     const wrap = document.createElement('div');
-    wrap.className = 'cui-announcement' + (ann.pinned ? ' pinned' : '');
+    wrap.className = 'cui-announcement' + (pinned ? ' pinned' : '');
     wrap.innerHTML = `
-      ${ann.pinned ? '<span class="cui-announcement-pin">📌 Pinned</span>' : ''}
+      ${pinned ? '<span class="cui-announcement-pin">📌 Pinned</span>' : ''}
       <div class="cui-announcement-title">${ann.title}</div>
       <div class="cui-announcement-body">${ann.body}</div>
-      <div class="cui-announcement-meta">By ${ann.author} · ${ann.date}</div>`;
+      <div class="cui-announcement-meta">By ${author} · ${date}</div>`;
     return wrap;
   },
 
@@ -230,7 +189,7 @@ const sidebar = UI.pageSidebar({
     { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
     { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
     { label:'Weekly Reports', icon:'📄',
-      badge: REPORTS.filter(r => r.status === 'revision').length || null,
+      badge: REPORTS_DATA.filter(r => r.status === 'revision').length || null,
       onClick: () => navigate('reports') },
     { section:true, label:'Account' },
     { label:'Sign Out', icon:'🚪',
@@ -380,13 +339,19 @@ const Dashboard = {
   announcementsCard() {
     const body = document.createElement('div');
 
-    [...ANNOUNCEMENTS]
-      .sort((a, b) => b.pinned - a.pinned)
-      .forEach(a => body.appendChild(Helpers.annItem(a)));
+    if (!ANNOUNCEMENTS.length) {
+      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
+    } else {
+      [...ANNOUNCEMENTS]
+        .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
+        .forEach(a => body.appendChild(Helpers.annItem(a)));
+    }
 
+    const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
     return UI.card({
       title: '📢 Announcements',
-      body
+      headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
+      body,
     });
   },
 
@@ -451,13 +416,28 @@ const Dashboard = {
     return UI.card({ title: '📈 My Progress Insights', body });
   },
 
-  // Mini sparkline-style chart for intern's recent daily hours
+  // Mini sparkline — uses attendance logs loaded from API at boot
   drawHoursTrendChart() {
     const ctx = document.getElementById('chart-intern-trend');
     if (!ctx || typeof Chart === 'undefined') return;
 
-    const labels = ATTENDANCE_LOG.slice().reverse().map(l => l.date.split(',')[0]);
-    const hours  = ATTENDANCE_LOG.slice().reverse().map(l => l.hours);
+    // Take last 6 completed days (have time_out), oldest first
+    const recent = ATTENDANCE_LOG
+      .filter(l => l.total_hours != null)
+      .slice(0, 6)
+      .reverse();
+
+    if (!recent.length) return; // nothing to chart yet
+
+    const labels = recent.map(l =>
+      new Date(l.log_date + 'T00:00:00')
+        .toLocaleDateString('en-US', { month:'short', day:'numeric' })
+    );
+    const hours = recent.map(l => parseFloat(l.total_hours));
+
+    // Auto-scale Y axis based on actual data
+    const minH = Math.max(0, Math.floor(Math.min(...hours)) - 1);
+    const maxH = Math.ceil(Math.max(...hours)) + 1;
 
     new Chart(ctx, {
       type: 'line',
@@ -476,12 +456,12 @@ const Dashboard = {
       },
       options: {
         responsive: true,
-        plugins:    { legend: { display: false }, tooltip: {
-          callbacks: { label: c => ` ${c.parsed.y}h` },
+        plugins: { legend: { display:false }, tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.y}h` },
         }},
         scales: {
           y: {
-            min:   7, max: 10,
+            min: minH, max: maxH,
             ticks: { callback: v => v+'h', font:{ size:10 } },
             grid:  { color: '#FFF0E0' },
           },
@@ -517,21 +497,40 @@ const Dashboard = {
   },
 
   recentAttendanceCard() {
+    // Map API format { log_date, time_in, time_out, total_hours }
+    // to display format { date, timeIn, timeOut, hours }
+    const fmt = dt => dt
+      ? new Date(dt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+      : '—';
+
+    const rows = ATTENDANCE_LOG.slice(0, 4).map(l => ({
+      date:    new Date(l.log_date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+      timeIn:  fmt(l.time_in),
+      timeOut: l.time_out ? fmt(l.time_out) : '—',
+      hours:   l.total_hours != null ? parseFloat(l.total_hours).toFixed(2) : '—',
+    }));
+
+    const emptyBody = UI.empty('📭', 'No attendance yet', 'Use Time In on the Attendance page.');
+
     return UI.card({
       title: '🕐 Recent Attendance',
-      padding: false,
+      padding: rows.length ? false : true,
       headerActions: UI.button('View all', {
         variant: 'ghost', size: 'sm',
         color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
         onClick: () => navigate('attendance'),
       }),
-      body: UI.table([
-        { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
-        { key:'timeIn',  label:'In'   },
-        { key:'timeOut', label:'Out'  },
-        { key:'hours',   label:'Hrs', align:'center',
-          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
-      ], ATTENDANCE_LOG.slice(0, 4), { hoverable: true }),
+      body: rows.length
+        ? UI.table([
+            { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
+            { key:'timeIn',  label:'In'   },
+            { key:'timeOut', label:'Out'  },
+            { key:'hours',   label:'Hrs', align:'center',
+              render: v => v !== '—'
+                ? `<span style="color:#EA580C;font-weight:700">${v}h</span>`
+                : '<span style="color:#9A6647">—</span>' },
+          ], rows, { hoverable: true })
+        : emptyBody,
     });
   },
 };
@@ -797,15 +796,11 @@ const Profile = {
 // ─────────────────────────────────────────────────────────────
 //  ATTENDANCE
 // ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────
-//  ATTENDANCE
-// ─────────────────────────────────────────────────────────────
 const Attendance = {
 
-  // Cached logs loaded from API
+  // Cached logs (synced from ATTENDANCE_LOG global at boot)
   logs: [],
 
-  // ── Build section ─────────────────────────────────────────
   build() {
     const sec = document.getElementById('sec-attendance');
     sec.appendChild(Helpers.pageHeader('Attendance', 'Track your daily time in and out'));
@@ -815,30 +810,31 @@ const Attendance = {
     grid.style.alignItems = 'start';
     grid.appendChild(this.clockCard());
 
+    // Slot so hours card can be refreshed after clock actions
     const hoursSlot = document.createElement('div');
     hoursSlot.id = 'att-hours-slot';
     hoursSlot.appendChild(this.hoursCard());
     grid.appendChild(hoursSlot);
     sec.appendChild(grid);
 
+    // Slot so log table can be refreshed after clock actions / edits
     const logSlot = document.createElement('div');
     logSlot.id = 'att-log-slot';
-    logSlot.appendChild(UI.card({ title:'📋 Attendance Log', body: UI.spinner() }));
     sec.appendChild(logSlot);
 
     this.startClock();
-    this.init();
+    this.init();  // restore clock state + render log from pre-loaded data
   },
 
-  // ── On load: check today status + fetch logs ──────────────
+  // Restore clock state from today's log, render table from pre-loaded data
   async init() {
-    try {
-      const [todayRes, logsRes] = await Promise.all([
-        this.callApi('getTodayLog'),
-        this.callApi('getAttendanceLogs'),
-      ]);
-      this.logs = Array.isArray(logsRes) ? logsRes : [];
+    // Sync local cache with globally pre-loaded attendance logs
+    this.logs = [...ATTENDANCE_LOG];
+    this.renderLogCard();
 
+    // Only need to fetch today's specific log to restore clock state
+    try {
+      const todayRes = await this.callApi('getTodayLog');
       if (todayRes && todayRes.time_in) {
         timeInStamp      = new Date(todayRes.time_in);
         clockState       = todayRes.time_out ? 'done' : 'in';
@@ -854,15 +850,15 @@ const Attendance = {
         clockState  = 'none';
         timeInStamp = null;
       }
-    } catch(e) {
+    } catch (e) {
       console.error('Attendance.init:', e);
-      this.logs = [];
+      clockState  = 'none';
+      timeInStamp = null;
     }
     this.renderClockState();
-    this.renderLogCard();
   },
 
-  // ── Generic API call ──────────────────────────────────────
+  // Generic API call helper
   async callApi(action, extra = {}) {
     const res = await fetch('config/api.php', {
       method:  'POST',
@@ -872,7 +868,7 @@ const Attendance = {
     return res.json();
   },
 
-  // ── Clock card ────────────────────────────────────────────
+  // Live clock + time in/out buttons
   clockCard() {
     const body = document.createElement('div');
     body.className = 'cui-clock';
@@ -884,38 +880,39 @@ const Attendance = {
       <div id="clock-summary"
         style="display:none;padding:.75rem 0 0;text-align:center;font-size:.85rem;color:#9A6647"></div>
     `;
-    return UI.card({ title:'🕐 Time Tracker', body });
+    return UI.card({ title: '🕐 Time Tracker', body });
   },
 
-  // ── Hours summary card ────────────────────────────────────
+  // Big hours number + stat strip + progress bar
   hoursCard() {
-    const internship = InternData.internships?.[0] ?? {};
-    const total    = parseFloat(internship.total_hours  ?? 0);
-    const days     = parseInt(internship.days_present   ?? 0);
-    const required = parseInt(InternData.profile?.required_hours ?? 500);
-    const pct      = required ? Math.min(100, Math.round((total / required) * 100)) : 0;
-
+    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
     const body = document.createElement('div');
-    const big  = document.createElement('div');
+
+    const big = document.createElement('div');
     big.style.cssText = 'text-align:center;padding:1rem 0';
     big.innerHTML = `
-      <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">${total}h</div>
-      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${required}h required</div>`;
+      <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">
+        ${INTERN.totalHours}h
+      </div>
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${INTERN.reqHours}h required</div>`;
     body.appendChild(big);
+
     body.appendChild(UI.statRow([
-      { value: days,                          label:'Days Present', color:'#EA580C' },
-      { value: Math.max(0,required-total)+'h', label:'Hours Left',  color:'#6B3A1F' },
-      { value: pct+'%',                       label:'Complete',    color:'#10B981'  },
+      { value: INTERN.daysPresent,                           label: 'Days Present', color: '#EA580C' },
+      { value: (INTERN.reqHours - INTERN.totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
+      { value: pct + '%',                                    label: 'Complete',     color: '#10B981' },
     ]));
+
     const lbl = document.createElement('p');
     lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.8rem 0 .4rem';
     lbl.textContent   = 'Progress toward completion';
     body.appendChild(lbl);
-    body.appendChild(UI.progress(pct, { color:{ base:'#EA580C' }, label:true }));
-    return UI.card({ title:'📊 My Hours', body });
+    body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+
+    return UI.card({ title: '📊 My Hours', body });
   },
 
-  // ── Attendance log table with edit button per row ─────────
+  // Render log table into the att-log-slot div
   renderLogCard() {
     const slot = document.getElementById('att-log-slot');
     if (!slot) return;
@@ -924,26 +921,23 @@ const Attendance = {
     if (!this.logs.length) {
       slot.appendChild(UI.card({
         title: '📋 Attendance Log',
-        body:  UI.empty('📭', 'No logs yet', 'Your records will appear here after you time in.'),
+        body:  UI.empty('📭', 'No logs yet', 'Records appear here after your first Time In.'),
       }));
       return;
     }
 
     const fmtTime = dt => dt
-      ? new Date(dt).toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' })
+      ? new Date(dt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
       : '—';
-    const fmtDate = d => new Date(d + 'T00:00:00')
-      .toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' });
+    const fmtDate = d =>
+      new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
     const tbl = UI.table([
       { key:'log_date',    label:'Date',
         render: v => `<strong>${fmtDate(v)}</strong>` },
-      { key:'time_in',     label:'Time In',
-        render: v => fmtTime(v) },
+      { key:'time_in',     label:'Time In',  render: v => fmtTime(v) },
       { key:'time_out',    label:'Time Out',
-        render: v => v
-          ? fmtTime(v)
-          : UI.badge('In Progress', { base:'#D1FAE5', text:'#065F46' }) },
+        render: v => v ? fmtTime(v) : UI.badge('In Progress', { base:'#D1FAE5', text:'#065F46' }) },
       { key:'total_hours', label:'Hours', align:'center',
         render: v => v != null
           ? `<span style="color:#EA580C;font-weight:700">${parseFloat(v).toFixed(2)}h</span>`
@@ -952,7 +946,7 @@ const Attendance = {
         render: v => `<span style="font-size:.78rem;color:#9A6647">${v || '—'}</span>` },
       { key:'id', label:'', align:'center',
         render: (_, row) => UI.button('✏️ Edit', {
-          variant:'ghost', size:'sm',
+          variant: 'ghost', size: 'sm',
           color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
           onClick: () => Attendance.openEditModal(row),
         })},
@@ -965,23 +959,142 @@ const Attendance = {
     }));
   },
 
+  // Tick every second
+  startClock() {
+    const tick = () => {
+      const n   = new Date();
+      const dEl = document.getElementById('clock-display');
+      const dtEl= document.getElementById('clock-date-display');
+      if (dEl)  dEl.textContent  = n.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      if (dtEl) dtEl.textContent = n.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    };
+    tick();
+    setInterval(tick, 1000);
+  },
+
+  // Rebuild status badge + buttons based on current clockState
+  renderClockState() {
+    const statusWrap = document.getElementById('clock-status-wrap');
+    const btnWrap    = document.getElementById('clock-btn-wrap');
+    if (!statusWrap) return;
+    statusWrap.innerHTML = '';
+    btnWrap.innerHTML    = '';
+
+    // Status badge
+    const badge = document.createElement('div');
+    badge.className = 'cui-clock-status ' + {
+      none: 'cui-clock-status-idle',
+      in:   'cui-clock-status-in',
+      done: 'cui-clock-status-idle',
+    }[clockState];
+    badge.innerHTML = {
+      none: '<span style="opacity:.5">⭕</span> Not yet timed in today',
+      in:   `<span style="color:#10B981">●</span> Timed in at ${timeInStamp?.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })}`,
+      done: '✅ Completed for today',
+    }[clockState];
+    statusWrap.appendChild(badge);
+
+    // Time In button
+    btnWrap.appendChild(UI.button('⏱ Time In', {
+      variant: 'success', size: 'lg',
+      disabled: clockState !== 'none',
+      onClick: async () => {
+        const allBtns = btnWrap.querySelectorAll('button');
+        allBtns.forEach(b => b.disabled = true);
+        try {
+          const res = await Attendance.callApi('timeIn');
+          if (!res.success) {
+            UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger');
+            allBtns.forEach(b => b.disabled = false);
+            return;
+          }
+          timeInStamp      = new Date(res.time_in);
+          clockState       = 'in';
+          Attendance._todayLogId = res.log_id;
+          Attendance.logs.unshift({
+            id: res.log_id,
+            log_date:    new Date().toISOString().slice(0, 10),
+            time_in:     res.time_in,
+            time_out:    null,
+            total_hours: null,
+            notes:       '',
+          });
+          ATTENDANCE_LOG = [...Attendance.logs];
+          Attendance.renderClockState();
+          Attendance.renderLogCard();
+          UI.toast('⏱ Timed in at ' + timeInStamp.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }), 'success');
+        } catch(_) {
+          UI.toast('❌ Network error.', 'danger');
+          allBtns.forEach(b => b.disabled = false);
+        }
+      },
+    }));
+
+    // Time Out button
+    btnWrap.appendChild(UI.button('🔴 Time Out', {
+      variant: 'danger', size: 'lg',
+      disabled: clockState !== 'in',
+      onClick: async () => {
+        const allBtns = btnWrap.querySelectorAll('button');
+        allBtns.forEach(b => b.disabled = true);
+        try {
+          const res = await Attendance.callApi('timeOut');
+          if (!res.success) {
+            UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger');
+            allBtns.forEach(b => b.disabled = false);
+            return;
+          }
+          clockState = 'done';
+          if (InternData.internships?.[0]) {
+            InternData.internships[0].total_hours  = res.total_hours;
+            InternData.internships[0].days_present = (parseInt(InternData.internships[0].days_present) || 0) + 1;
+          }
+          const idx = Attendance.logs.findIndex(l => l.id === Attendance._todayLogId);
+          if (idx !== -1) {
+            Attendance.logs[idx].time_out    = res.time_out;
+            Attendance.logs[idx].total_hours = res.total_hours;
+          }
+          ATTENDANCE_LOG = [...Attendance.logs];
+
+          const summary = document.getElementById('clock-summary');
+          if (summary) {
+            summary.style.display = 'block';
+            summary.innerHTML = Attendance.summaryHtml(res.time_in, res.time_out, res.total_hours);
+          }
+          Attendance.renderClockState();
+          Attendance.renderLogCard();
+          Helpers.refreshCard('att-hours-slot', () => Attendance.hoursCard());
+          UI.toast(`✅ Timed out · ${parseFloat(res.total_hours).toFixed(2)}h logged today`, 'success');
+        } catch(_) {
+          UI.toast('❌ Network error.', 'danger');
+          allBtns.forEach(b => b.disabled = false);
+        }
+      },
+    }));
+  },
+
   // ── Edit time log modal ───────────────────────────────────
   openEditModal(log) {
     const body = document.createElement('div');
 
-    const fmtDisplay = d => new Date(d + 'T00:00:00')
-      .toLocaleDateString('en-US',{ weekday:'long', month:'long', day:'numeric', year:'numeric' });
-
+    // Date label (read-only)
     const dateLbl = document.createElement('div');
     dateLbl.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:.7rem 1rem;font-weight:700;color:#1A0A00;margin-bottom:1.1rem;font-size:.9rem';
-    dateLbl.textContent   = '📅 ' + fmtDisplay(log.log_date);
+    dateLbl.textContent   = '📅 ' + new Date(log.log_date + 'T00:00:00')
+      .toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
     body.appendChild(dateLbl);
 
-    const toHHMM = dt => dt ? dt.substring(11, 16) : '';
+    // Extract HH:MM from a datetime string (e.g. "2026-04-23 08:02:00" → "08:02")
+    const toHHMM = dt => dt ? String(dt).substring(11, 16) : '';
 
-    const timeInInput  = UI.input({ type:'time', id:'edit-time-in',  value: toHHMM(log.time_in)  });
-    const timeOutInput = UI.input({ type:'time', id:'edit-time-out', value: toHHMM(log.time_out) });
-    const notesInput   = UI.textarea({ id:'edit-notes', value: log.notes || '', rows: 2, placeholder: 'Optional note about this day' });
+    const timeInInput  = UI.input({ type:'time', id:'att-edit-time-in',  value: toHHMM(log.time_in)  });
+    const timeOutInput = UI.input({ type:'time', id:'att-edit-time-out', value: toHHMM(log.time_out) });
+    const notesInput   = UI.textarea({
+      id:          'att-edit-notes',
+      value:       log.notes || '',
+      rows:        2,
+      placeholder: 'Optional note about this day',
+    });
 
     const row = document.createElement('div');
     row.className = 'cui-form-row';
@@ -990,10 +1103,11 @@ const Attendance = {
     body.appendChild(row);
     body.appendChild(UI.formGroup('Notes (optional)', notesInput));
 
+    // Warning if log has no time_out yet (still in progress)
     if (!log.time_out) {
       const warn = document.createElement('div');
       warn.style.cssText = 'margin-top:.75rem;padding:.7rem 1rem;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E';
-      warn.innerHTML = '⚠️ This log is still <strong>in progress</strong>. Saving will only update the Time In. Leave Time Out blank to keep it open.';
+      warn.innerHTML = '⚠️ This log is still <strong>in progress</strong>. Leave Time Out blank to keep it open.';
       body.appendChild(warn);
     }
 
@@ -1003,7 +1117,8 @@ const Attendance = {
       size: 'lg',
       footer: [
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        UI.button('Save Changes', { size:'sm',
+        UI.button('Save Changes', {
+          size: 'sm',
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
           onClick: () => Attendance.saveEdit(m, log.id),
         }),
@@ -1012,11 +1127,11 @@ const Attendance = {
     m.open();
   },
 
-  // ── Save edited log ───────────────────────────────────────
+  // ── Save edited log entry ─────────────────────────────────
   async saveEdit(modal, logId) {
-    const timeIn  = document.getElementById('edit-time-in')?.value;
-    const timeOut = document.getElementById('edit-time-out')?.value || null;
-    const notes   = document.getElementById('edit-notes')?.value || '';
+    const timeIn  = document.getElementById('att-edit-time-in')?.value;
+    const timeOut = document.getElementById('att-edit-time-out')?.value || null;
+    const notes   = document.getElementById('att-edit-notes')?.value   || '';
 
     if (!timeIn) { UI.toast('Time In is required.', 'danger'); return; }
 
@@ -1028,15 +1143,18 @@ const Attendance = {
         notes,
       });
 
-      if (!res.success) { UI.toast('❌ ' + (res.error ?? 'Update failed.'), 'danger'); return; }
+      if (!res.success) {
+        UI.toast('❌ ' + (res.error ?? 'Update failed.'), 'danger');
+        return;
+      }
 
-      // Sync InternData totals
+      // Sync InternData totals so hours card reflects new values
       if (res.internship && InternData.internships?.[0]) {
         InternData.internships[0].total_hours  = res.internship.total_hours;
         InternData.internships[0].days_present = res.internship.days_present;
       }
 
-      // Sync log cache
+      // Update local log cache
       const idx = this.logs.findIndex(l => l.id === logId);
       if (idx !== -1) {
         this.logs[idx] = {
@@ -1048,7 +1166,10 @@ const Attendance = {
         };
       }
 
-      // Sync clock if this was today
+      // Keep global ATTENDANCE_LOG in sync so dashboard cards reflect changes
+      ATTENDANCE_LOG = [...this.logs];
+
+      // If this was today's log, resync the clock state
       if (logId === this._todayLogId) {
         timeInStamp = new Date(res.time_in);
         clockState  = res.time_out ? 'done' : 'in';
@@ -1068,149 +1189,48 @@ const Attendance = {
       UI.toast('✅ Attendance log updated.', 'success');
 
     } catch (_) {
-      UI.toast('❌ Network error.', 'danger');
+      UI.toast('❌ Network error. Please try again.', 'danger');
     }
   },
 
-  // ── Live clock tick ───────────────────────────────────────
-  startClock() {
-    const tick = () => {
-      const n    = new Date();
-      const dEl  = document.getElementById('clock-display');
-      const dtEl = document.getElementById('clock-date-display');
-      if (dEl)  dEl.textContent  = n.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', second:'2-digit' });
-      if (dtEl) dtEl.textContent = n.toLocaleDateString('en-US',{ weekday:'long', month:'long', day:'numeric', year:'numeric' });
-    };
-    tick();
-    setInterval(tick, 1000);
-  },
-
-  // ── Clock state buttons ───────────────────────────────────
-  renderClockState() {
-    const statusWrap = document.getElementById('clock-status-wrap');
-    const btnWrap    = document.getElementById('clock-btn-wrap');
-    if (!statusWrap) return;
-    statusWrap.innerHTML = '';
-    btnWrap.innerHTML    = '';
-
-    const badge = document.createElement('div');
-    badge.className = 'cui-clock-status ' + ({
-      none:'cui-clock-status-idle',
-      in:  'cui-clock-status-in',
-      done:'cui-clock-status-idle',
-    }[clockState]);
-    badge.innerHTML = {
-      none: '<span style="opacity:.5">⭕</span> Not yet timed in today',
-      in:   `<span style="color:#10B981">●</span> Timed in at ${timeInStamp?.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' })}`,
-      done: '✅ Completed for today',
-    }[clockState];
-    statusWrap.appendChild(badge);
-
-    // Time In
-    btnWrap.appendChild(UI.button('⏱ Time In', {
-      variant:'success', size:'lg',
-      disabled: clockState !== 'none',
-      onClick: async () => {
-        const allBtns = btnWrap.querySelectorAll('button');
-        allBtns.forEach(b => { b.disabled = true; });
-        try {
-          const res = await this.callApi('timeIn');
-          if (!res.success) {
-            UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger');
-            allBtns.forEach(b => { b.disabled = false; });
-            return;
-          }
-          timeInStamp      = new Date(res.time_in);
-          clockState       = 'in';
-          this._todayLogId = res.log_id;
-          this.logs.unshift({
-            id: res.log_id,
-            log_date:    new Date().toISOString().slice(0, 10),
-            time_in:     res.time_in,
-            time_out:    null,
-            total_hours: null,
-            notes:       '',
-          });
-          this.renderClockState();
-          this.renderLogCard();
-          UI.toast('⏱ Timed in at ' + timeInStamp.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' }), 'success');
-        } catch (_) {
-          UI.toast('❌ Network error.', 'danger');
-          allBtns.forEach(b => { b.disabled = false; });
-        }
-      },
-    }));
-
-    // Time Out
-    btnWrap.appendChild(UI.button('🔴 Time Out', {
-      variant:'danger', size:'lg',
-      disabled: clockState !== 'in',
-      onClick: async () => {
-        const allBtns = btnWrap.querySelectorAll('button');
-        allBtns.forEach(b => { b.disabled = true; });
-        try {
-          const res = await this.callApi('timeOut');
-          if (!res.success) {
-            UI.toast('❌ ' + (res.error ?? 'Failed.'), 'danger');
-            allBtns.forEach(b => { b.disabled = false; });
-            return;
-          }
-          clockState = 'done';
-
-          if (InternData.internships?.[0]) {
-            InternData.internships[0].total_hours  = res.total_hours;
-            InternData.internships[0].days_present = (parseInt(InternData.internships[0].days_present) || 0) + 1;
-          }
-
-          const idx = this.logs.findIndex(l => l.id === this._todayLogId);
-          if (idx !== -1) {
-            this.logs[idx].time_out    = res.time_out;
-            this.logs[idx].total_hours = res.total_hours;
-          }
-
-          const summary = document.getElementById('clock-summary');
-          if (summary) {
-            summary.style.display = 'block';
-            summary.innerHTML = this.summaryHtml(res.time_in, res.time_out, res.total_hours);
-          }
-
-          this.renderClockState();
-          this.renderLogCard();
-          Helpers.refreshCard('att-hours-slot', () => this.hoursCard());
-          UI.toast(`✅ Timed out · ${parseFloat(res.total_hours).toFixed(2)}h logged today`, 'success');
-        } catch (_) {
-          UI.toast('❌ Network error.', 'danger');
-          allBtns.forEach(b => { b.disabled = false; });
-        }
-      },
-    }));
-  },
-
-  // ── Format today summary line ─────────────────────────────
+  // ── Format the today-summary line ─────────────────────────
   summaryHtml(timeIn, timeOut, hours) {
-    const fmt = dt => new Date(dt).toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' });
-    return `<strong style="color:#EA580C">${fmt(timeIn)}</strong>
+    const fmt = dt => new Date(dt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+    return `
+      <strong style="color:#EA580C">${fmt(timeIn)}</strong>
       &nbsp;→&nbsp;
       <strong style="color:#EA580C">${fmt(timeOut)}</strong>
       &nbsp;·&nbsp;<strong>${parseFloat(hours).toFixed(2)}h</strong> rendered`;
   },
 };
 
-const Reports = {
 
+// ─────────────────────────────────────────────────────────────
+//  REPORTS
+// ─────────────────────────────────────────────────────────────
+const Reports = {
   build() {
     const sec = document.getElementById('sec-reports');
     sec.appendChild(Helpers.pageHeader('Weekly Reports', 'Submit and track your internship reports'));
 
+    // Use pre-loaded data from boot — renders immediately, no spinner
+    this.data = [...REPORTS_DATA];
+
     const grid = document.createElement('div');
     grid.className = 'pg-grid-2';
     grid.style.alignItems = 'start';
-    grid.appendChild( this.submitCard()  );
-    grid.appendChild( this.tableCard()   );
-    sec.appendChild(grid);
+    grid.appendChild( this.submitCard() );
 
+    const tableWrap = document.createElement('div');
+    tableWrap.id = 'reports-table-wrap';
+    tableWrap.appendChild( this.tableCard() );
+    grid.appendChild(tableWrap);
+
+    sec.appendChild(grid);
     this.setDefaultDate();
+    // loadReports() is called after successful submit to refresh the table
   },
+
 
   // Upload form card
   submitCard() {
@@ -1302,33 +1322,50 @@ const Reports = {
 
 
 // ─────────────────────────────────────────────────────────────
-//  BOOT  — build every section once on page load
+//  BOOT  — load ALL data from API first, then build sections
 // ─────────────────────────────────────────────────────────────
 
-fetch('config/api.php', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    action: 'getAllInternData'
-  })
-})
-.then(res => {
-  console.log('API response status:', res.status);
-  return res.json();
-})
-.then(data => {
-  InternData = data;
+// Generic API helper — used here and by Attendance / Reports
+function apiCall(action, extra = {}) {
+  return fetch('config/api.php', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ action, ...extra }),
+  }).then(r => r.json());
+}
 
-  console.log('InternData:', InternData);
+async function boot() {
+  try {
+    // Fetch all data in parallel so nothing blocks
+    const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
+      apiCall('getAllInternData'),
+      apiCall('getAnnouncements'),
+      apiCall('getAttendanceLogs'),
+      apiCall('getInternReports'),
+    ]);
 
-  Dashboard.build();
-  Profile.build();
-  Attendance.build();
-  Reports.build();
-})
-.catch(error => {
-  console.error('Fetch error:', error);
-});
+    // Populate global data arrays
+    InternData     = internRes;
+    ANNOUNCEMENTS  = Array.isArray(annRes)     ? annRes     : [];
+    ATTENDANCE_LOG = Array.isArray(logsRes)    ? logsRes    : [];
+    REPORTS_DATA   = Array.isArray(reportsRes) ? reportsRes : [];
+
+    // Build nav first — needs InternData + REPORTS_DATA for badge count
+    initNav();
+
+    // Build all sections — they read from now-populated globals
+    Dashboard .build();
+    Profile   .build();
+    Attendance.build();
+    Reports   .build();
+
+  } catch (err) {
+    console.error('Boot error:', err);
+  }
+}
+
+boot();
+
 </script>
 </body>
 </html>
