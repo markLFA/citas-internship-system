@@ -1142,6 +1142,7 @@ const Attendance = {
           Attendance._todayLogId = res.log_id;
           Attendance.logs.unshift({
             id: res.log_id,
+            coordinator_id: InternData.profile.coordinator_id,
             log_date:    new Date().toISOString().slice(0, 10),
             time_in:     res.time_in,
             time_out:    null,
@@ -1620,7 +1621,7 @@ async function boot() {
     // Fetch all data in parallel so nothing blocks
     const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
       apiCall('getAllInternData').then (data => {
-        //console.log('Intern data loaded:', JSON.stringify(data, null, 2));
+        console.log('Intern data loaded:', JSON.stringify(data, null, 2));
         InternData = data;
         buildNavBar ()
         return data;
