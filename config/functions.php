@@ -43,7 +43,25 @@ function getInternProfile() {
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+function getInternCoordinatorId () {
+    if (!isset($_SESSION['user']['id'])) {
+        return null;
+    }
 
+    $pdo = getDB();
+
+    $stmt = $pdo->prepare("
+        SELECT coordinator_id
+        FROM intern_profiles
+        WHERE user_id = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$_SESSION['user']['id']]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $result ? (int)$result['coordinator_id'] : null;
+}
 function getAllInternData() {
     if (!isset($_SESSION['user']['id'])) {
         return null;
@@ -1142,10 +1160,10 @@ function timeIn(): array
     try {
         $now = date('Y-m-d H:i:s');
         $stmt = $pdo->prepare("
-            INSERT INTO time_logs (intern_id, log_date, time_in)
-            VALUES (?, CURDATE(), ?)
+            INSERT INTO time_logs (intern_id, log_date, time_in, coordinator_id)
+            VALUES (?, CURDATE(), ?, ?)
         ");
-        $stmt->execute([$userId, $now]);
+        $stmt->execute([$userId, $now, getInternCoordinatorId($userId, $pdo)]);
         $logId = (int)$pdo->lastInsertId();
  
         // Also update days_present in internships

@@ -126,7 +126,7 @@ case 'getSessionUser':
         break;
     // ── Attendance actions ────────────────────────────────────
     case 'timeIn':
-        echo json_encode(timeIn());
+        echo json_encode(timeIn($data));
         break;
     case 'timeOut':
         echo json_encode(timeOut());
