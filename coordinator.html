@@ -2093,14 +2093,14 @@ const Analytics = {
 
   // ── Behind schedule table ──────────────────────────────────
   behindScheduleCard() {
-
+    const EXPECTED_PCT = 70; // By week 14, interns should be at least 25% complete (125h)
     const behind = INTERNS
       .map(i => ({
         ...i,
         pct: Math.round(i.totalHours / 500 * 100),
-        gap: this.getExpectedPercentage(i) - Math.round(i.totalHours / 500 * 100),
+        gap: EXPECTED_PCT - Math.round(i.totalHours / 500 * 100),
       }))
-      .filter(i => i.pct < this.getExpectedPercentage(i) )
+      .filter(i => i.pct < EXPECTED_PCT )
       .sort((a, b) => a.pct - b.pct);  // worst first
 
     if (!behind.length) {
@@ -2138,14 +2138,6 @@ const Analytics = {
       body: tbl,
     });
   },
-
-  // Draw all charts at once
-  drawAllCharts() {
-    this.drawCompletionChart();
-    this.drawReportStatusChart();
-    this.drawAttendanceTrendChart();
-    this.drawDeptChart();
-  },
   getExpectedPercentage (intern) {
     const currrentDate = new Date();
     const startDate = new Date(intern.startDate);
@@ -2154,7 +2146,15 @@ const Analytics = {
     const elapsedDuration = (currrentDate - startDate) / (1000 * 60 * 60 * 24); // in days
     const expectedPercentage = Math.min(100, Math.round((elapsedDuration / totalDuration) * 100));
     return expectedPercentage;
-  }
+  },
+  // Draw all charts at once
+  drawAllCharts() {
+    this.drawCompletionChart();
+    this.drawReportStatusChart();
+    this.drawAttendanceTrendChart();
+    this.drawDeptChart();
+  },
+
 
 };
 
