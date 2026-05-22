@@ -1343,8 +1343,9 @@ async function boot() {
     // Fetch all data in parallel so nothing blocks
     const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
       apiCall('getAllInternData').then (data => {
-        buildNavBar ()
         console.log('Intern data loaded:', JSON.stringify(data, null, 2));
+
+        buildNavBar ()
         return data;
       }),
       apiCall('getAnnouncements'),
