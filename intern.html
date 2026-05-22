@@ -1343,8 +1343,8 @@ async function boot() {
     // Fetch all data in parallel so nothing blocks
     const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
       apiCall('getAllInternData').then (data => {
-        console.log('Intern data loaded:', JSON.stringify(data, null, 2));
-
+        //console.log('Intern data loaded:', JSON.stringify(data, null, 2));
+        InternData = data;
         buildNavBar ()
         return data;
       }),
@@ -1354,7 +1354,6 @@ async function boot() {
     ]);
 
     // Populate global data arrays
-    InternData     = internRes;
     ANNOUNCEMENTS  = Array.isArray(annRes)     ? annRes     : [];
     ATTENDANCE_LOG = Array.isArray(logsRes)    ? logsRes    : [];
     REPORTS_DATA   = Array.isArray(reportsRes) ? reportsRes : [];
