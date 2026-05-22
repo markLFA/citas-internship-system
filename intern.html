@@ -889,22 +889,25 @@ const Attendance = {
 
   // Big hours number + stat strip + progress bar
   hoursCard() {
-    const pct  = Math.round(INTERN.totalHours / INTERN.reqHours * 100);
+    const totalHours = InternData.internships[0].total_hours
+    const requiredHours = InternData.profile.required_hours
+    const daysPresent = InternData.internships[0].days_present;
+    const pct  = Math.round(totalHours / requiredHours * 100);
     const body = document.createElement('div');
 
     const big = document.createElement('div');
     big.style.cssText = 'text-align:center;padding:1rem 0';
     big.innerHTML = `
       <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">
-        ${INTERN.totalHours}h
+        ${totalHours}h
       </div>
-      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${INTERN.reqHours}h required</div>`;
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${requiredHours}h required</div>`;
     body.appendChild(big);
 
     body.appendChild(UI.statRow([
-      { value: INTERN.daysPresent,                           label: 'Days Present', color: '#EA580C' },
-      { value: (INTERN.reqHours - INTERN.totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
-      { value: pct + '%',                                    label: 'Complete',     color: '#10B981' },
+      { value: daysPresent,                           label: 'Days Present', color: '#EA580C' },
+      { value: (requiredHours - totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
+      { value: pct + '%',                            label: 'Complete',     color: '#10B981' },
     ]));
 
     const lbl = document.createElement('p');
