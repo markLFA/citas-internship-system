@@ -901,6 +901,8 @@ const Interns = {
           // Internship
           supervisor: internship.supervisor || '',
           supervisorPhone: internship.supervisor_phone || '',
+          startDate: internship.start_date || '',
+          endDate: internship.end_date || '',
 
           daysPresent: internship.days_present || 0,
           totalHours: internship.total_hours || 0,
@@ -2091,15 +2093,14 @@ const Analytics = {
 
   // ── Behind schedule table ──────────────────────────────────
   behindScheduleCard() {
-    // Expected pct by week 14 of ~20 week internship = 70%
-    const EXPECTED_PCT = 70;
+
     const behind = INTERNS
       .map(i => ({
         ...i,
         pct: Math.round(i.totalHours / 500 * 100),
-        gap: EXPECTED_PCT - Math.round(i.totalHours / 500 * 100),
+        gap: this.getExpectedPercentage(i) - Math.round(i.totalHours / 500 * 100),
       }))
-      .filter(i => i.pct < EXPECTED_PCT)
+      .filter(i => i.pct < this.getExpectedPercentage(i) )
       .sort((a, b) => a.pct - b.pct);  // worst first
 
     if (!behind.length) {
@@ -2145,6 +2146,15 @@ const Analytics = {
     this.drawAttendanceTrendChart();
     this.drawDeptChart();
   },
+  getExpectedPercentage (intern) {
+    const currrentDate = new Date();
+    const startDate = new Date(intern.startDate);
+    const end_date = new Date(intern.endDate);
+    const totalDuration = (end_date - startDate) / (1000 * 60 * 60 * 24); // in days
+    const elapsedDuration = (currrentDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    const expectedPercentage = Math.min(100, Math.round((elapsedDuration / totalDuration) * 100));
+    return expectedPercentage;
+  }
 
 };
 
