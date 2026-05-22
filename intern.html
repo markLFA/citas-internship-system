@@ -1216,109 +1216,262 @@ const Attendance = {
 //  REPORTS
 // ─────────────────────────────────────────────────────────────
 const Reports = {
+
+  // Holds the loaded reports from the API
+  data: [],
+
   build() {
     const sec = document.getElementById('sec-reports');
     sec.appendChild(Helpers.pageHeader('Weekly Reports', 'Submit and track your internship reports'));
-
-    // Use pre-loaded data from boot — renders immediately, no spinner
-    this.data = [...REPORTS_DATA];
 
     const grid = document.createElement('div');
     grid.className = 'pg-grid-2';
     grid.style.alignItems = 'start';
     grid.appendChild( this.submitCard() );
 
+    // Right side: placeholder card that gets replaced after data loads
     const tableWrap = document.createElement('div');
     tableWrap.id = 'reports-table-wrap';
-    tableWrap.appendChild( this.tableCard() );
+    tableWrap.appendChild(UI.card({
+      title: '📋 Submitted Reports',
+      body:  UI.spinner(),
+    }));
     grid.appendChild(tableWrap);
 
     sec.appendChild(grid);
+
     this.setDefaultDate();
-    // loadReports() is called after successful submit to refresh the table
+    this.loadReports();   // fetch real data from API
   },
 
-
-  // Upload form card
+  // ── Submit card ───────────────────────────────────────────
   submitCard() {
     const body = document.createElement('div');
 
+    // Week label
     body.appendChild(UI.formGroup('Week Label',
       UI.input({ id:'rpt-week', placeholder:'e.g. Week 14 (Apr 21–25)', required: true }),
       '', { required: true }));
 
+    // Week start date
     body.appendChild(UI.formGroup('Week Start Date',
       UI.input({ type:'date', id:'rpt-date', required: true })));
 
+    // Description
     body.appendChild(UI.formGroup('Description (optional)',
-      UI.textarea({ id:'rpt-desc', placeholder:'What tasks did you accomplish this week?', rows: 3 })));
+      UI.textarea({ id:'rpt-desc',
+        placeholder:'What tasks did you accomplish this week?',
+        rows: 3 })));
 
-    body.appendChild(UI.formGroup('Report File',
-      UI.uploadZone({
-        label:  'Click to browse or drag & drop',
-        hint:   'PDF, DOC, DOCX, PNG, JPG — max 10 MB',
-        accept: '.pdf,.doc,.docx,.png,.jpg,.jpeg',
-        name:   'report_file',
-        onFile: f => UI.toast('Selected: ' + f.name, 'info'),
-      })
-    ));
+    // Multi-file upload area
+    const fileLabel = document.createElement('div');
+    fileLabel.className = 'cui-label';
+    fileLabel.textContent = 'Report Files (select one or more)';
+    body.appendChild(fileLabel);
 
+    // Hidden native file input — supports multiple
+    const fileInput = document.createElement('input');
+    fileInput.type     = 'file';
+    fileInput.id       = 'rpt-files';
+    fileInput.name     = 'files[]';
+    fileInput.multiple = true;
+    fileInput.accept   = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    fileInput.style.display = 'none';
+
+    // Custom drop zone
+    const dropZone = document.createElement('div');
+    dropZone.className = 'cui-upload-zone';
+    dropZone.style.marginBottom = '.5rem';
+
+    const dropIcon  = document.createElement('div');
+    dropIcon.className   = 'cui-upload-icon';
+    dropIcon.textContent = '📁';
+
+    const dropLabel = document.createElement('div');
+    dropLabel.className   = 'cui-upload-label';
+    dropLabel.id          = 'rpt-drop-label';
+    dropLabel.innerHTML   = '<strong>Click to browse</strong> or drag & drop';
+
+    const dropHint  = document.createElement('div');
+    dropHint.className   = 'cui-upload-hint';
+    dropHint.textContent = 'PDF, DOC, DOCX, PNG, JPG — max 10 MB each — multiple files OK';
+
+    dropZone.append(fileInput, dropIcon, dropLabel, dropHint);
+
+    // File list preview (shows chosen file names before submitting)
+    const fileList = document.createElement('div');
+    fileList.id             = 'rpt-file-list';
+    fileList.style.cssText  = 'display:flex;flex-direction:column;gap:.3rem;margin-top:.4rem';
+
+    // Wire up click and drag events
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('cui-upload-zone-over'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('cui-upload-zone-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('cui-upload-zone-over');
+      fileInput.files = e.dataTransfer.files;
+      Reports.updateFileList(fileInput, fileList, dropLabel);
+    });
+    fileInput.addEventListener('change', () =>
+      Reports.updateFileList(fileInput, fileList, dropLabel));
+
+    body.appendChild(dropZone);
+    body.appendChild(fileList);
+
+    // Submit button
     body.appendChild(UI.button('📤 Submit Report', {
       block: true, size: 'lg',
       color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-      onClick: () => {
-        const w = document.getElementById('rpt-week').value.trim();
-        if (!w) { UI.toast('Please enter a week label.', 'danger'); return; }
-        UI.toast('Report submitted! (Connect to PHP to save)', 'success');
-      },
+      onClick: () => Reports.submit(),
     }));
 
     return UI.card({ title: '📤 Submit New Report', body });
   },
 
-  // Submitted reports table with status badges + feedback rows
-  tableCard() {
-    const statusClass = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
-    const statusLabel = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
-
-    const tbl = UI.table([
-      { key:'week',   label:'Week',
-        render: v => `<strong>${v}</strong>` },
-      { key:'file',   label:'File',
-        render: v => `<a href="#" style="color:#EA580C;font-size:.8rem;text-decoration:none">📄 ${v}</a>` },
-      { key:'status', label:'Status', align:'center',
-        render: v => {
-          const b = document.createElement('span');
-          b.className   = 'cui-badge ' + statusClass[v];
-          b.textContent = statusLabel[v];
-          return b;
-        }},
-      { key:'date', label:'Uploaded',
-        render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
-    ], REPORTS_DATA, { hoverable: true });
-
-    // Inject feedback rows beneath rows that have feedback
-    const tbody = tbl.querySelector('tbody');
-    let offset  = 0;
-    REPORTS_DATA.forEach((r, i) => {
-      if (!r.feedback) return;
-      const fr = tbody.insertRow(i + 1 + offset++);
-      fr.innerHTML = `
-        <td colspan="4"
-          style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">
-          💬 <strong>Feedback:</strong> ${r.feedback}
-        </td>`;
-    });
-
-    return UI.card({
-      title: '📋 Submitted Reports',
-      padding: false,
-      headerActions: UI.badge(REPORTS_DATA.length + ' submitted', 'warning'),
-      body: tbl,
+  // Update the visual file list below the drop zone
+  updateFileList(input, listEl, labelEl) {
+    listEl.innerHTML = '';
+    const files = Array.from(input.files);
+    if (!files.length) {
+      labelEl.innerHTML = '<strong>Click to browse</strong> or drag & drop';
+      return;
+    }
+    labelEl.innerHTML = `<strong>${files.length} file${files.length > 1 ? 's' : ''} selected</strong>`;
+    files.forEach(f => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:#6B3A1F;background:#FFF7ED;padding:.35rem .65rem;border-radius:6px;border:1px solid #FED7AA';
+      const kb = (f.size / 1024).toFixed(0);
+      item.innerHTML = `<span>📄</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span><span style="color:#9A6647;flex-shrink:0">${kb} KB</span>`;
+      listEl.appendChild(item);
     });
   },
 
-  // Default week-start to the most recent Monday
+  // Send the form to upload_report.php via multipart/form-data
+  async submit() {
+    const weekLabel = document.getElementById('rpt-week')?.value.trim();
+    const weekStart = document.getElementById('rpt-date')?.value;
+    const desc      = document.getElementById('rpt-desc')?.value.trim();
+    const fileInput = document.getElementById('rpt-files');
+
+    if (!weekLabel) { UI.toast('Please enter a week label.', 'danger');  return; }
+    if (!weekStart) { UI.toast('Please select a week start date.', 'danger'); return; }
+    if (!fileInput?.files?.length) { UI.toast('Please attach at least one file.', 'danger'); return; }
+
+    // Build multipart form data
+    const form = new FormData();
+    form.append('week_label',  weekLabel);
+    form.append('week_start',  weekStart);
+    form.append('description', desc);
+    Array.from(fileInput.files).forEach(f => form.append('files[]', f));
+
+    // Disable submit button and show loading state
+    const btn = document.querySelector('#sec-reports .cui-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading…'; }
+
+    try {
+      const res  = await fetch('config/upload_report.php', { method: 'POST', body: form });
+      const json = await res.json();
+
+      if (json.success) {
+        UI.toast(`✅ Report submitted — ${json.files.length} file${json.files.length>1?'s':''} uploaded.`, 'success');
+
+        // Reset form
+        document.getElementById('rpt-week').value = '';
+        document.getElementById('rpt-desc').value = '';
+        document.getElementById('rpt-files').value = '';
+        document.getElementById('rpt-file-list').innerHTML = '';
+        document.getElementById('rpt-drop-label').innerHTML = '<strong>Click to browse</strong> or drag & drop';
+        this.setDefaultDate();
+
+        // Refresh the reports table
+        this.loadReports();
+      } else {
+        UI.toast('❌ ' + (json.error ?? 'Upload failed.'), 'danger');
+      }
+    } catch (err) {
+      UI.toast('❌ Network error. Please try again.', 'danger');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Report'; }
+    }
+  },
+
+  // ── Load reports from API and render the table ─────────────
+  async loadReports() {
+    try {
+      const res  = await fetch('config/api.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'getInternReports' }),
+      });
+      this.data = await res.json();
+    } catch (_) {
+      this.data = [];
+    }
+    Helpers.refreshCard('reports-table-wrap', () => this.tableCard());
+  },
+
+  // ── Reports table card ─────────────────────────────────────
+  tableCard() {
+    const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+    const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+
+    if (!this.data.length) {
+      return UI.card({
+        title: '📋 Submitted Reports',
+        body:  UI.empty('📭', 'No reports yet', 'Submit your first weekly report above.'),
+      });
+    }
+
+    const tbl = UI.table([
+      { key:'week_label', label:'Week',
+        render: v => `<strong>${v}</strong>` },
+      { key:'files',      label:'Files',
+        render: files => {
+          if (!files?.length) return '—';
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'display:flex;flex-direction:column;gap:.2rem';
+          files.forEach(f => {
+            const a = document.createElement('a');
+            a.href   = 'uploads/reports/' + f.file_path;
+            a.target = '_blank';
+            a.style.cssText = 'color:#EA580C;font-size:.78rem;text-decoration:none;display:flex;align-items:center;gap:.25rem';
+            a.innerHTML = '📄 ' + f.file_name;
+            wrap.appendChild(a);
+          });
+          return wrap;
+        }},
+      { key:'status', label:'Status', align:'center',
+        render: v => {
+          const b = document.createElement('span');
+          b.className   = 'cui-badge ' + (sl[v] ?? 'rs-pending');
+          b.textContent = tl[v] ?? v;
+          return b;
+        }},
+      { key:'uploaded_at', label:'Submitted',
+        render: v => `<span style="font-size:.78rem;color:#9A6647">${new Date(v).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>` },
+    ], this.data, { hoverable: true });
+
+    // Inject feedback rows under reports that have feedback
+    const tbody  = tbl.querySelector('tbody');
+    let   offset = 0;
+    this.data.forEach((r, i) => {
+      if (!r.feedback) return;
+      const fr = tbody.insertRow(i + 1 + offset++);
+      fr.innerHTML = `<td colspan="4" style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">
+        💬 <strong>Feedback:</strong> ${r.feedback}
+      </td>`;
+    });
+
+    return UI.card({
+      title:         '📋 Submitted Reports',
+      padding:       false,
+      headerActions: UI.badge(this.data.length + ' submitted', 'warning'),
+      body:          tbl,
+    });
+  },
+
+  // Default the week-start field to the most recent Monday
   setDefaultDate() {
     const mon = new Date();
     mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
@@ -1326,7 +1479,6 @@ const Reports = {
     if (d) d.value = mon.toISOString().split('T')[0];
   },
 };
-
 
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — load ALL data from API first, then build sections
