@@ -179,51 +179,55 @@ const Helpers = {
     el.appendChild(buildFn());
   },
 };
-  
-const sidebar = UI.pageSidebar({
-  brand:     'Intern Portal',    // role-specific label
-  brandIcon: '🎒',
-  items: [
-    { section:true, label:'Menu' },
-    { label:'Dashboard',      icon:'📋', active:true,  onClick: () => navigate('dashboard')  },
-    { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
-    { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
-    { label:'Weekly Reports', icon:'📄',
-      badge: REPORTS_DATA.filter(r => r.status === 'revision').length || null,
-      onClick: () => navigate('reports') },
-    { section:true, label:'Account' },
-    { label:'Sign Out', icon:'🚪',
-      onClick: () => { 
-        if (confirm('Sign out of CITAS?')) {
-          fetch('config/api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'logout' }),
-          }).then(res => {
-            location.href = '/'; 
-          })
-        }
-      } 
-    },
-  ],
-  footer: Helpers.sidebarFooter(InternData.name, InternData.course),
-});
+let sidebar;
+let topbar;
+function buildNavBar () {
+  sidebar = UI.pageSidebar({
+    brand:     'Intern Portal',    // role-specific label
+    brandIcon: '🎒',
+    items: [
+      { section:true, label:'Menu' },
+      { label:'Dashboard',      icon:'📋', active:true,  onClick: () => navigate('dashboard')  },
+      { label:'Profile',        icon:'👤',               onClick: () => navigate('profile')    },
+      { label:'Attendance',     icon:'🕐',               onClick: () => navigate('attendance') },
+      { label:'Weekly Reports', icon:'📄',
+        badge: REPORTS_DATA.filter(r => r.status === 'revision').length || null,
+        onClick: () => navigate('reports') },
+      { section:true, label:'Account' },
+      { label:'Sign Out', icon:'🚪',
+        onClick: () => { 
+          if (confirm('Sign out of CITAS?')) {
+            fetch('config/api.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'logout' }),
+            }).then(res => {
+              location.href = '/'; 
+            })
+          }
+        } 
+      },
+    ],
+    footer: Helpers.sidebarFooter(InternData.user.name, InternData.internships[0].position),
+  });
 
-const topbar = UI.navbar({
-  brand:     'CITAS Internship',            // system brand on navbar
-  brandIcon: '🎓',
-  sidebar,
-  pageTitle: 'Dashboard',
-  right: [
-    UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
-    (() => {
-      const av = UI.avatar(InternData.name, 'sm');
-      av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-      return av;
-    })(),
-  ],
-});
-document.getElementById('page-main').prepend(topbar.el);
+  topbar = UI.navbar({
+    brand:     'CITAS Internship',            // system brand on navbar
+    brandIcon: '🎓',
+    sidebar,
+    pageTitle: 'Dashboard',
+    right: [
+      UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
+      (() => {
+        const av = UI.avatar(InternData.user.name, 'sm');
+        av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+        return av;
+      })(),
+    ],
+  });
+  document.getElementById('page-main').prepend(topbar.el);
+}
+
 
 function navigate(name) {
   document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
@@ -1338,7 +1342,11 @@ async function boot() {
   try {
     // Fetch all data in parallel so nothing blocks
     const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
-      apiCall('getAllInternData'),
+      apiCall('getAllInternData').then (data => {
+        buildNavBar ()
+        console.log('Intern data loaded:', JSON.stringify(data, null, 2));
+        return data;
+      }),
       apiCall('getAnnouncements'),
       apiCall('getAttendanceLogs'),
       apiCall('getInternReports'),
@@ -1351,7 +1359,7 @@ async function boot() {
     REPORTS_DATA   = Array.isArray(reportsRes) ? reportsRes : [];
 
     // Build nav first — needs InternData + REPORTS_DATA for badge count
-    initNav();
+    
 
     // Build all sections — they read from now-populated globals
     Dashboard .build();
