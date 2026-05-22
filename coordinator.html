@@ -2091,22 +2091,29 @@ const Analytics = {
     });
   },
 
-  // ── Behind schedule table ──────────────────────────────────
+// ── Behind schedule table ──────────────────────────────────
   behindScheduleCard() {
-    const EXPECTED_PCT = 70; // By week 14, interns should be at least 25% complete (125h)
     const behind = INTERNS
-      .map(i => ({
-        ...i,
-        pct: Math.round(i.totalHours / 500 * 100),
-        gap: EXPECTED_PCT - Math.round(i.totalHours / 500 * 100),
-      }))
-      .filter(i => i.pct < EXPECTED_PCT )
-      .sort((a, b) => a.pct - b.pct);  // worst first
+      .map(i => {
+        const pct = Math.round(i.totalHours / 500 * 100);
+        // Use your dynamic helper function instead of a hardcoded 70%
+        const expectedPct = this.getExpectedPercentage(i); 
+        
+        return {
+          ...i,
+          pct: pct,
+          // Gap is now calculated against their personal expected percentage
+          gap: expectedPct - pct, 
+        };
+      })
+      // An intern is only behind if their actual completion % is less than their expected %
+      .filter(i => i.gap > 0) 
+      .sort((a, b) => b.gap - a.gap);  // Sort by who has the largest gap (worst first)
 
     if (!behind.length) {
       return UI.card({
         title: '✅ Schedule Status',
-        body: UI.empty('🎉', 'All interns are on schedule!', `Everyone is at or above the expected ${EXPECTED_PCT}% mark.`),
+        body: UI.empty('🎉', 'All interns are on schedule!', 'Everyone is meeting or exceeding their individual timeline goals.'),
       });
     }
 
@@ -2138,6 +2145,7 @@ const Analytics = {
       body: tbl,
     });
   },
+  
   getExpectedPercentage (intern) {
     const currrentDate = new Date();
     const startDate = new Date(intern.startDate);
