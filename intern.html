@@ -208,7 +208,7 @@ function buildNavBar () {
         } 
       },
     ],
-    footer: Helpers.sidebarFooter(InternData.user.name, InternData.internships[0].position),
+    footer: Helpers.sidebarFooter(InternData.user?.name, InternData.internships[0]?.position),
   });
 
   topbar = UI.navbar({
@@ -219,7 +219,7 @@ function buildNavBar () {
     right: [
       UI.badge('Intern', { base:'#FFF7ED', text:'#EA580C', border:'#FED7AA' }),
       (() => {
-        const av = UI.avatar(InternData.user.name, 'sm');
+        const av = UI.avatar(InternData.user?.name, 'sm');
         av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
         return av;
       })(),
