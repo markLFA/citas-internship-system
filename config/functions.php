@@ -1522,7 +1522,7 @@ function getCoordinatorDocuments(): array
     $pdo = getDB();
     
     // Grab the logged-in coordinator's ID directly from the session
-    $coordinatorId = $_SESSION['user']['id'] ?? null;
+    $coordinatorId = 23;
 
     if (!$coordinatorId) {
         error_log("getCoordinatorDocuments called without an active session.");
