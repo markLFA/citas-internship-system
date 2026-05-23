@@ -3,27 +3,22 @@
 //  register.php — Intern / Coordinator self-registration
 // ============================================================
 
-require_once __DIR__ . '/config/db.php';   // provides getDB()
+require_once __DIR__ . '/config/db.php';
 session_start();
 
-// Redirect if already logged in
 if (isset($_SESSION['user'])) {
     header('Location: index.php');
     exit;
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-/** Return the POST value trimmed, or '' if not set. */
 function post(string $key): string {
     return trim($_POST[$key] ?? '');
 }
 
-/** Map the form role value to the DB role enum. */
 function map_role(string $formRole): string {
     return match($formRole) {
         'intern'      => 'intern',
@@ -31,8 +26,6 @@ function map_role(string $formRole): string {
         default       => 'intern',
     };
 }
-
-// ── Validation ────────────────────────────────────────────────
 
 function validate(array $data): array {
     $errors = [];
@@ -55,7 +48,6 @@ function validate(array $data): array {
     elseif ($data['password'] !== $data['confirm_password'])
         $errors[] = 'Passwords do not match.';
 
-    // Extra fields required for interns
     if ($data['role'] === 'intern') {
         if (empty($data['course']))
             $errors[] = 'Course / Department is required for interns.';
@@ -64,7 +56,6 @@ function validate(array $data): array {
             $errors[] = 'Coordinator is required for interns.';
     }
 
-    // Terms and Conditions enforcement
     if (empty($data['terms'])) {
         $errors[] = 'You must read and agree to the Terms and Services to register.';
     }
@@ -72,13 +63,9 @@ function validate(array $data): array {
     return $errors;
 }
 
-// ── Registration logic ────────────────────────────────────────
-
 function create_user(array $data): int {
     $db   = getDB();
     $role = map_role($data['role']);
-
-    // Interns start inactive; coordinators are active immediately
     $active = 0;
     $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
 
@@ -144,8 +131,6 @@ function email_taken(string $email): bool {
     return (bool)$stmt->fetch();
 }
 
-// ── Handle POST ───────────────────────────────────────────────
-
 $errors  = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -186,12 +171,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $isIntern = map_role($data['role']) === 'intern';
             
-            // Set the confirmation flash message in the session
             $_SESSION['flash_success'] = $isIntern
                 ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
                 : 'Account created successfully! Please wait for Admin approval.';
 
-            // Redirect to index.php (Sign In page)
             header('Location: index.php');
             exit;
 
@@ -230,8 +213,7 @@ $coordinators = getCoordinators();
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      min-height: 100vh; font-family: 'DM Sans', sans-serif;
-      background: var(--o3);
+      min-height: 100vh; font-family: 'DM Sans', sans-serif; background: var(--o3);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 1.5rem 1rem 2rem; overflow-x: hidden; position: relative;
     }
@@ -240,10 +222,8 @@ $coordinators = getCoordinators();
     body::after  { width:400px;height:400px;bottom:-130px;left:-100px; background:radial-gradient(circle,rgba(255,100,0,.2) 0%,transparent 70%); }
 
     .banner {
-      width:100%; max-width:480px;
-      background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.2); border-radius:10px;
-      padding:.6rem 1rem; margin-bottom:1rem;
+      width:100%; max-width:480px; background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:.6rem 1rem; margin-bottom:1rem;
       display:flex; align-items:center; gap:.6rem;
     }
     .dot { width:8px;height:8px;border-radius:50%;background:#FCD34D;flex-shrink:0;box-shadow:0 0 6px #FCD34D;animation:blink 2s infinite; }
@@ -269,20 +249,14 @@ $coordinators = getCoordinators();
 
     .card-body { padding:1.75rem 2rem 2rem; }
 
-    .alert {
-      display:flex; align-items:flex-start; gap:.5rem;
-      border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem;
-      font-size:.83rem; font-weight:500;
-    }
+    .alert { display:flex; align-items:flex-start; gap:.5rem; border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem; font-size:.83rem; font-weight:500; }
     .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
     .alert li::before { content:'⚠ '; }
     .alert-error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
 
     .section-label {
-      font-size:.7rem; font-weight:700; text-transform:uppercase;
-      letter-spacing:.08em; color:var(--o2);
-      border-bottom:1px solid #FED7AA; padding-bottom:.4rem;
-      margin:1.1rem 0 .85rem;
+      font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--o2);
+      border-bottom:1px solid #FED7AA; padding-bottom:.4rem; margin:1.1rem 0 .85rem;
     }
     .section-label:first-child { margin-top:0; }
 
@@ -293,37 +267,31 @@ $coordinators = getCoordinators();
     .hint  { font-size:.72rem;color:var(--text-muted);margin-top:.3rem; }
 
     .inp-wrap { position:relative; }
-    .inp-icon { position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4; }
+    .inp-icon { position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4; z-index:2; }
     
-    /* Show Password Icon Button */
     .toggle-pass {
       position: absolute; right: .85rem; top: 50%; transform: translateY(-50%);
-      background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5;
-      transition: opacity 0.15s; z-index: 5;
+      background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; margin: 0; opacity: 0.4; transition: opacity 0.15s; z-index: 5;
     }
-    .toggle-pass:hover { opacity: 0.9; }
+    .toggle-pass:hover { opacity: 0.8; }
+    .toggle-pass svg { width: 18px; height: 18px; fill: #6B3A1F; }
 
-    input[type="text"], input[type="email"],
-    input[type="password"], input[type="tel"],
-    select {
-      display:block; width:100%;
-      padding:.68rem .85rem .68rem 2.4rem;
-      font-size:.875rem; font-family:'DM Sans',sans-serif;
-      color:var(--text-dark); background:var(--pale);
-      border:1.5px solid #FED7AA; border-radius:10px; outline:none;
-      transition:border-color .15s,box-shadow .15s,background .15s;
+    /* FIX: Standardized generalized input wrappers to eliminate layout breakages */
+    .inp-wrap input, select {
+      display:block; width:100%; padding:.68rem .85rem .68rem 2.4rem;
+      font-size:.875rem; font-family:'DM Sans',sans-serif; color:var(--text-dark); background:var(--pale);
+      border:1.5px solid #FED7AA; border-radius:10px; outline:none; transition:border-color .15s,box-shadow .15s,background .15s;
       -webkit-appearance:none;
     }
-    input[type="password"] { padding-right: 2.5rem; } /* padded right for the view icon */
+    .inp-wrap input { padding-right: 2.5rem; }
     select { padding-left:.85rem; }
-    input::placeholder { color:#C4845A;opacity:.7; }
+    input::placeholder { color:#C4845A;opacity:#.7; }
     input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
     input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
     .terms-field { display: flex; align-items: flex-start; gap: .6rem; margin: 1.25rem 0 .5rem; }
-    .terms-field input[type="checkbox"] {
-      accent-color: var(--o2); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0;
-    }
+    .terms-field input[type="checkbox"] { accent-color: var(--o2); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0; }
     .terms-field label { font-size: .8rem; font-weight: 500; color: var(--text-dark); cursor: pointer; line-height: 1.4; }
     .terms-field a { color: var(--o2); font-weight: 600; text-decoration: none; }
     .terms-field a:hover { text-decoration: underline; }
@@ -332,13 +300,9 @@ $coordinators = getCoordinators();
     @media(max-width:480px){ .field-row{grid-template-columns:1fr;} }
 
     .btn-submit {
-      display:flex;align-items:center;justify-content:center;gap:.5rem;
-      width:100%;padding:.8rem;margin-top:1.4rem;
-      background:linear-gradient(135deg,var(--o1) 0%,var(--o2) 100%);
-      color:#fff;font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
-      border:none;border-radius:10px;cursor:pointer;
-      box-shadow:0 4px 14px rgba(234,88,12,.4);
-      transition:filter .15s,transform .12s;
+      display:flex;align-items:center;justify-content:center;gap:.5rem; width:100%;padding:.8rem;margin-top:1.4rem;
+      background:linear-gradient(135deg,var(--o1) 0%,var(--o2) 100%); color:#fff;font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
+      border:none;border-radius:10px;cursor:pointer; box-shadow:0 4px 14px rgba(234,88,12,.4); transition:filter .15s,transform .12s;
     }
     .btn-submit:hover  { filter:brightness(1.08);transform:translateY(-1px); }
     .btn-submit:active { transform:none; }
@@ -351,11 +315,7 @@ $coordinators = getCoordinators();
     .page-foot p { font-size:.73rem;color:rgba(255,255,255,.5);line-height:1.9; }
     .page-foot strong { color:rgba(255,255,255,.75); }
 
-    .role-info {
-      background:var(--pale); border:1px solid #FED7AA; border-radius:8px;
-      padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid);
-      margin-top:.5rem; display:none;
-    }
+    .role-info { background:var(--pale); border:1px solid #FED7AA; border-radius:8px; padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid); margin-top:.5rem; display:none; }
   </style>
 </head>
 <body>
@@ -367,7 +327,7 @@ $coordinators = getCoordinators();
     <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
   </p>
 </div>
--->
+  -->
 
 <div class="card">
 
@@ -403,9 +363,7 @@ $coordinators = getCoordinators();
         <label for="name">Full Name</label>
         <div class="inp-wrap">
           <span class="inp-icon">👤</span>
-          <input type="text" id="name" name="name"
-            placeholder="e.g. Juan dela Cruz"
-            value="<?= h(post('name')) ?>" required>
+          <input type="text" id="name" name="name" placeholder="e.g. Juan dela Cruz" value="<?= h(post('name')) ?>" required>
         </div>
       </div>
 
@@ -413,9 +371,7 @@ $coordinators = getCoordinators();
         <label for="email">School Email Address</label>
         <div class="inp-wrap">
           <span class="inp-icon">✉️</span>
-          <input type="email" id="email" name="email"
-            placeholder="you@samar.edu.ph"
-            value="<?= h(post('email')) ?>" required autocomplete="email">
+          <input type="email" id="email" name="email" placeholder="you@samar.edu.ph" value="<?= h(post('email')) ?>" required autocomplete="email">
         </div>
         <div class="hint">Use your official school email if applicable.</div>
       </div>
@@ -430,12 +386,8 @@ $coordinators = getCoordinators();
           <option value="coordinator" <?= post('role')==='coordinator' ? 'selected' : '' ?>>🗂 Internship Coordinator</option>
         </select>
 
-        <div class="role-info" id="info-intern">
-          ⏳ Intern accounts require coordinator approval before you can log in.
-        </div>
-        <div class="role-info" id="info-coordinator">
-          ⏳ Coordinator accounts will be activated after Admin approval.
-        </div>
+        <div class="role-info" id="info-intern">⏳ Intern accounts require coordinator approval before you can log in.</div>
+        <div class="role-info" id="info-coordinator">⏳ Coordinator accounts will be activated after Admin approval.</div>
       </div>
 
       <div id="intern-fields">
@@ -500,7 +452,9 @@ $coordinators = getCoordinators();
           <div class="inp-wrap">
             <span class="inp-icon">🔒</span>
             <input type="password" id="password" name="password" placeholder="Min. 6 characters" required autocomplete="new-password">
-            <button type="button" class="toggle-pass" data-target="password">👁️</button>
+            <button type="button" class="toggle-pass" data-target="password" aria-label="Toggle visibility">
+              <svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </button>
           </div>
           <div class="hint">Minimum 6 characters.</div>
         </div>
@@ -509,7 +463,9 @@ $coordinators = getCoordinators();
           <div class="inp-wrap">
             <span class="inp-icon">🔑</span>
             <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat password" required autocomplete="new-password">
-            <button type="button" class="toggle-pass" data-target="confirm_password">👁️</button>
+            <button type="button" class="toggle-pass" data-target="confirm_password" aria-label="Toggle visibility">
+              <svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -563,17 +519,16 @@ function updateRoleUI() {
 roleSelect.addEventListener('change', updateRoleUI);
 updateRoleUI();
 
-// Toggle Password Visibility Functional Implementation
 document.querySelectorAll('.toggle-pass').forEach(btn => {
   btn.addEventListener('click', function() {
     const targetId = this.getAttribute('data-target');
     const input = document.getElementById(targetId);
     if (input.type === 'password') {
       input.type = 'text';
-      this.textContent = '🙈';
+      this.innerHTML = '<svg class="eye-closed" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.82l2.92 2.92c1.51-1.26 2.7-2.89 3.44-4.74-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
     } else {
       input.type = 'password';
-      this.textContent = '👁️';
+      this.innerHTML = '<svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
     }
   });
 });

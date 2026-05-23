@@ -77,10 +77,9 @@ $errors    = [];
 $old_email = '';
 $Alert     = '';
 
-// Capture redirected registration confirmation message
 if (!empty($_SESSION['flash_success'])) {
     $Alert = $_SESSION['flash_success'];
-    unset($_SESSION['flash_success']); // Clear instantly so it only shows once
+    unset($_SESSION['flash_success']);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -166,26 +165,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     label  { display: block; font-size: .8rem; font-weight: 600; color: #6B3A1F; margin-bottom: .4rem; }
 
     .inp-wrap { position: relative; }
-    .inp-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); font-size: 1rem; pointer-events: none; opacity: .4; }
+    .inp-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); font-size: 1rem; pointer-events: none; opacity: .4; z-index: 2; }
     
-    /* Show Password Style */
     .toggle-pass {
       position: absolute; right: .85rem; top: 50%; transform: translateY(-50%);
-      background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5;
-      transition: opacity 0.15s; z-index: 5;
+      background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; margin: 0; opacity: 0.4; transition: opacity 0.15s; z-index: 5;
     }
-    .toggle-pass:hover { opacity: 0.9; }
+    .toggle-pass:hover { opacity: 0.8; }
+    .toggle-pass svg { width: 20px; height: 20px; fill: #6B3A1F; }
 
-    input[type="email"], input[type="password"] {
-      display: block; width: 100%; padding: .7rem .85rem .7rem 2.5rem;
+    /* FIX: Targeted styling by tag and wrapper properties so structural layouts don't crash when types transform */
+    .inp-wrap input {
+      display: block; width: 100%; padding: .7rem 2.5rem .7rem 2.5rem;
       font-size: .9rem; font-family: 'DM Sans',sans-serif; color: #1A0A00; background: var(--pale);
       border: 1.5px solid #FED7AA; border-radius: 10px; outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
     }
-    input[type="password"] { padding-right: 2.5rem; }
-    input::placeholder { color: #C4845A; opacity: .7; }
-    input:focus        { border-color: var(--o2); background: #fff; box-shadow: 0 0 0 3px var(--ring); }
-    input.err          { border-color: #EF4444; background: #FEF2F2; }
-    input.err:focus    { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+    .inp-wrap input::placeholder { color: #C4845A; opacity: .7; }
+    .inp-wrap input:focus        { border-color: var(--o2); background: #fff; box-shadow: 0 0 0 3px var(--ring); }
+    .inp-wrap input.err          { border-color: #EF4444; background: #FEF2F2; }
+    .inp-wrap input.err:focus    { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
 
     .btn-submit {
       display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; padding: .8rem; margin-top: 1.5rem;
@@ -221,9 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
   </p>
 </div>
--->
-
-
+  -->
 
 <div class="card">
 
@@ -283,7 +280,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             class="<?= !empty($errors) ? 'err' : '' ?>"
             autocomplete="current-password"
             required>
-          <button type="button" class="toggle-pass" data-target="password">👁️</button>
+          <button type="button" class="toggle-pass" data-target="password" aria-label="Toggle password visibility">
+            <svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          </button>
         </div>
       </div>
 
@@ -307,17 +306,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
-// Toggle Password Visibility Functional Implementation
+// Toggle Password Visibility Functional Implementation with SVG swapping
 document.querySelectorAll('.toggle-pass').forEach(btn => {
   btn.addEventListener('click', function() {
     const targetId = this.getAttribute('data-target');
     const input = document.getElementById(targetId);
     if (input.type === 'password') {
       input.type = 'text';
-      this.textContent = '🙈';
+      this.innerHTML = '<svg class="eye-closed" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.82l2.92 2.92c1.51-1.26 2.7-2.89 3.44-4.74-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
     } else {
       input.type = 'password';
-      this.textContent = '👁️';
+      this.innerHTML = '<svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
     }
   });
 });
