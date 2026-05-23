@@ -196,6 +196,29 @@ switch ($action) {
             echo json_encode(uploadInternDocument($internId, $type, $file, $notes, $coordinatorId));
         }
         break;
+    case 'getCoordinatorDocuments':
+        if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
+            echo json_encode(['error' => 'Unauthorized access']); break;
+        }
+        $coordinatorId = $_SESSION['user']['id'] ?? null;
+        echo json_encode($coordinatorId ? getCoordinatorDocuments($coordinatorId) : []);
+        break;
+
+    case 'reviewInternDocument':
+        if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
+            echo json_encode(['error' => 'Unauthorized access']); break;
+        }
+        $coordinatorId = $_SESSION['user']['id'] ?? null;
+        $docId         = (int)($data['docId'] ?? 0);
+        $status        = $data['status'] ?? '';
+        $feedback      = $data['feedback'] ?? '';
+
+        if (!$docId || empty($status) || !$coordinatorId) {
+            echo json_encode(['success' => false, 'message' => 'Missing tracking parameters.']);
+        } else {
+            echo json_encode(reviewInternDocument($docId, $status, $feedback, $coordinatorId));
+        }
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"

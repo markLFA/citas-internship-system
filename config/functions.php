@@ -1510,3 +1510,65 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
         return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
     }
 }
+/**
+ * Retrieves all files submitted by interns assigned to a specific coordinator.
+ */
+function getCoordinatorDocuments(int $coordinatorId): array
+{
+    $pdo = getDB();
+    $sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
+                   p.department AS dept, d.document_type AS type, 
+                   d.file_path, d.file_name AS file, d.status, 
+                   IFNULL(d.feedback, '') AS feedback,
+                   DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
+            FROM intern_documents d
+            JOIN users u ON d.intern_id = u.id
+            LEFT JOIN intern_profiles p ON d.intern_id = p.user_id
+            WHERE d.coordinator_id = :coordinator_id
+            ORDER BY d.id DESC";
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':coordinator_id' => $coordinatorId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException $e) {
+        error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Updates review metrics, status changes, and notes on an intern's checklist submission.
+ */
+function reviewInternDocument(int $docId, string $status, string $feedback, int $coordinatorId): array
+{
+    $pdo = getDB();
+    $allowed = ['pending', 'approved', 'rejected'];
+    if (!in_array($status, $allowed)) {
+        return ['success' => false, 'message' => 'Invalid status option provided.'];
+    }
+
+    $sql = "UPDATE intern_documents 
+            SET status = :status, 
+                feedback = :feedback, 
+                reviewed_at = NOW() 
+            WHERE id = :id AND coordinator_id = :coordinator_id";
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $result = $stmt->execute([
+            ':status'         => $status,
+            ':feedback'       => empty($feedback) ? null : $feedback,
+            ':id'             => $docId,
+            ':coordinator_id' => $coordinatorId
+        ]);
+
+        if ($result && $stmt->rowCount() > 0) {
+            return ['success' => true, 'message' => 'Review updated successfully!'];
+        }
+        return ['success' => false, 'message' => 'No modifications made or record authorization failure.'];
+    } catch (PDOException $e) {
+        error_log("Database error in reviewInternDocument: " . $e->getMessage());
+        return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
+    }
+}

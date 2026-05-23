@@ -2230,17 +2230,8 @@ const Analytics = {
 // ─────────────────────────────────────────────────────────────
 const CoordinatorDocuments = {
 
-  // Stub data — replace with API call when backend is ready
-  _docs: [
-    { id:1,  internId:1,  internName:'Juan dela Cruz',   dept:'BSIT', type:'TOR',                    file:'tor_juan.pdf',        status:'pending',  submitted:'May 2, 2026',  feedback:'' },
-    { id:2,  internId:1,  internName:'Juan dela Cruz',   dept:'BSIT', type:'Certificate of Completion',file:'cert_juan.pdf',      status:'approved', submitted:'May 2, 2026',  feedback:'Looks good.' },
-    { id:3,  internId:2,  internName:'Maria Reyes',      dept:'BSCS', type:'Endorsement Letter',      file:'endorse_maria.pdf',   status:'pending',  submitted:'May 3, 2026',  feedback:'' },
-    { id:4,  internId:2,  internName:'Maria Reyes',      dept:'BSCS', type:'Final Report',             file:'final_maria.pdf',     status:'rejected', submitted:'May 3, 2026',  feedback:'Incomplete content.' },
-    { id:5,  internId:3,  internName:'Pedro Santos',     dept:'BSIT', type:'TOR',                    file:'tor_pedro.pdf',        status:'approved', submitted:'May 4, 2026',  feedback:'' },
-    { id:6,  internId:4,  internName:'Ana Villanueva',   dept:'BSBA', type:'Certificate of Completion',file:'cert_ana.pdf',       status:'pending',  submitted:'May 5, 2026',  feedback:'' },
-    { id:7,  internId:5,  internName:'Carlo Mendoza',    dept:'BSCS', type:'Waiver / MOA',             file:'moa_carlo.pdf',       status:'pending',  submitted:'May 6, 2026',  feedback:'' },
-    { id:8,  internId:6,  internName:'Liza Fernandez',   dept:'BSBA', type:'Final Report',             file:'final_liza.pdf',      status:'approved', submitted:'May 6, 2026',  feedback:'Well done.' },
-  ],
+  // Live state tracking cache array
+  _docs: [],
 
   _filterStatus: '',
   _filterIntern: '',
@@ -2255,13 +2246,21 @@ const CoordinatorDocuments = {
       'Review end-of-internship documents submitted by interns'
     ));
 
-    sec.appendChild(this._summaryStrip());
-    sec.appendChild(this._filterBar());
+    // Dynamic database network integration point
+    Helpers.api('getCoordinatorDocuments').then(data => {
+      this._docs = data || [];
 
-    const listWrap = document.createElement('div');
-    listWrap.id = 'cdoc-list-wrap';
-    sec.appendChild(listWrap);
-    this._renderList();
+      sec.appendChild(this._summaryStrip());
+      sec.appendChild(this._filterBar());
+
+      const listWrap = document.createElement('div');
+      listWrap.id = 'cdoc-list-wrap';
+      sec.appendChild(listWrap);
+      this._renderList();
+    }).catch(err => {
+      console.error(err);
+      UI.toast('Failed to sync documents from server database profile.', 'danger');
+    });
   },
 
   _summaryStrip() {
@@ -2359,7 +2358,7 @@ const CoordinatorDocuments = {
     // Group by intern
     const grouped = {};
     list.forEach(d => {
-      if (!grouped[d.internId]) grouped[d.internId] = { name: d.internName, dept: d.dept, docs: [] };
+      if (!grouped[d.internId]) grouped[d.internId] = { name: d.internName, dept: d.dept || 'General', docs: [] };
       grouped[d.internId].docs.push(d);
     });
 
@@ -2367,7 +2366,6 @@ const CoordinatorDocuments = {
     const slLbl = { pending:'⏳ Pending',  approved:'✅ Approved',  rejected:'✗ Rejected'  };
 
     Object.values(grouped).forEach(group => {
-      // Per-intern card
       const pendingCount = group.docs.filter(d => d.status === 'pending').length;
 
       const headerActions = document.createElement('div');
@@ -2383,7 +2381,6 @@ const CoordinatorDocuments = {
         const row = document.createElement('div');
         row.className = 'doc-row';
 
-        // Icon based on type
         const icons = {
           'TOR': '🎓', 'Certificate of Completion': '🏅',
           'Endorsement Letter': '📨', 'Final Report': '📋',
@@ -2398,7 +2395,7 @@ const CoordinatorDocuments = {
         info.innerHTML = `
           <div class="doc-row-name">${doc.type}</div>
           <div class="doc-row-meta">
-            <a href="#" style="color:#EA580C;text-decoration:none;font-size:.74rem">📄 ${doc.file}</a>
+            <a href="uploads/${doc.file_path}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
             <span style="margin:0 .35rem;opacity:.4">·</span>
             Submitted ${doc.submitted}
             ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1">💬 Has feedback</span>` : ''}
@@ -2450,35 +2447,34 @@ const CoordinatorDocuments = {
     };
 
     let selectedStatus = doc.status;
-
     const body = document.createElement('div');
 
-    // Header
     const hdr = document.createElement('div');
     hdr.style.cssText = 'display:flex;align-items:center;gap:.85rem;margin-bottom:1.25rem;padding-bottom:1.1rem;border-bottom:1px solid #FED7AA';
     const iconCircle = document.createElement('div');
     iconCircle.style.cssText = 'width:48px;height:48px;border-radius:12px;background:#FFF7ED;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0';
     iconCircle.textContent   = icons[doc.type] || '📎';
+    
     const hdrInfo = document.createElement('div');
     hdrInfo.style.flex = '1';
     hdrInfo.innerHTML  = `
       <div style="font-family:Sora,sans-serif;font-size:1rem;font-weight:800;color:#1A0A00">${doc.type}</div>
-      <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${doc.internName} · ${doc.dept}</div>
+      <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${doc.internName} · ${doc.dept || 'General'}</div>
       <div style="font-size:.78rem;color:#9A6647">Submitted: ${doc.submitted}</div>`;
+    
     const statusBadge = document.createElement('span');
     statusBadge.className   = 'cui-badge ' + (slCls[doc.status] || 'ds-pending');
     statusBadge.textContent = slLbl[doc.status] || doc.status;
     hdr.append(iconCircle, hdrInfo, statusBadge);
     body.appendChild(hdr);
 
-    // File link
     const fileLink = document.createElement('a');
-    fileLink.href   = '#';
+    fileLink.href   = `uploads/${doc.file_path}`;
+    fileLink.target = '_blank';
     fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem;margin-bottom:1.25rem';
     fileLink.innerHTML = `📄 ${doc.file} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open ↗</span>`;
     body.appendChild(fileLink);
 
-    // Status selector
     const statusLbl = document.createElement('div');
     statusLbl.style.cssText = 'font-size:.78rem;font-weight:700;color:#6B3A1F;margin-bottom:.55rem';
     statusLbl.textContent   = 'Set Status';
@@ -2506,7 +2502,6 @@ const CoordinatorDocuments = {
     });
     body.appendChild(btnRow);
 
-    // Feedback textarea
     body.appendChild(UI.formGroup('Feedback / Notes (optional)',
       UI.textarea({ id:'cdoc-feedback', value: doc.feedback, placeholder:'Write your comments for this document…', rows:3 })
     ));
@@ -2519,11 +2514,25 @@ const CoordinatorDocuments = {
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         Helpers.orangeBtn('Save Review', () => {
           const fb = document.getElementById('cdoc-feedback')?.value.trim() ?? '';
-          doc.status   = selectedStatus;
-          doc.feedback = fb;
-          this._renderList();
-          m.close();
-          UI.toast('Review saved!', 'success');
+          
+          Helpers.api('reviewInternDocument', {
+            docId: doc.id,
+            status: selectedStatus,
+            feedback: fb
+          }).then(res => {
+            if (res.success) {
+              doc.status   = selectedStatus;
+              doc.feedback = fb;
+              m.close();
+              this.build(); // Triggers re-sync and UI build
+              UI.toast('Review saved and synced successfully!', 'success');
+            } else {
+              UI.toast(res.message || 'Failed to save review changes.', 'danger');
+            }
+          }).catch(err => {
+            console.error(err);
+            UI.toast('API connection error saving review metrics.', 'danger');
+          });
         }),
       ],
     });
@@ -2533,12 +2542,25 @@ const CoordinatorDocuments = {
   _quickAction(doc, status) {
     const label = status === 'approved' ? 'approve' : 'reject';
     if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} "${doc.type}" from ${doc.internName}?`)) return;
-    doc.status = status;
-    this._renderList();
-    UI.toast(status === 'approved' ? `✅ Approved.` : `Document rejected.`, status === 'approved' ? 'success' : 'danger');
+
+    Helpers.api('reviewInternDocument', {
+      docId: doc.id,
+      status: status,
+      feedback: doc.feedback || ''
+    }).then(res => {
+      if (res.success) {
+        doc.status = status;
+        this.build(); // Rebuild metrics counters synchronously
+        UI.toast(status === 'approved' ? `✅ Approved.` : `Document rejected.`, status === 'approved' ? 'success' : 'danger');
+      } else {
+        UI.toast(res.message || 'Operation failed.', 'danger');
+      }
+    }).catch(err => {
+      console.error(err);
+      UI.toast('Server connection profile execution timeout error.', 'danger');
+    });
   },
 };
-
 
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
