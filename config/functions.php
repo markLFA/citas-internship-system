@@ -1414,10 +1414,10 @@ function getInternDocuments(int $internId): array
 
 /**
  * Handles the multi-part payload uploading for intern documents,
- * saving files securely and managing resubmissions cleanly.
+ * saving files securely to Hostinger's root and managing resubmissions cleanly.
  *
  * @param int $internId The database ID of the active intern.
- * @param string $type The document type designation name.
+ * @param string $type The document type designation name (e.g., 'TOR').
  * @param array $fileMeta The native PHP $_FILES metadata subarray structure.
  * @param string $notes Optional comment/description text provided by the intern.
  * @return array A response array indicating transaction status.
@@ -1437,13 +1437,19 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 
     // 2. File size validation check (10MB Limit)
     if ($fileMeta['size'] > 10 * 1024 * 1024) { 
-        return ['success' => false, 'message' => 'File exceeds maximum 10 megabyte ceiling boundary.'];
+        return ['success' => false, 'message' => 'File exceeds maximum 10 megabyte boundary limit.'];
     }
 
-    // 3. Setup local directory destination storage paths
-    $uploadDir = __DIR__ . '/../public_html/uploads/';
+    // 3. Setup absolute directory destination storage paths using Hostinger server mappings
+    $publicHtmlDir = $_SERVER['DOCUMENT_ROOT']; 
+    $uploadDir = rtrim($publicHtmlDir, '/') . '/uploads/';
+
     if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+        // Create the folder with 0755 permissions so it is web-accessible
+        if (!mkdir($uploadDir, 0755, true)) {
+            error_log("Failed to create uploads directory at: " . $uploadDir);
+            return ['success' => false, 'message' => 'Server failed to initialize storage directory folder.'];
+        }
     }
 
     // Generate a unique tokenized file name to prevent accidental overwrites
@@ -1452,7 +1458,8 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 
     // Move file from temporary directory to public storage path
     if (!move_uploaded_file($fileMeta['tmp_name'], $targetPath)) {
-        return ['success' => false, 'message' => 'Failed to write object data files to the server path directory.'];
+        error_log("File upload failed to write to target path: " . $targetPath);
+        return ['success' => false, 'message' => 'Failed to write files. Check your folder permissions on Hostinger.'];
     }
 
     try {
