@@ -788,11 +788,14 @@ const Profile = {
       placeholder: 'Supervisor name'
     });
 
-    this.supervisorNumberField = UI.input({
-      id: 'supervisorNumberField',
-      placeholder: 'Supervisor Phone Number'
+    this.companyPhoneNumber = UI.input({
+      id: 'companyPhoneNumber',
+      placeholder: 'Phone Number'
     });
-
+    this.companyEmail = UI.input({
+      id: 'companyEmail',
+      placeholder: 'Email Address'
+    });
     this.startDateField = UI.input({
       id: 'startDateField',
       type: 'date'
@@ -807,7 +810,8 @@ const Profile = {
     body.appendChild(UI.formGroup('Department', this.positionField));
     body.appendChild(UI.formGroup('Address', this.addressField));
     body.appendChild(UI.formGroup('Supervisor', this.supervisorField));
-    body.appendChild(UI.formGroup('Supervisor Number', this.supervisorNumberField));
+    body.appendChild(UI.formGroup('Supervisor Number', this.companyPhoneNumber));
+    body.appendChild(UI.formGroup('Company Email', this.companyEmail));
 
     const r2 = twoCol();
     r2.appendChild(UI.formGroup('Start Date', this.startDateField));
@@ -851,7 +855,8 @@ const Profile = {
     this.positionField.value = this.internship?.position || '';
     this.addressField.value = this.company?.address || '';
     this.supervisorField.value = this.internship?.supervisor || '';
-    this.supervisorNumberField.value = this.internship?.supervisor_phone || '';
+    this.companyPhoneNumber.value = this.internship?.supervisor_phone || '';
+    this.companyEmail.value = this.company?.email || '';
     this.startDateField.value = this.internship?.start_date || '';
     this.endDateField.value = this.internship?.end_date || '';
   },
@@ -874,10 +879,13 @@ const Profile = {
         position: document.getElementById('positionField').value.trim(),
         address: document.getElementById('addressField').value.trim(),
         supervisor: document.getElementById('supervisorField').value.trim(),
-        supervisor_phone: document.getElementById('supervisorNumberField').value.trim(),
+        supervisor_phone: document.getElementById('companyPhoneNumber').value.trim(),
         start_date: document.getElementById('startDateField').value || null,
         end_date: document.getElementById('endDateField').value || null,
-      }
+      },
+      company: {
+        email: document.getElementById('companyEmail').value.trim(),
+       }
     };
 
     try {
