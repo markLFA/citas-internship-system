@@ -2062,6 +2062,7 @@ async function boot() {
     Attendance.build();
     Reports   .build();
     InternDocuments.build();
+    console.log('Current page:', currPageRes);
     navigate(currPageRes.currentPage || 'dashboard');
 
   } catch (err) {
