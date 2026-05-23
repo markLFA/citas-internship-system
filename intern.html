@@ -228,6 +228,14 @@ const Helpers = {
     el.innerHTML = '';
     el.appendChild(buildFn());
   },
+  async api(action, extra = {}) {
+    const res  = await fetch('config/api.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action, ...extra }),
+    });
+    return res.json();
+  },
 };
 let sidebar;
 let topbar;
@@ -278,6 +286,7 @@ function buildNavBar () {
     ],
   });
   document.getElementById('page-main').prepend(topbar.el);
+
 }
 
 
@@ -287,6 +296,10 @@ function navigate(name) {
   sidebar.setActive(SECTIONS[name]);
   const center = document.querySelector('.cui-navbar-center');
   if (center) center.textContent = SECTIONS[name];
+  Helpers.api('', {
+    action: 'setCurrentPage',
+    page: name
+  });
 }
 
 
