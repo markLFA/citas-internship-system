@@ -135,7 +135,7 @@ loadProfile();
 /**
  * @typedef {Object} InternData
  * @property {{id:number,name:string,email:string}} user
- * @property {{course:string,year_level:string,phone:string,required_hours:number,joined_date:string}|null} profile
+ * @property {{course:string,year_level:string,phone:string,required_hours:number,joined_date:string,coordinator_id:number}|null} profile
  * @property {Internship[]} internships
  */
 
@@ -1582,6 +1582,7 @@ const Reports = {
     form.append('week_label',  weekLabel);
     form.append('week_start',  weekStart);
     form.append('description', desc);
+    form.append('coordinator_id', this.profile?.id);
     Array.from(fileInput.files).forEach(f => form.append('files[]', f));
 
     // Disable submit button and show loading state

@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $weekLabel   = trim($_POST['week_label']  ?? '');
 $weekStart   = trim($_POST['week_start']  ?? '');
 $description = trim($_POST['description'] ?? '');
+$coordinatorId = isset($_POST['coordinator_id']) : null;
 
 if ($weekLabel === '') {
     echo json_encode(['error' => 'Week label is required.']);
@@ -140,14 +141,15 @@ try {
     // Insert weekly_reports row
     $stmt = $pdo->prepare("
         INSERT INTO weekly_reports
-            (intern_id, week_label, week_start, description, status)
-        VALUES (?, ?, ?, ?, 'pending')
+            (intern_id, week_label, week_start, description, status, coordinator_id)
+        VALUES (?, ?, ?, ?, 'pending', ?)
     ");
     $stmt->execute([
         $userId,
         $weekLabel,
         $weekStart,
         $description !== '' ? $description : null,
+        $coordinatorId,
     ]);
 
     $reportId   = (int) $pdo->lastInsertId();
