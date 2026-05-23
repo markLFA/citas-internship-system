@@ -1522,27 +1522,27 @@ function getCoordinatorDocuments(): array
     $pdo = getDB();
     
     // Grab the logged-in coordinator's ID directly from the session
-    $coordinatorId = 23;
+    $coordinatorId = $_SESSION['user']['id'] ?? null;
 
     if (!$coordinatorId) {
         error_log("getCoordinatorDocuments called without an active session.");
         return [];
     }
 
-    $sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
-                   p.department AS dept, d.document_type AS type, 
-                   d.file_path, d.file_name AS file, d.status, 
-                   IFNULL(d.feedback, '') AS feedback,
-                   DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_documents d
-            JOIN users u ON d.intern_id = u.id
-            LEFT JOIN intern_profiles p ON d.intern_id = p.user_id
-            WHERE d.coordinator_id = ?
-            ORDER BY d.id DESC";
+$sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
+               p.course AS dept, d.document_type AS type, 
+               d.file_path, d.file_name AS file, d.status, 
+               IFNULL(d.feedback, '') AS feedback,
+               DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
+        FROM intern_documents d
+        JOIN users u ON d.intern_id = u.id
+        LEFT JOIN intern_profiles p ON d.intern_id = p.user_id
+        WHERE d.coordinator_id = :coordinator_id
+        ORDER BY d.id DESC";
 
     try {
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$coordinatorId]);
+        $stmt->execute([':coordinator_id' => $coordinatorId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (PDOException $e) {
         error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
