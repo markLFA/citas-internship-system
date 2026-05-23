@@ -1619,13 +1619,18 @@ const Reports = {
 
     Helpers.api('getCoordinatorReports').then(data => {
       console.log('Reports data:', JSON.stringify(data, null, 2));
-      REPORTS = data;
+      
+      // Adapt properties to align with template placeholders safely
+      REPORTS = data.map(r => ({
+        ...r,
+        internName: r.internName || `Intern #${r.intern_id}`, // Fallback if name isn't joined yet
+        dept: r.dept || 'N/A'                                 // Fallback if department isn't joined yet
+      }));
+
       sec.appendChild( this.statusTabs()     );
       sec.appendChild( this.tableContainer() );
       this.renderTable();
     });
-
-
   },
 
   // Status filter pill tabs
@@ -1703,10 +1708,16 @@ const Reports = {
           cell.append(Helpers.internAvatar(v), info);
           return cell;
         }},
-      { key:'week',   label:'Week',     render: v => `<span style="font-size:.82rem">${v}</span>` },
-      { key:'file',   label:'File',
-        render: v => `<a href="#" style="color:#EA580C;font-size:.8rem;text-decoration:none">📄 ${v}</a>` },
-      { key:'date',   label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
+      { key:'week_label',   label:'Week',     render: v => `<span style="font-size:.82rem; text-transform: capitalize;">${v}</span>` },
+      { key:'files',   label:'Files',
+        render: files => {
+          if (!files || files.length === 0) return `<span style="font-size:.8rem;color:#999;font-style:italic">No files</span>`;
+          // Renders links sequentially if there are multiple files
+          return files.map(f => 
+            `<a href="/uploads/${f.file_path}" target="_blank" style="display:block;color:#EA580C;font-size:.8rem;text-decoration:none;margin-bottom:.2rem" title="${f.file_name}">📄 ${f.file_name}</a>`
+          ).join('');
+        }},
+      { key:'uploaded_at',   label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
       { key:'status', label:'Status', align:'center',
         render: v => {
           const b = document.createElement('span');
@@ -1742,8 +1753,8 @@ const Reports = {
     hdr.innerHTML = `
       <div style="flex:1">
         <div style="font-family:Sora,sans-serif;font-weight:800;color:#1A0A00;font-size:1rem">${report.internName}</div>
-        <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${report.week} · ${report.dept}</div>
-        <div style="font-size:.8rem;color:#9A6647">Submitted: ${report.date}</div>
+        <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem;text-transform: capitalize;">${report.week_label} · ${report.dept}</div>
+        <div style="font-size:.8rem;color:#9A6647">Submitted: ${report.uploaded_at}</div>
       </div>`;
     const badge = document.createElement('span');
     badge.className   = 'cui-badge ' + sl[report.status];
@@ -1751,12 +1762,23 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-    // File link
-    const fileLink = document.createElement('a');
-    fileLink.href   = '#';
-    fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem;margin-bottom:1.25rem';
-    fileLink.innerHTML = `📄 ${report.file} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
-    body.appendChild(fileLink);
+    // File container (handles single or multiple file attachments)
+    const filesWrap = document.createElement('div');
+    filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
+    
+    if (report.files && report.files.length > 0) {
+      report.files.forEach(f => {
+        const fileLink = document.createElement('a');
+        fileLink.href   = `/uploads/${f.file_path}`;
+        fileLink.target = '_blank';
+        fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
+        fileLink.innerHTML = `📄 ${f.file_name} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
+        filesWrap.appendChild(fileLink);
+      });
+    } else {
+      filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
+    }
+    body.appendChild(filesWrap);
 
     // Status selector buttons
     const statusLabel = document.createElement('div');
@@ -1803,7 +1825,7 @@ const Reports = {
     body.appendChild(UI.formGroup('Feedback for Intern (optional)',
       UI.textarea({
         id:          'review-feedback',
-        value:       report.feedback,
+        value:       report.feedback || '',
         placeholder: 'Write your comments or suggestions…',
         rows:        3,
       })
@@ -1828,7 +1850,6 @@ const Reports = {
     m.open();
   },
 };
-
 
 // ─────────────────────────────────────────────────────────────
 //  ANALYTICS
