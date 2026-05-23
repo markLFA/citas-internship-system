@@ -185,14 +185,15 @@ switch ($action) {
             break;
         }
 
-        $type  = $data['document_type'] ?? '';
-        $notes = $data['notes'] ?? '';
-        $file  = $_FILES['doc_file'] ?? null;
+        $type          = $data['document_type'] ?? '';
+        $notes         = $data['notes'] ?? '';
+        $coordinatorId = !empty($data['coordinator_id']) ? (int)$data['coordinator_id'] : null;
+        $file          = $_FILES['doc_file'] ?? null;
 
         if (empty($type) || !$file) {
             echo json_encode(['success' => false, 'message' => 'Required multi-part form files or tracking metadata elements missing.']);
         } else {
-            echo json_encode(uploadInternDocument($internId, $type, $file, $notes));
+            echo json_encode(uploadInternDocument($internId, $type, $file, $notes, $coordinatorId));
         }
         break;
     default:

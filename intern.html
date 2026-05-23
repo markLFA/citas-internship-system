@@ -1930,20 +1930,25 @@ const InternDocuments = {
         UI.button(isResubmit ? '🔄 Resubmit Document' : '📤 Submit Document', {
           size: 'sm',
           color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+          // Locate this block inside InternDocuments._openUploadModal click handler:
           onClick: () => {
             if (!fileInput.files?.length) {
               UI.toast('Please attach a file before submitting.', 'danger');
               return;
             }
             
-            // Build Form Data Instance to transfer Binary streams through custom headers safely
+            // Build Form Data Instance
             const formData = new FormData();
             formData.append('action', 'uploadInternDocument');
             formData.append('document_type', dt.type);
             formData.append('notes', document.getElementById('doc-upload-notes')?.value.trim() || '');
             formData.append('doc_file', fileInput.files[0]);
 
-            // XML Http network dispatcher boundary block bypasses explicit string-bound application/json limitations 
+            // Dynamic coordinator assignment pull from your global profile state
+            const assignedCoordinatorId = InternData?.profile?.coordinator_id || '';
+            formData.append('coordinator_id', assignedCoordinatorId);
+
+            // Send payload to backend router
             fetch('config/api.php', {
               method: 'POST',
               body: formData
@@ -1953,7 +1958,7 @@ const InternDocuments = {
               if (res.success) {
                 m.close();
                 UI.toast(res.message, 'success');
-                this.build(); // Refreshes container asynchronously
+                this.build(); 
               } else {
                 UI.toast(res.message || 'Upload transmission failed.', 'danger');
               }

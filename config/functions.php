@@ -1414,15 +1414,16 @@ function getInternDocuments(int $internId): array
 
 /**
  * Handles the multi-part payload uploading for intern documents,
- * saving files securely to Hostinger's root and managing resubmissions cleanly.
+ * saving files securely and assigning the correct coordinator mapping.
  *
  * @param int $internId The database ID of the active intern.
  * @param string $type The document type designation name (e.g., 'TOR').
  * @param array $fileMeta The native PHP $_FILES metadata subarray structure.
  * @param string $notes Optional comment/description text provided by the intern.
+ * @param int|null $coordinatorId The ID of the assigned coordinator tracking this intern.
  * @return array A response array indicating transaction status.
  */
-function uploadInternDocument(int $internId, string $type, array $fileMeta, string $notes): array
+function uploadInternDocument(int $internId, string $type, array $fileMeta, string $notes, ?int $coordinatorId): array
 {
     $pdo = getDB();
 
@@ -1445,18 +1446,17 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
     $uploadDir = rtrim($publicHtmlDir, '/') . '/uploads/';
 
     if (!is_dir($uploadDir)) {
-        // Create the folder with 0755 permissions so it is web-accessible
         if (!mkdir($uploadDir, 0755, true)) {
             error_log("Failed to create uploads directory at: " . $uploadDir);
             return ['success' => false, 'message' => 'Server failed to initialize storage directory folder.'];
         }
     }
 
-    // Generate a unique tokenized file name to prevent accidental overwrites
+    // Generate unique tokenized filename
     $uniqueName = 'doc_' . uniqid('', true) . '.' . $ext;
     $targetPath = $uploadDir . $uniqueName;
 
-    // Move file from temporary directory to public storage path
+    // Move file to public destination
     if (!move_uploaded_file($fileMeta['tmp_name'], $targetPath)) {
         error_log("File upload failed to write to target path: " . $targetPath);
         return ['success' => false, 'message' => 'Failed to write files. Check your folder permissions on Hostinger.'];
@@ -1470,34 +1470,36 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
         $existingRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
         if ($existingRow) {
-            // Update existing record, reset status to pending, and clear out older remarks/coordinators
+            // Update existing record, reset status to pending, and update coordinator tracking identifier
             $sql = "UPDATE intern_documents 
                     SET file_path = :file_path, 
                         file_name = :file_name, 
                         notes = :notes, 
                         status = 'pending', 
                         feedback = NULL, 
-                        coordinator_id = NULL, 
+                        coordinator_id = :coordinator_id, 
                         reviewed_at = NULL 
                     WHERE id = :id";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                ':file_path' => $uniqueName,
-                ':file_name' => $fileMeta['name'],
-                ':notes'     => empty($notes) ? null : $notes,
-                ':id'        => $existingRow['id']
+                ':file_path'      => $uniqueName,
+                ':file_name'      => $fileMeta['name'],
+                ':notes'          => empty($notes) ? null : $notes,
+                ':coordinator_id' => $coordinatorId,
+                ':id'             => $existingRow['id']
             ]);
         } else {
-            // Create a brand new submission record entry row
-            $sql = "INSERT INTO intern_documents (intern_id, document_type, file_path, file_name, notes, status) 
-                    VALUES (:intern_id, :type, :file_path, :file_name, :notes, 'pending')";
+            // Create a brand new submission record entry row with assigned coordinator ID linked
+            $sql = "INSERT INTO intern_documents (intern_id, document_type, file_path, file_name, notes, status, coordinator_id) 
+                    VALUES (:intern_id, :type, :file_path, :file_name, :notes, 'pending', :coordinator_id)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                ':intern_id' => $internId,
-                ':type'      => $type,
-                ':file_path' => $uniqueName,
-                ':file_name' => $fileMeta['name'],
-                ':notes'     => empty($notes) ? null : $notes
+                ':intern_id'      => $internId,
+                ':type'           => $type,
+                ':file_path'      => $uniqueName,
+                ':file_name'      => $fileMeta['name'],
+                ':notes'          => empty($notes) ? null : $notes,
+                ':coordinator_id' => $coordinatorId
             ]);
         }
 
