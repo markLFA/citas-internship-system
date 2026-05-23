@@ -1618,14 +1618,12 @@ const Reports = {
     ));
     Helpers.api('getCoordinatorReports').then(data => {
       REPORTS = data;
-
-      console.warn('Reports data loaded:', JSON.stringify(REPORTS, null, 2));
-      //this.renderList();
+      sec.appendChild( this.statusTabs()     );
+      sec.appendChild( this.tableContainer() );
+      this.renderTable();
     });
 
-    sec.appendChild( this.statusTabs()     );
-    sec.appendChild( this.tableContainer() );
-    this.renderTable();
+
   },
 
   // Status filter pill tabs
