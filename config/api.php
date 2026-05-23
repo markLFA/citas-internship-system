@@ -200,8 +200,7 @@ switch ($action) {
         if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
             echo json_encode(['error' => 'Unauthorized access']); break;
         }
-        $coordinatorId = $_SESSION['user']['id'] ?? null;
-        echo json_encode($coordinatorId ? getCoordinatorDocuments($coordinatorId) : []);
+        echo json_encode(getCoordinatorDocuments());
         break;
 
     case 'reviewInternDocument':
