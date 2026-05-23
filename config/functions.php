@@ -1384,3 +1384,120 @@ function recalcInternshipHours(int $userId, PDO $pdo): void
         WHERE intern_id=?
     ")->execute([$userId, $userId, $userId]);
 }
+
+//INtern Documents 
+/**
+ * Retrieves all document submissions filed by an individual intern.
+ *
+ * @param int $internId The database ID of the active intern.
+ * @return array Collection of tracking rows.
+ */
+function getInternDocuments(int $internId): array
+{
+    $pdo = getDB();
+    $sql = "SELECT id, document_type AS type, file_path, file_name AS file, 
+                   notes, status, feedback, DATE_FORMAT(submitted_at, '%b %e, %Y') AS submitted 
+            FROM intern_documents 
+            WHERE intern_id = :intern_id
+            ORDER BY id DESC";
+            
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':intern_id' => $internId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException $e) {
+        error_log("Database error in getInternDocuments: " . $e->getMessage());
+        return [];
+    }
+}
+
+
+/**
+ * Handles the multi-part payload uploading for intern documents,
+ * saving files securely and managing resubmissions cleanly.
+ *
+ * @param int $internId The database ID of the active intern.
+ * @param string $type The document type designation name.
+ * @param array $fileMeta The native PHP $_FILES metadata subarray structure.
+ * @param string $notes Optional comment/description text provided by the intern.
+ * @return array A response array indicating transaction status.
+ */
+function uploadInternDocument(int $internId, string $type, array $fileMeta, string $notes): array
+{
+    $pdo = getDB();
+
+    // 1. File type validation checks
+    $allowedExts = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'];
+    $info = pathinfo($fileMeta['name']);
+    $ext = strtolower($info['extension'] ?? '');
+
+    if (!in_array($ext, $allowedExts)) {
+        return ['success' => false, 'message' => 'Invalid file type. Extensions allowed: ' . implode(', ', $allowedExts)];
+    }
+
+    // 2. File size validation check (10MB Limit)
+    if ($fileMeta['size'] > 10 * 1024 * 1024) { 
+        return ['success' => false, 'message' => 'File exceeds maximum 10 megabyte ceiling boundary.'];
+    }
+
+    // 3. Setup local directory destination storage paths
+    $uploadDir = __DIR__ . '/../public_html/uploads/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    // Generate a unique tokenized file name to prevent accidental overwrites
+    $uniqueName = 'doc_' . uniqid('', true) . '.' . $ext;
+    $targetPath = $uploadDir . $uniqueName;
+
+    // Move file from temporary directory to public storage path
+    if (!move_uploaded_file($fileMeta['tmp_name'], $targetPath)) {
+        return ['success' => false, 'message' => 'Failed to write object data files to the server path directory.'];
+    }
+
+    try {
+        // 4. Check for preexisting submissions of this document type
+        $checkSql = "SELECT id FROM intern_documents WHERE intern_id = :intern_id AND document_type = :type";
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([':intern_id' => $internId, ':type' => $type]);
+        $existingRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingRow) {
+            // Update existing record, reset status to pending, and clear out older remarks/coordinators
+            $sql = "UPDATE intern_documents 
+                    SET file_path = :file_path, 
+                        file_name = :file_name, 
+                        notes = :notes, 
+                        status = 'pending', 
+                        feedback = NULL, 
+                        coordinator_id = NULL, 
+                        reviewed_at = NULL 
+                    WHERE id = :id";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                ':file_path' => $uniqueName,
+                ':file_name' => $fileMeta['name'],
+                ':notes'     => empty($notes) ? null : $notes,
+                ':id'        => $existingRow['id']
+            ]);
+        } else {
+            // Create a brand new submission record entry row
+            $sql = "INSERT INTO intern_documents (intern_id, document_type, file_path, file_name, notes, status) 
+                    VALUES (:intern_id, :type, :file_path, :file_name, :notes, 'pending')";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                ':intern_id' => $internId,
+                ':type'      => $type,
+                ':file_path' => $uniqueName,
+                ':file_name' => $fileMeta['name'],
+                ':notes'     => empty($notes) ? null : $notes
+            ]);
+        }
+
+        return ['success' => true, 'message' => 'Document submitted successfully!'];
+
+    } catch (PDOException $e) {
+        error_log("Database error in uploadInternDocument: " . $e->getMessage());
+        return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
+    }
+}

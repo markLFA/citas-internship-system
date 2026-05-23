@@ -153,6 +153,35 @@ case 'getSessionUser':
     case 'updateTimeLog':
         echo json_encode(updateTimeLog($data));
         break;
+
+// Insert these inside your existing switch ($action) router block:
+    case 'getInternDocuments':
+        $internId = $_SESSION['user']['id'] ?? null;
+        if ($internId) {
+            echo json_encode(getInternDocuments($internId));
+        } else {
+            echo json_encode(['error' => 'Unauthenticated session status.']);
+        }
+        break;
+
+    case 'uploadInternDocument':
+        $internId = $_SESSION['user']['id'] ?? null;
+        if (!$internId) {
+            echo json_encode(['success' => false, 'message' => 'Session expired. Please re-authenticate.']);
+            break;
+        }
+
+        // Handle native multipart fields fallback mapping arrays cleanly
+        $type  = $_POST['document_type'] ?? '';
+        $notes = $_POST['notes'] ?? '';
+        $file  = $_FILES['doc_file'] ?? null;
+
+        if (empty($type) || !$file) {
+            echo json_encode(['success' => false, 'message' => 'Required multi-part form files or tracking metadata elements missing.']);
+        } else {
+            echo json_encode(uploadInternDocument($internId, $type, $file, $notes));
+        }
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"
