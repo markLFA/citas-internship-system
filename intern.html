@@ -429,7 +429,7 @@ const Dashboard = {
     const projStr = projDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
     // On pace check: expected ~70% by week 14 of 20-week internship
-    const expectedPct = 70;
+    const expectedPct = getExpectedPercentage ();
     const onPace      = pct >= expectedPct;
 
     const body = document.createElement('div');
@@ -471,7 +471,15 @@ const Dashboard = {
 
     return UI.card({ title: '📈 My Progress Insights', body });
   },
-
+  getExpectedPercentage () {
+    const currrentDate = new Date();
+    const startDate = new Date(InternData.internships[0].start_date);
+    const end_date = new Date(InternData.internships[0].end_date);
+    const totalDuration = (end_date - startDate) / (1000 * 60 * 60 * 24); // in days
+    const elapsedDuration = (currrentDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    const expectedPercentage = Math.min(100, Math.round((elapsedDuration / totalDuration) * 100));
+    return expectedPercentage;
+  },
   // Mini sparkline — uses attendance logs loaded from API at boot
   drawHoursTrendChart() {
     const ctx = document.getElementById('chart-intern-trend');
