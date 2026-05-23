@@ -590,8 +590,10 @@ function getInternReports(): array
  * @param int $coordinatorId The ID of the signed-in coordinator.
  * @return array An array of associative arrays containing the report data.
  */
-function getReportsByCoordinator(PDO $pdo, int $coordinatorId): array 
+function getReportsByCoordinator(int $coordinatorId): array 
 {
+    $pdo = getDB();
+
     // Prepared statement to securely query the reports
     $sql = "SELECT id, intern_id, week_label, week_start, description, status, feedback, uploaded_at, reviewed_at, reviewed_by 
             FROM weekly_reports 
