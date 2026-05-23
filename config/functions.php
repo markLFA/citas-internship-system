@@ -627,10 +627,12 @@ function getReportsByCoordinator(int $coordinatorId): array
         return $reports;
 
     } catch (PDOException $e) {
+        // Check error_log.txt in your config directory if it still fails!
         error_log("Database error in getReportsByCoordinator: " . $e->getMessage());
         return [];
     }
 }
+
 function getCoordinatorInternDatas() {
     if (!isset($_SESSION['user']['id'])) {
         return [];
