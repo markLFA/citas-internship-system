@@ -411,11 +411,14 @@ const Dashboard = {
     });
   },
 
-  progressInsightsCard() {
-    const pct        = Math.round(this.internship.total_hours / InternData.profile.required_hours * 100);
-    const remaining  = InternData.profile.required_hours - this.internship.total_hours;
-    const daysIn     = this.internship.days_present;
-    const avgPerDay  = daysIn > 0 ? (InternData.internships[0].total_hours / daysIn) : 8;
+progressInsightsCard() {
+    // Reference the primary internship object directly from InternData
+    const internship = InternData.internships[0];
+    
+    const pct        = Math.round(internship.total_hours / InternData.profile.required_hours * 100);
+    const remaining  = InternData.profile.required_hours - internship.total_hours;
+    const daysIn     = internship.days_present;
+    const avgPerDay  = daysIn > 0 ? (internship.total_hours / daysIn) : 8;
     const daysNeeded = Math.ceil(remaining / avgPerDay);
 
     // Projected finish date from today
@@ -426,28 +429,33 @@ const Dashboard = {
       const day = projDate.getDay();
       if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
     }
-    const projStr = projDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const projStr = projDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // On pace check: expected ~70% by week 14 of 20-week internship
-    const expectedPct = this.getExpectedPercentage ();
+    // Dynamic expected weekly reports calculation based on duration weeks
+    const startDate = new Date(internship.start_date);
+    const endDate   = new Date(internship.end_date);
+    const totalWeeks = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24 * 7)));
+
+    // Dynamic pace metric evaluation
+    const expectedPct = this.getExpectedPercentage();
     const onPace      = pct >= expectedPct;
 
     const body = document.createElement('div');
 
     // On-pace badge
     const paceBadge = document.createElement('div');
-    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace?'#D1FAE5':'#FEE2E2'};color:${onPace?'#065F46':'#991B1B'}`;
+    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace ? '#D1FAE5' : '#FEE2E2'};color:${onPace ? '#065F46' : '#991B1B'}`;
     paceBadge.innerHTML = onPace
       ? '✅ You are on schedule'
       : `⚠️ ${expectedPct - pct}% behind the expected pace`;
     body.appendChild(paceBadge);
 
-    // Key insights
+    // Key insights matrix rows
     [
       ['📅', 'Projected finish',    projStr],
       ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
       ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
-      ['📄', 'Reports submitted',   InternData.internships[0].reports_submitted + ' of ~14 expected'],
+      ['📄', 'Reports submitted',   `${internship.reports_submitted} of ~${totalWeeks} expected`],
     ].forEach(([icon, label, value]) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
@@ -458,7 +466,7 @@ const Dashboard = {
       body.appendChild(row);
     });
 
-    // Mini hours trend chart
+    // Mini hours trend chart mounting point
     const chartLabel = document.createElement('p');
     chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
     chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
@@ -471,16 +479,21 @@ const Dashboard = {
 
     return UI.card({ title: '📈 My Progress Insights', body });
   },
-  getExpectedPercentage () {
-    const currrentDate = new Date();
-    const startDate = new Date(InternData.internships[0].start_date);
-    const end_date = new Date(InternData.internships[0].end_date);
-    const totalDuration = (end_date - startDate) / (1000 * 60 * 60 * 24); // in days
-    const elapsedDuration = (currrentDate - startDate) / (1000 * 60 * 60 * 24); // in days
-    const expectedPercentage = Math.min(100, Math.round((elapsedDuration / totalDuration) * 100));
-    return expectedPercentage;
+
+  getExpectedPercentage() {
+    const internship = InternData.internships[0];
+    const currentDate = new Date();
+    const startDate   = new Date(internship.start_date);
+    const endDate     = new Date(internship.end_date);
+    
+    const totalDuration   = (endDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    const elapsedDuration = (currentDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    
+    // Bounds check protection to isolate layout context against anomalies
+    const rawPercentage = Math.round((elapsedDuration / totalDuration) * 100);
+    return Math.max(0, Math.min(100, rawPercentage));
   },
-  // Mini sparkline — uses attendance logs loaded from API at boot
+    // Mini sparkline — uses attendance logs loaded from API at boot
   drawHoursTrendChart() {
     const ctx = document.getElementById('chart-intern-trend');
     if (!ctx || typeof Chart === 'undefined') return;
