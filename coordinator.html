@@ -1616,7 +1616,9 @@ const Reports = {
       'Weekly Reports',
       'Review and give feedback on intern submissions'
     ));
+
     Helpers.api('getCoordinatorReports').then(data => {
+      console.log('Reports data:', JSON.stringify(data, null, 2));
       REPORTS = data;
       sec.appendChild( this.statusTabs()     );
       sec.appendChild( this.tableContainer() );
