@@ -722,7 +722,6 @@ const Profile = {
   },
 
   openEditModal() {
-    // Reuse existing modal
     if (this.editModal) {
       this.populateEditModal();
       this.editModal.open();
@@ -838,6 +837,35 @@ const Profile = {
     r2.appendChild(UI.formGroup('Start Date', this.startDateField));
     r2.appendChild(UI.formGroup('End Date', this.endDateField));
 
+    // Automatically calculate suggested end date when start date is added or changed
+    this.startDateField.addEventListener('change', () => {
+      if (!this.startDateField.value) return;
+
+      const requiredHours = InternData.profile?.required_hours || 500;
+      const hoursPerDay = 8; 
+      const workDaysNeeded = Math.ceil(requiredHours / hoursPerDay);
+
+      // Create a date object based on the user's start input selection
+      const calculatedDate = new Date(this.startDateField.value);
+      let workDaysAdded = 0;
+
+      // Forward step sequence tracking business days (skipping Saturday/Sunday)
+      while (workDaysAdded < workDaysNeeded) {
+        calculatedDate.setDate(calculatedDate.getDate() + 1);
+        const dayOfWeek = calculatedDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          workDaysAdded++;
+        }
+      }
+
+      // Convert date string structure cleanly into standard compliant input YYYY-MM-DD template values
+      const yyyy = calculatedDate.getFullYear();
+      const mm = String(calculatedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(calculatedDate.getDate()).padStart(2, '0');
+
+      this.endDateField.value = `${yyyy}-${mm}-${dd}`;
+    });
+
     /* ---------------- MODAL ---------------- */
 
     this.editModal = UI.modal({
@@ -881,6 +909,7 @@ const Profile = {
     this.startDateField.value = this.internship?.start_date || '';
     this.endDateField.value = this.internship?.end_date || '';
   },
+
   async saveProfileChanges(modal) {
     const payload = {
       action: 'updateInternProfile',
@@ -930,7 +959,8 @@ const Profile = {
 
       // Update local data
       this.applyProfileUpdates(result);
-      Dashboard.profilePreviewCard()
+      Dashboard.profilePreviewCard();
+      
       // Re-render UI
       const sec = document.getElementById('sec-profile');
       sec.innerHTML = '';
@@ -945,61 +975,41 @@ const Profile = {
     }
   },
 
+  applyProfileUpdates(response) {
+    if (!response) return;
 
-applyProfileUpdates(response) {
-  if (!response) return;
-
-  /*
-  |--------------------------------------------------------------------------
-  | Update User
-  |--------------------------------------------------------------------------
-  */
-  if (response.user) {
-    Object.assign(InternData.user, response.user);
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Update Profile
-  |--------------------------------------------------------------------------
-  */
-  if (response.profile) {
-    Object.assign(InternData.profile, response.profile);
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Update Internship
-  |--------------------------------------------------------------------------
-  */
-  if (response.internship) {
-    if (!InternData.internships?.length) {
-      InternData.internships = [{
-        company: {}
-      }];
+    if (response.user) {
+      Object.assign(InternData.user, response.user);
     }
 
-    const internship = InternData.internships[0];
-
-    Object.assign(internship, {
-      position: response.internship.position,
-      supervisor: response.internship.supervisor,
-      supervisor_phone: response.internship.supervisor_phone,
-      start_date: response.internship.start_date,
-      end_date: response.internship.end_date
-    });
-
-    if (response.internship.company) {
-      internship.company ??= {};
-      Object.assign(internship.company, response.internship.company);
+    if (response.profile) {
+      Object.assign(InternData.profile, response.profile);
     }
-  }
 
-  // No need to assign this.internship or this.company
-  // if they are implemented as getters.
-}  
+    if (response.internship) {
+      if (!InternData.internships?.length) {
+        InternData.internships = [{
+          company: {}
+        }];
+      }
+
+      const internship = InternData.internships[0];
+
+      Object.assign(internship, {
+        position: response.internship.position,
+        supervisor: response.internship.supervisor,
+        supervisor_phone: response.internship.supervisor_phone,
+        start_date: response.internship.start_date,
+        end_date: response.internship.end_date
+      });
+
+      if (response.internship.company) {
+        internship.company ??= {};
+        Object.assign(internship.company, response.internship.company);
+      }
+    }
+  }  
 };
-
 // ─────────────────────────────────────────────────────────────
 //  ATTENDANCE
 // ─────────────────────────────────────────────────────────────
