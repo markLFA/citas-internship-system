@@ -1510,13 +1510,16 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
         return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
     }
 }
+
 /**
  * Retrieves all files submitted by interns assigned to a specific coordinator.
+ *
+ * @param int $coordinatorId The logged-in coordinator's user ID.
+ * @return array
  */
-function getCoordinatorDocuments(): array
+function getCoordinatorDocuments(int $coordinatorId): array
 {
     $pdo = getDB();
-    // Added d.file_path back explicitly to the select statement
     $sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
                    p.department AS dept, d.document_type AS type, 
                    d.file_path, d.file_name AS file, d.status, 
@@ -1530,7 +1533,7 @@ function getCoordinatorDocuments(): array
 
     try {
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':coordinator_id' => $_SESSION['user']['id']]);
+        $stmt->execute([':coordinator_id' => $coordinatorId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (PDOException $e) {
         error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
