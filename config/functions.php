@@ -1512,14 +1512,23 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 }
 
 /**
- * Retrieves all files submitted by interns assigned to a specific coordinator.
+ * Retrieves all files submitted by interns assigned to the currently logged-in coordinator.
+ * Pulls the coordinator's ID directly from the active session.
  *
- * @param int $coordinatorId The logged-in coordinator's user ID.
  * @return array
  */
-function getCoordinatorDocuments(int $coordinatorId): array
+function getCoordinatorDocuments(): array
 {
     $pdo = getDB();
+    
+    // Grab the logged-in coordinator's ID directly from the session
+    $coordinatorId = $_SESSION['user']['id'] ?? null;
+
+    if (!$coordinatorId) {
+        error_log("getCoordinatorDocuments called without an active session.");
+        return [];
+    }
+
     $sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
                    p.department AS dept, d.document_type AS type, 
                    d.file_path, d.file_name AS file, d.status, 
