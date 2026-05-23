@@ -583,23 +583,25 @@ function getInternReports(): array
         return [];
     }
 }
+
 /**
  * Fetches all weekly reports assigned to the logged-in coordinator,
- * along with any associated files for each report.
+ * including the intern's name and any associated files.
  *
  * @param int $coordinatorId The ID of the signed-in coordinator.
- * @return array An array of reports, each containing a 'files' array.
+ * @return array An array of reports, each containing an 'intern_name' and a 'files' array.
  */
 function getReportsByCoordinator(int $coordinatorId): array 
 {
-    // Use your dedicated database helper function
     $pdo = getDB(); 
 
-    // Query 1: Fetch all reports for the coordinator
-    $reportSql = "SELECT id, intern_id, week_label, week_start, description, status, feedback, uploaded_at, reviewed_at, reviewed_by 
-                  FROM weekly_reports 
-                  WHERE coordinator_id = :coordinator_id
-                  ORDER BY uploaded_at DESC";
+    // Query 1: Fetch reports joined with the users table to get the intern's name
+    $reportSql = "SELECT r.id, r.intern_id, u.name AS intern_name, r.week_label, r.week_start, 
+                         r.description, r.status, r.feedback, r.uploaded_at, r.reviewed_at, r.reviewed_by 
+                  FROM weekly_reports r
+                  INNER JOIN users u ON r.intern_id = u.id
+                  WHERE r.coordinator_id = :coordinator_id
+                  ORDER BY r.uploaded_at DESC";
 
     // Query 2: Fetch files for a specific report
     $fileSql = "SELECT id, file_path, file_name, file_size, mime_type, uploaded_at 
@@ -618,8 +620,6 @@ function getReportsByCoordinator(int $coordinatorId): array
         // Loop through each report and attach its files
         foreach ($reports as &$report) {
             $fileStmt->execute([':report_id' => $report['id']]);
-            
-            // If files exist, attach them; otherwise, default to an empty array
             $report['files'] = $fileStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
         unset($report); // Break reference pointer loop safety

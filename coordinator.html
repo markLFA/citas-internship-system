@@ -1620,11 +1620,11 @@ const Reports = {
     Helpers.api('getCoordinatorReports').then(data => {
       console.log('Reports data:', JSON.stringify(data, null, 2));
       
-      // Adapt properties to align with template placeholders safely
+      // Use the database-driven intern_name returned by your query
       REPORTS = data.map(r => ({
         ...r,
-        internName: r.internName || `Intern #${r.intern_id}`, // Fallback if name isn't joined yet
-        dept: r.dept || 'N/A'                                 // Fallback if department isn't joined yet
+        internName: r.intern_name || `Intern #${r.intern_id}`, 
+        dept: r.dept || 'N/A' // Fallback if department tracking is added later
       }));
 
       sec.appendChild( this.statusTabs()     );
@@ -1712,7 +1712,6 @@ const Reports = {
       { key:'files',   label:'Files',
         render: files => {
           if (!files || files.length === 0) return `<span style="font-size:.8rem;color:#999;font-style:italic">No files</span>`;
-          // Renders links sequentially if there are multiple files
           return files.map(f => 
             `<a href="/uploads/${f.file_path}" target="_blank" style="display:block;color:#EA580C;font-size:.8rem;text-decoration:none;margin-bottom:.2rem" title="${f.file_name}">📄 ${f.file_name}</a>`
           ).join('');
@@ -1762,7 +1761,7 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-    // File container (handles single or multiple file attachments)
+    // File container
     const filesWrap = document.createElement('div');
     filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
     
@@ -1850,7 +1849,6 @@ const Reports = {
     m.open();
   },
 };
-
 // ─────────────────────────────────────────────────────────────
 //  ANALYTICS
 // ─────────────────────────────────────────────────────────────
