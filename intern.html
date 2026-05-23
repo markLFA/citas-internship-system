@@ -2062,7 +2062,7 @@ async function boot() {
     Attendance.build();
     Reports   .build();
     InternDocuments.build();
-    navigate(currPageRes.current_page || 'dashboard');
+    navigate(currPageRes.currentPage || 'dashboard');
 
   } catch (err) {
     console.error('Boot error:', err);
