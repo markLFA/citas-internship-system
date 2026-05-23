@@ -584,29 +584,49 @@ function getInternReports(): array
     }
 }
 /**
- * Fetches all weekly reports assigned to the logged-in coordinator.
+ * Fetches all weekly reports assigned to the logged-in coordinator,
+ * along with any associated files for each report.
  *
- * @param PDO $pdo An active PDO database connection instance.
  * @param int $coordinatorId The ID of the signed-in coordinator.
- * @return array An array of associative arrays containing the report data.
+ * @return array An array of reports, each containing a 'files' array.
  */
 function getReportsByCoordinator(int $coordinatorId): array 
 {
-    $pdo = getDB();
+    // Use your dedicated database helper function
+    $pdo = getDB(); 
 
-    // Prepared statement to securely query the reports
-    $sql = "SELECT id, intern_id, week_label, week_start, description, status, feedback, uploaded_at, reviewed_at, reviewed_by 
-            FROM weekly_reports 
-            WHERE coordinator_id = :coordinator_id
-            ORDER BY uploaded_at DESC";
+    // Query 1: Fetch all reports for the coordinator
+    $reportSql = "SELECT id, intern_id, week_label, week_start, description, status, feedback, uploaded_at, reviewed_at, reviewed_by 
+                  FROM weekly_reports 
+                  WHERE coordinator_id = :coordinator_id
+                  ORDER BY uploaded_at DESC";
+
+    // Query 2: Fetch files for a specific report
+    $fileSql = "SELECT id, file_path, file_name, file_size, mime_type, uploaded_at 
+                FROM weekly_report_files 
+                WHERE report_id = :report_id";
 
     try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':coordinator_id' => $coordinatorId]);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Fetch the reports
+        $reportStmt = $pdo->prepare($reportSql);
+        $reportStmt->execute([':coordinator_id' => $coordinatorId]);
+        $reports = $reportStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare the file statement outside the loop for optimization
+        $fileStmt = $pdo->prepare($fileSql);
+
+        // Loop through each report and attach its files
+        foreach ($reports as &$report) {
+            $fileStmt->execute([':report_id' => $report['id']]);
+            
+            // If files exist, attach them; otherwise, default to an empty array
+            $report['files'] = $fileStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
+        unset($report); // Break reference pointer loop safety
+
+        return $reports;
+
     } catch (PDOException $e) {
-        // Handle database errors gracefully or log them
         error_log("Database error in getReportsByCoordinator: " . $e->getMessage());
         return [];
     }
