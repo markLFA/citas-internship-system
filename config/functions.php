@@ -583,7 +583,32 @@ function getInternReports(): array
         return [];
     }
 }
+/**
+ * Fetches all weekly reports assigned to the logged-in coordinator.
+ *
+ * @param PDO $pdo An active PDO database connection instance.
+ * @param int $coordinatorId The ID of the signed-in coordinator.
+ * @return array An array of associative arrays containing the report data.
+ */
+function getReportsByCoordinator(PDO $pdo, int $coordinatorId): array 
+{
+    // Prepared statement to securely query the reports
+    $sql = "SELECT id, intern_id, week_label, week_start, description, status, feedback, uploaded_at, reviewed_at, reviewed_by 
+            FROM weekly_reports 
+            WHERE coordinator_id = :coordinator_id
+            ORDER BY uploaded_at DESC";
 
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':coordinator_id' => $coordinatorId]);
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Handle database errors gracefully or log them
+        error_log("Database error in getReportsByCoordinator: " . $e->getMessage());
+        return [];
+    }
+}
 function getCoordinatorInternDatas() {
     if (!isset($_SESSION['user']['id'])) {
         return [];

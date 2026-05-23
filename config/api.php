@@ -46,6 +46,19 @@ case 'getSessionUser':
     case 'getInternReports':
         echo json_encode(getInternReports());
         break;
+    case 'getCoordinatorReports':
+        if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
+            echo json_encode(['error' => 'Unauthorized access']);
+            break;
+        }
+
+        $coordinatorId = $_SESSION['user']['id'] ?? null;
+        if ($coordinatorId) {
+            echo json_encode(getReportsByCoordinator($coordinatorId));
+        } else {
+            echo json_encode(['error' => 'Session expired or missing coordinator ID']);
+        }
+        break;
     case 'getCoordinatorInternDatas':
         echo json_encode(getCoordinatorInternDatas());
         break;
