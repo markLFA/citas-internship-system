@@ -1582,7 +1582,6 @@ const Reports = {
     form.append('week_label',  weekLabel);
     form.append('week_start',  weekStart);
     form.append('description', desc);
-    form.append('coordinator_id', this.profile?.id);
     Array.from(fileInput.files).forEach(f => form.append('files[]', f));
 
     // Disable submit button and show loading state
