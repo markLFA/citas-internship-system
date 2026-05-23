@@ -2249,7 +2249,7 @@ const CoordinatorDocuments = {
     // Dynamic database network integration point
     Helpers.api('getCoordinatorDocuments').then(data => {
       this._docs = data || [];
-
+      console.log('Documents data:', JSON.stringify(this._docs, null, 2));
       sec.appendChild(this._summaryStrip());
       sec.appendChild(this._filterBar());
 
