@@ -214,13 +214,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </style>
 </head>
 <body>
-
+<!--
 <div class="banner">
   <div class="banner-dot"></div>
   <p>
     <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
   </p>
 </div>
+-->
+
+
 
 <div class="card">
 

@@ -360,10 +360,14 @@ $coordinators = getCoordinators();
 </head>
 <body>
 
+<!--
 <div class="banner">
-  <div class="dot"></div>
-  <p><strong>Academic Project — </strong>Registration is for a <strong>Capstone Project (Academic Use Only)</strong>.</p>
+  <div class="banner-dot"></div>
+  <p>
+    <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
+  </p>
 </div>
+-->
 
 <div class="card">
 
