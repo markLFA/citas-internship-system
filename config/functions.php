@@ -1520,7 +1520,7 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 function getCoordinatorDocuments(): array
 {
     $pdo = getDB();
-    
+
     // Grab the logged-in coordinator's ID directly from the session
     $coordinatorId = $_SESSION['user']['id'] ?? null;
 
@@ -1529,24 +1529,47 @@ function getCoordinatorDocuments(): array
         return [];
     }
 
-$sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
-               p.course AS dept, d.document_type AS type, 
-               d.file_path, d.file_name AS file, d.status, 
-               IFNULL(d.feedback, '') AS feedback,
-               DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-        FROM intern_documents d
-        JOIN users u ON d.intern_id = u.id
-        LEFT JOIN intern_profiles p ON d.intern_id = p.user_id
-        WHERE d.coordinator_id = :coordinator_id
-        ORDER BY d.id DESC";
+    $sql = "SELECT d.id, 
+                   d.intern_id AS internId, 
+                   u.name AS internName, 
+                   p.course AS dept,
+                   d.document_type AS type, 
+                   d.file_path, 
+                   d.file_name AS file, 
+                   d.status, 
+                   IFNULL(d.feedback, '') AS feedback,
+                   DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
+            FROM intern_documents d
+            JOIN users u 
+                ON d.intern_id = u.id
+            LEFT JOIN intern_profiles p 
+                ON d.intern_id = p.user_id
+            WHERE d.coordinator_id = :coordinator_id
+            ORDER BY d.id DESC";
 
     try {
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':coordinator_id' => $coordinatorId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $stmt->execute([
+            ':coordinator_id' => $coordinatorId
+        ]);
+
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Debugging
+        error_log("Coordinator ID: " . $coordinatorId);
+        error_log("Documents Found: " . count($results));
+
+        return $results ?: [];
+
     } catch (PDOException $e) {
-        error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
-        return [];
+
+        // Show actual SQL error while developing
+        die("Database error in getCoordinatorDocuments: " . $e->getMessage());
+
+        // Production version:
+        // error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
+        // return [];
     }
 }
 
