@@ -9,11 +9,19 @@ header('Content-Type: application/json');
 
 require 'functions.php';
 
-$data = json_decode(file_get_contents("php://input"), true);
-$action = $data['action'] ?? '';
+// Check if this is a multipart/form-data request (File Uploads)
+if (isset($_POST['action'])) {
+    $action = $_POST['action'];
+    $data = $_POST; // Read text fields like notes or document_type from $_POST
+} 
+// Fallback to traditional raw input reading for standard JSON payloads
+else {
+    $data = json_decode(file_get_contents("php://input"), true) ?? [];
+    $action = $data['action'] ?? '';
+}
 
 switch ($action) {
-case 'getSessionUser':
+    case 'getSessionUser':
         echo json_encode(getSessionUser());
         break;
     case 'logout':
@@ -38,7 +46,7 @@ case 'getSessionUser':
         }
         break;
     case 'updateInternProfile':
-        updateInternProfile( $data);
+        updateInternProfile($data);
         break;
     case 'submitWeeklyReport':
         submitWeeklyReport();
@@ -59,22 +67,32 @@ case 'getSessionUser':
             echo json_encode(['error' => 'Session expired or missing coordinator ID']);
         }
         break;
+    case 'updateWeeklyReportStatus':
+        if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
+            echo json_encode(['error' => 'Unauthorized access']);
+            break;
+        }
+
+        $reportId   = (int)($data['reportId'] ?? 0);
+        $status     = $data['status'] ?? '';
+        $feedback   = $data['feedback'] ?? '';
+        $reviewerId = $_SESSION['user']['id'] ?? null;
+
+        if (!$reportId || empty($status)) {
+            echo json_encode(['success' => false, 'message' => 'Missing reportId or status']);
+        } else {
+            echo json_encode(updateWeeklyReportStatus($reportId, $status, $feedback, $reviewerId));
+        }
+        break;
     case 'getCoordinatorInternDatas':
         echo json_encode(getCoordinatorInternDatas());
         break;
     case 'setCurrentPage':
-
         $page = $data['page'] ?? null;
-
-        echo json_encode(
-            setCurrentPage($page)
-        );
-
-    break;
+        echo json_encode(setCurrentPage($page));
+        break;
     case 'getCurrentPage':
-        echo json_encode(
-            getCurrentPage()
-        );
+        echo json_encode(getCurrentPage());
         break;
     case 'getAnnouncements':
         echo json_encode(getAnnouncements());
@@ -87,7 +105,6 @@ case 'getSessionUser':
         if (empty($title) || empty($body)) {
             echo json_encode(['success' => false, 'message' => 'Title and Body are required.']);
         } else {
-            // This calls the function we created in functions.php
             echo json_encode(addAnnouncement($title, $body, $isPinned));
         }
         break;
@@ -99,7 +116,6 @@ case 'getSessionUser':
             $data['isPinned']
         ));
         break;
-
     case 'deleteAnnouncement':
         echo json_encode(deleteAnnouncement($data['id']));
         break;
@@ -153,8 +169,7 @@ case 'getSessionUser':
     case 'updateTimeLog':
         echo json_encode(updateTimeLog($data));
         break;
-
-// Insert these inside your existing switch ($action) router block:
+    // ── Document Checklist actions ────────────────────────────
     case 'getInternDocuments':
         $internId = $_SESSION['user']['id'] ?? null;
         if ($internId) {
@@ -163,7 +178,6 @@ case 'getSessionUser':
             echo json_encode(['error' => 'Unauthenticated session status.']);
         }
         break;
-
     case 'uploadInternDocument':
         $internId = $_SESSION['user']['id'] ?? null;
         if (!$internId) {
@@ -171,9 +185,8 @@ case 'getSessionUser':
             break;
         }
 
-        // Handle native multipart fields fallback mapping arrays cleanly
-        $type  = $_POST['document_type'] ?? '';
-        $notes = $_POST['notes'] ?? '';
+        $type  = $data['document_type'] ?? '';
+        $notes = $data['notes'] ?? '';
         $file  = $_FILES['doc_file'] ?? null;
 
         if (empty($type) || !$file) {
