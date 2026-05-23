@@ -1999,13 +1999,14 @@ function apiCall(action, extra = {}) {
 async function boot() {
   try {
     // Fetch all data in parallel so nothing blocks
-    const [internRes, annRes, logsRes, reportsRes] = await Promise.all([
+    const [internRes, currPageRes, annRes, logsRes, reportsRes] = await Promise.all([
       apiCall('getAllInternData').then (data => {
         console.log('Intern data loaded:', JSON.stringify(data, null, 2));
         InternData = data;
         buildNavBar ()
         return data;
       }),
+      apiCall('getCurrentPage'),
       apiCall('getAnnouncements'),
       apiCall('getAttendanceLogs'),
       apiCall('getInternReports'),
@@ -2025,6 +2026,7 @@ async function boot() {
     Attendance.build();
     Reports   .build();
     InternDocuments.build();
+    navigate(currPageRes.current_page || 'dashboard');
 
   } catch (err) {
     console.error('Boot error:', err);
