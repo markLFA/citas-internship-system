@@ -11,6 +11,54 @@
   <style>
     body { font-family: 'DM Sans', sans-serif; background: #FFF7ED; margin: 0; }
     .cui-card-title, .cui-page-title { font-family: 'Sora', sans-serif; }
+
+    /* Documents page */
+    .doc-type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .doc-type-card {
+      background: #fff; border: 1px solid #FED7AA; border-radius: 14px;
+      padding: 1.25rem; cursor: pointer;
+      transition: box-shadow .15s, border-color .15s, transform .15s;
+      display: flex; flex-direction: column; gap: .45rem;
+      position: relative; overflow: hidden;
+    }
+    .doc-type-card:hover { box-shadow: 0 6px 20px rgba(234,88,12,.14); border-color: #EA580C; transform: translateY(-2px); }
+    .doc-type-card.submitted { border-color: #10B981; background: #F0FDF4; }
+    .doc-type-card.submitted::after {
+      content: '✓'; position: absolute; top: .7rem; right: .9rem;
+      font-size: .75rem; font-weight: 800; color: #10B981;
+      background: #D1FAE5; border-radius: 50%; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .doc-type-card.rejected { border-color: #EF4444; background: #FFF5F5; }
+    .doc-type-icon { font-size: 1.85rem; line-height: 1; }
+    .doc-type-name { font-family: Sora,sans-serif; font-weight: 700; color: #1A0A00; font-size: .875rem; }
+    .doc-type-desc { font-size: .74rem; color: #9A6647; line-height: 1.5; }
+    .doc-type-required {
+      font-size: .67rem; font-weight: 700; color: #EA580C;
+      text-transform: uppercase; letter-spacing: .04em;
+      display: inline-flex; align-items: center; gap: .2rem;
+    }
+
+    .doc-submission-row {
+      background: #fff; border: 1px solid #FED7AA; border-radius: 12px;
+      padding: 1rem 1.25rem; margin-bottom: .6rem;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      transition: box-shadow .15s;
+    }
+    .doc-submission-row:hover { box-shadow: 0 4px 12px rgba(234,88,12,.08); }
+    .doc-sub-icon  { font-size: 1.4rem; flex-shrink: 0; }
+    .doc-sub-info  { flex: 1; min-width: 150px; }
+    .doc-sub-name  { font-family: Sora,sans-serif; font-weight: 700; color: #1A0A00; font-size: .875rem; }
+    .doc-sub-meta  { font-size: .74rem; color: #9A6647; margin-top: .15rem; }
+    .doc-sub-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+    .ds-pending  { background: #FEF3C7; color: #92400E; }
+    .ds-approved { background: #D1FAE5; color: #065F46; }
+    .ds-rejected { background: #FEE2E2; color: #991B1B; }
   </style>
   <script>
     window.onerror = function (msg, url, line, col, error) {
@@ -30,6 +78,7 @@
       <section class="cui-section"        id="sec-profile"></section>
       <section class="cui-section"        id="sec-attendance"></section>
       <section class="cui-section"        id="sec-reports"></section>
+      <section class="cui-section"        id="sec-documents"></section>
     </div>
   </div>
 </div>
@@ -116,6 +165,7 @@ const SECTIONS = {
   profile:    'Profile',
   attendance: 'Attendance',
   reports:    'Weekly Reports',
+  documents:  'Documents',
 };
 // ─────────────────────────────────────────────────────────────
 //  SHARED HELPERS
@@ -193,6 +243,8 @@ function buildNavBar () {
       { label:'Weekly Reports', icon:'📄',
         badge: REPORTS_DATA.filter(r => r.status === 'revision').length || null,
         onClick: () => navigate('reports') },
+      { label:'Documents',      icon:'🗃️',
+        onClick: () => navigate('documents') },
       { section:true, label:'Account' },
       { label:'Sign Out', icon:'🚪',
         onClick: () => { 
@@ -1607,7 +1659,327 @@ const Reports = {
 //  BOOT  — load ALL data from API first, then build sections
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+//  INTERN DOCUMENTS
+//  Submit and track end-of-internship required documents
+// ─────────────────────────────────────────────────────────────
+const InternDocuments = {
+
+  // Document types required for internship completion
+  _docTypes: [
+    { type:'TOR',                     icon:'🎓', desc:'Transcript of Records from your school registrar.',           required: true  },
+    { type:'Certificate of Completion', icon:'🏅', desc:'Certificate issued by your company upon completion.',        required: true  },
+    { type:'Endorsement Letter',        icon:'📨', desc:'Official endorsement letter from your school or department.',required: true  },
+    { type:'Final Report',              icon:'📋', desc:'Comprehensive report summarizing your internship experience.',required: true  },
+    { type:'Waiver / MOA',              icon:'📝', desc:'Signed Memorandum of Agreement or liability waiver.',        required: false },
+    { type:'Medical Certificate',       icon:'🩺', desc:'Health clearance certificate (if required by company).',     required: false },
+    { type:'Other',                     icon:'📎', desc:'Any additional document requested by your coordinator.',     required: false },
+  ],
+
+  // Stub submissions — replace with API data when backend is ready
+  _submissions: [
+    { id:1, type:'Certificate of Completion', file:'cert_completion.pdf', status:'approved', submitted:'May 2, 2026',  feedback:'Looks good, approved!' },
+    { id:2, type:'TOR',                       file:'tor_official.pdf',    status:'pending',  submitted:'May 3, 2026',  feedback:'' },
+    { id:3, type:'Final Report',              file:'final_report_v2.pdf', status:'rejected', submitted:'May 4, 2026',  feedback:'Please resubmit with proper formatting and complete sections.' },
+  ],
+
+  build() {
+    const sec = document.getElementById('sec-documents');
+    sec.innerHTML = '';
+
+    sec.appendChild(Helpers.pageHeader(
+      'Documents',
+      'Submit required documents for your internship completion',
+    ));
+
+    sec.appendChild(this._progressCard());
+    sec.appendChild(this._docTypeGrid());
+    sec.appendChild(this._submissionsCard());
+  },
+
+  // Completion progress card
+  _progressCard() {
+    const required    = this._docTypes.filter(d => d.required);
+    const submittedR  = required.filter(d =>
+      this._submissions.some(s => s.type === d.type && s.status !== 'rejected')
+    ).length;
+    const approved    = this._submissions.filter(s => s.status === 'approved').length;
+    const pending     = this._submissions.filter(s => s.status === 'pending').length;
+    const rejected    = this._submissions.filter(s => s.status === 'rejected').length;
+    const pct         = Math.round(submittedR / required.length * 100);
+
+    const body = document.createElement('div');
+
+    // Stat row
+    body.appendChild(UI.statRow([
+      { value: `${submittedR}/${required.length}`, label: 'Required Docs',   color: '#EA580C' },
+      { value: approved,                            label: 'Approved',         color: '#10B981' },
+      { value: pending,                             label: 'Under Review',     color: '#F59E0B' },
+      { value: rejected,                            label: 'Needs Resubmit',   color: '#EF4444' },
+    ]));
+
+    // Progress bar
+    const lbl = document.createElement('p');
+    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.75rem 0 .4rem';
+    lbl.textContent   = `Required document completion: ${pct}%`;
+    body.appendChild(lbl);
+    body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
+
+    // Info notice
+    if (rejected) {
+      const notice = document.createElement('div');
+      notice.style.cssText = 'margin-top:1rem;padding:.75rem 1rem;background:#FEE2E2;border:1px solid #FECACA;border-radius:10px;font-size:.82rem;color:#991B1B';
+      notice.innerHTML = `⚠️ <strong>${rejected} document${rejected !== 1 ? 's' : ''}</strong> need${rejected === 1 ? 's' : ''} to be resubmitted. Check the feedback below and upload a revised version.`;
+      body.appendChild(notice);
+    } else if (pct === 100) {
+      const notice = document.createElement('div');
+      notice.style.cssText = 'margin-top:1rem;padding:.75rem 1rem;background:#D1FAE5;border:1px solid #A7F3D0;border-radius:10px;font-size:.82rem;color:#065F46';
+      notice.innerHTML = '🎉 <strong>All required documents submitted!</strong> Your coordinator is reviewing them.';
+      body.appendChild(notice);
+    }
+
+    return UI.card({ title: '📊 Submission Progress', body });
+  },
+
+  // Grid of document type cards — click to open upload modal
+  _docTypeGrid() {
+    const section = document.createElement('div');
+    const label   = document.createElement('div');
+    label.style.cssText = 'font-family:Sora,sans-serif;font-size:.85rem;font-weight:700;color:#1A0A00;margin-bottom:.75rem';
+    label.textContent   = 'Document Checklist';
+    section.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'doc-type-grid';
+
+    this._docTypes.forEach(dt => {
+      const existing = this._submissions.find(s => s.type === dt.type);
+      const card     = document.createElement('div');
+      card.className = 'doc-type-card' +
+        (existing && existing.status !== 'rejected' ? ' submitted' : '') +
+        (existing && existing.status === 'rejected'  ? ' rejected'  : '');
+
+      const requiredTag = dt.required
+        ? `<span class="doc-type-required">⭐ Required</span>`
+        : `<span style="font-size:.67rem;color:#9A6647;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Optional</span>`;
+
+      card.innerHTML = `
+        <div class="doc-type-icon">${dt.icon}</div>
+        <div class="doc-type-name">${dt.type}</div>
+        <div class="doc-type-desc">${dt.desc}</div>
+        ${requiredTag}`;
+
+      // Status pill at bottom if submitted
+      if (existing) {
+        const pill = document.createElement('div');
+        const pillMap = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
+        const pillLbl = { pending:'⏳ Under Review', approved:'✅ Approved', rejected:'✗ Rejected' };
+        pill.className   = 'cui-badge ' + (pillMap[existing.status] || 'ds-pending');
+        pill.style.cssText = 'margin-top:.25rem;align-self:flex-start';
+        pill.textContent = pillLbl[existing.status] || existing.status;
+        card.appendChild(pill);
+      }
+
+      card.addEventListener('click', () => this._openUploadModal(dt, existing));
+      grid.appendChild(card);
+    });
+
+    section.appendChild(grid);
+    return section;
+  },
+
+  // Upload / resubmit modal
+  _openUploadModal(dt, existing = null) {
+    const isResubmit = existing && existing.status === 'rejected';
+    const body       = document.createElement('div');
+
+    // Document type info banner
+    const banner = document.createElement('div');
+    banner.style.cssText = 'display:flex;align-items:center;gap:.85rem;padding:1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:1.25rem';
+    banner.innerHTML = `
+      <span style="font-size:2rem;flex-shrink:0">${dt.icon}</span>
+      <div>
+        <div style="font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem">${dt.type}</div>
+        <div style="font-size:.78rem;color:#9A6647;margin-top:.15rem;line-height:1.5">${dt.desc}</div>
+      </div>`;
+    body.appendChild(banner);
+
+    // Show coordinator feedback if resubmitting
+    if (isResubmit && existing.feedback) {
+      const fbBox = document.createElement('div');
+      fbBox.style.cssText = 'padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E;margin-bottom:1.1rem';
+      fbBox.innerHTML = `💬 <strong>Coordinator feedback:</strong> ${existing.feedback}`;
+      body.appendChild(fbBox);
+    }
+
+    // File upload zone
+    const fileLabel = document.createElement('div');
+    fileLabel.className   = 'cui-label';
+    fileLabel.textContent = isResubmit ? 'Upload Revised Document' : 'Attach Document File';
+    body.appendChild(fileLabel);
+
+    const fileInput = document.createElement('input');
+    fileInput.type    = 'file';
+    fileInput.id      = 'doc-upload-file';
+    fileInput.accept  = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    fileInput.style.display = 'none';
+
+    const dropZone = document.createElement('div');
+    dropZone.className = 'cui-upload-zone';
+    dropZone.style.marginBottom = '.85rem';
+
+    const dropIcon  = document.createElement('div');
+    dropIcon.className   = 'cui-upload-icon';
+    dropIcon.textContent = '📁';
+
+    const dropLbl = document.createElement('div');
+    dropLbl.className = 'cui-upload-label';
+    dropLbl.id        = 'doc-drop-label';
+    dropLbl.innerHTML = '<strong>Click to browse</strong> or drag & drop';
+
+    const dropHint = document.createElement('div');
+    dropHint.className   = 'cui-upload-hint';
+    dropHint.textContent = 'PDF, DOC, DOCX, PNG, JPG — max 10 MB';
+
+    dropZone.append(fileInput, dropIcon, dropLbl, dropHint);
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('cui-upload-zone-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('cui-upload-zone-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('cui-upload-zone-over');
+      fileInput.files = e.dataTransfer.files;
+      this._updateDropLabel(fileInput, dropLbl);
+    });
+    fileInput.addEventListener('change', () => this._updateDropLabel(fileInput, dropLbl));
+    body.appendChild(dropZone);
+
+    // Notes field
+    body.appendChild(UI.formGroup('Notes (optional)',
+      UI.textarea({ id:'doc-upload-notes', placeholder: isResubmit ? 'Describe the changes you made…' : 'Any notes for your coordinator…', rows: 3 })
+    ));
+
+    const m = UI.modal({
+      title: isResubmit ? `🔄 Resubmit: ${dt.type}` : `📤 Submit: ${dt.type}`,
+      body,
+      size: 'lg',
+      footer: [
+        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        UI.button(isResubmit ? '🔄 Resubmit Document' : '📤 Submit Document', {
+          size: 'sm',
+          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+          onClick: () => {
+            if (!fileInput.files?.length) {
+              UI.toast('Please attach a file before submitting.', 'danger');
+              return;
+            }
+            const file = fileInput.files[0];
+            // Stub — wire to upload API later
+            if (existing) {
+              existing.file      = file.name;
+              existing.status    = 'pending';
+              existing.submitted = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+              existing.feedback  = '';
+            } else {
+              this._submissions.push({
+                id:        Date.now(),
+                type:      dt.type,
+                file:      file.name,
+                status:    'pending',
+                submitted: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+                feedback:  '',
+              });
+            }
+            m.close();
+            // Rebuild the entire section so all cards refresh
+            const sec = document.getElementById('sec-documents');
+            sec.innerHTML = '';
+            this.build();
+            UI.toast(`✅ "${dt.type}" submitted successfully!`, 'success');
+          },
+        }),
+      ],
+    });
+    m.open();
+  },
+
+  _updateDropLabel(input, labelEl) {
+    if (!input.files?.length) return;
+    labelEl.innerHTML = `<strong>📎 ${input.files[0].name}</strong>`;
+    labelEl.style.color = '#EA580C';
+  },
+
+  // List of all past submissions
+  _submissionsCard() {
+    const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
+    const slLbl = { pending:'⏳ Under Review', approved:'✅ Approved', rejected:'✗ Needs Resubmit' };
+    const icons  = {
+      'TOR':'🎓','Certificate of Completion':'🏅','Endorsement Letter':'📨',
+      'Final Report':'📋','Waiver / MOA':'📝','Medical Certificate':'🩺','Other':'📎',
+    };
+
+    if (!this._submissions.length) {
+      return UI.card({
+        title: '📋 My Submissions',
+        body:  UI.empty('📭', 'No submissions yet', 'Click a document type above to get started.'),
+      });
+    }
+
+    const body = document.createElement('div');
+    [...this._submissions].sort((a, b) => {
+      const order = { rejected:0, pending:1, approved:2 };
+      return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+    }).forEach(sub => {
+      const row = document.createElement('div');
+      row.className = 'doc-submission-row';
+
+      const icon = document.createElement('div');
+      icon.className   = 'doc-sub-icon';
+      icon.textContent = icons[sub.type] || '📎';
+
+      const info = document.createElement('div');
+      info.className = 'doc-sub-info';
+      info.innerHTML = `
+        <div class="doc-sub-name">${sub.type}</div>
+        <div class="doc-sub-meta">
+          <a href="#" style="color:#EA580C;text-decoration:none;font-size:.74rem">📄 ${sub.file}</a>
+          <span style="margin:0 .35rem;opacity:.4">·</span>
+          Submitted ${sub.submitted}
+          ${sub.feedback ? `<div style="margin-top:.25rem;font-size:.74rem;color:#92400E;background:#FEF3C7;padding:.25rem .5rem;border-radius:6px;display:inline-block">💬 ${sub.feedback}</div>` : ''}
+        </div>`;
+
+      const badge = document.createElement('span');
+      badge.className   = 'cui-badge ' + (slCls[sub.status] || 'ds-pending');
+      badge.textContent = slLbl[sub.status] || sub.status;
+
+      const actions = document.createElement('div');
+      actions.className = 'doc-sub-actions';
+      if (sub.status === 'rejected') {
+        const dt = this._docTypes.find(d => d.type === sub.type) || { type: sub.type, icon:'📎', desc:'', required:false };
+        actions.appendChild(UI.button('🔄 Resubmit', {
+          size: 'sm',
+          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+          onClick: () => this._openUploadModal(dt, sub),
+        }));
+      }
+
+      row.append(icon, info, badge, actions);
+      body.appendChild(row);
+    });
+
+    return UI.card({
+      title: '📋 My Submissions',
+      headerActions: UI.badge(this._submissions.length + ' submitted', { base:'#DBEAFE', text:'#1E40AF' }),
+      body,
+    });
+  },
+};
+
+
+// ─────────────────────────────────────────────────────────────
 // Generic API helper — used here and by Attendance / Reports
+// ─────────────────────────────────────────────────────────────
 function apiCall(action, extra = {}) {
   return fetch('config/api.php', {
     method:  'POST',
@@ -1644,6 +2016,7 @@ async function boot() {
     Profile   .build();
     Attendance.build();
     Reports   .build();
+    InternDocuments.build();
 
   } catch (err) {
     console.error('Boot error:', err);
