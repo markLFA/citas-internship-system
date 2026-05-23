@@ -1516,6 +1516,7 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 function getCoordinatorDocuments(int $coordinatorId): array
 {
     $pdo = getDB();
+    // Added d.file_path back explicitly to the select statement
     $sql = "SELECT d.id, d.intern_id AS internId, u.name AS internName, 
                    p.department AS dept, d.document_type AS type, 
                    d.file_path, d.file_name AS file, d.status, 
