@@ -2395,7 +2395,7 @@ const CoordinatorDocuments = {
         info.innerHTML = `
           <div class="doc-row-name">${doc.type}</div>
           <div class="doc-row-meta">
-            <a href="uploads/${doc.file_path}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
+            <a href="config/uploads/${doc.file_path}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
             <span style="margin:0 .35rem;opacity:.4">·</span>
             Submitted ${doc.submitted}
             ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1">💬 Has feedback</span>` : ''}
@@ -2407,7 +2407,14 @@ const CoordinatorDocuments = {
 
         const actions = document.createElement('div');
         actions.className = 'doc-row-actions';
-        actions.appendChild(Helpers.ghostBtn('👁 View', () => this._openReviewModal(doc)));
+
+        // 👁 Inline View Action -> Now utilizes Microsoft Viewer
+        actions.appendChild(Helpers.ghostBtn('👁 View', () => {
+          const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/config/uploads/${doc.file_path}`;
+          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
+          window.open(previewUrl, '_blank');
+        }));
+
         if (doc.status === 'pending') {
           actions.appendChild(Helpers.approveBtn('✅ Approve', () => this._quickAction(doc, 'approved')));
           actions.appendChild(Helpers.rejectBtn('✗ Reject',   () => this._quickAction(doc, 'rejected')));
@@ -2468,11 +2475,15 @@ const CoordinatorDocuments = {
     hdr.append(iconCircle, hdrInfo, statusBadge);
     body.appendChild(hdr);
 
+    // 📋 Modal View Link Box -> Re-routed directly into Microsoft Viewer layout
+    const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/config/uploads/${doc.file_path}`;
+    const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
+
     const fileLink = document.createElement('a');
-    fileLink.href   = `uploads/${doc.file_path}`;
+    fileLink.href   = previewUrl;
     fileLink.target = '_blank';
     fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem;margin-bottom:1.25rem';
-    fileLink.innerHTML = `📄 ${doc.file} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open ↗</span>`;
+    fileLink.innerHTML = `📄 ${doc.file} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Preview Document ↗</span>`;
     body.appendChild(fileLink);
 
     const statusLbl = document.createElement('div');
@@ -2561,7 +2572,6 @@ const CoordinatorDocuments = {
     });
   },
 };
-
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
