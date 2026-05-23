@@ -1513,7 +1513,7 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
 /**
  * Retrieves all files submitted by interns assigned to a specific coordinator.
  */
-function getCoordinatorDocuments(int $coordinatorId): array
+function getCoordinatorDocuments(): array
 {
     $pdo = getDB();
     // Added d.file_path back explicitly to the select statement
@@ -1530,7 +1530,7 @@ function getCoordinatorDocuments(int $coordinatorId): array
 
     try {
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':coordinator_id' => $coordinatorId]);
+        $stmt->execute([':coordinator_id' => $_SESSION['user']['id']]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (PDOException $e) {
         error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
