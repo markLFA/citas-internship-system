@@ -1616,6 +1616,11 @@ const Reports = {
       'Weekly Reports',
       'Review and give feedback on intern submissions'
     ));
+    Helpers.api('config/api.php').then(data => {
+      REPORTS = data;
+      console.warn('Reports data loaded:', JSON.stringify(REPORTS, null, 2));
+      //this.renderList();
+    });
 
     sec.appendChild( this.statusTabs()     );
     sec.appendChild( this.tableContainer() );
