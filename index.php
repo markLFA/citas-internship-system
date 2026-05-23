@@ -1,28 +1,20 @@
 <?php
 require 'config/db.php';
 
-// ── 2. SESSION ───────────────────────────────────────────────
 session_start();
 $db = getDB();
+
 // Already logged in? Send straight to dashboard.
 if (isset($_SESSION['user'])) {
     redirect_to_dashboard($_SESSION['user']['role']);
 }
 
+// ── Helpers ──────────────────────────────────────────────────
 
-// ── 3. HELPERS ───────────────────────────────────────────────
-
-
-/**
- * Sanitise a string for safe HTML output.
- */
 function h(string $str): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 }
 
-/**
- * Redirect user to the correct dashboard for their role.
- */
 function redirect_to_dashboard(string $role): void {
     $map = [
         'intern'      => 'intern.html',
@@ -33,13 +25,8 @@ function redirect_to_dashboard(string $role): void {
     exit;
 }
 
+// ── Validation ────────────────────────────────────────────
 
-// ── 4. VALIDATION ────────────────────────────────────────────
-
-/**
- * Validate the submitted login form.
- * Returns an array of error strings, empty array if all good.
- */
 function validate_input(array $post): array {
     $errors = [];
 
@@ -58,10 +45,6 @@ function validate_input(array $post): array {
     return $errors;
 }
 
-/**
- * Look up the user by email and verify password hash.
- * Returns the user row on success, null on any failure.
- */
 function attempt_login(string $email, string $password): ?array {
     $stmt = getDB()->prepare(
         'SELECT id, name, email, password, role, is_active
@@ -72,18 +55,14 @@ function attempt_login(string $email, string $password): ?array {
     $stmt->execute([':email' => $email]);
     $user = $stmt->fetch();
 
-    if (!$user)                                    return null; // no account
-    if (!password_verify($password, $user['password'])) return null; // wrong password
+    if (!$user)                                    return null;
+    if (!password_verify($password, $user['password'])) return null;
 
     return $user;
 }
 
-/**
- * Store safe user data in the session.
- * Never stores the password hash.
- */
 function start_user_session(array $user): void {
-    session_regenerate_id(true); // prevent session fixation
+    session_regenerate_id(true);
     $_SESSION['user'] = [
         'id'    => $user['id'],
         'name'  => $user['name'],
@@ -92,12 +71,17 @@ function start_user_session(array $user): void {
     ];
 }
 
-
-// ── 5. HANDLE POST ───────────────────────────────────────────
+// ── Handle Session Flash Alerts & POST ────────────────────────
 
 $errors    = [];
 $old_email = '';
-$Alert = '';
+$Alert     = '';
+
+// Capture redirected registration confirmation message
+if (!empty($_SESSION['flash_success'])) {
+    $Alert = $_SESSION['flash_success'];
+    unset($_SESSION['flash_success']); // Clear instantly so it only shows once
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -105,20 +89,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password  =      $_POST['password'] ?? '';
     $old_email = $email;
 
-    // Step A — validate format
     $errors = validate_input($_POST);
 
-    // Step B — check credentials only if format is clean
     if (empty($errors)) {
         $user = attempt_login($email, $password);
 
         if ($user === null) {
-            // Deliberately vague so attackers can't tell which field was wrong
             $errors[] = 'Incorrect email or password. Please try again.';
         } else if ($user['is_active'] === 0) {
             $Alert = 'Your account has not been approved yet.';
         } else {
-            // Step C — success: session + redirect
             start_user_session($user);
             redirect_to_dashboard($user['role']);
         }
@@ -141,138 +121,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      background: var(--o3);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 1.5rem 1rem 2rem;
-      overflow-x: hidden;
+      font-family: 'DM Sans', sans-serif; min-height: 100vh; background: var(--o3);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1.5rem 1rem 2rem; overflow-x: hidden;
     }
-    body::before, body::after {
-      content: ''; position: fixed; border-radius: 50%; pointer-events: none;
-    }
-    body::before {
-      width: 520px; height: 520px; top: -180px; right: -140px;
-      background: radial-gradient(circle, rgba(255,140,0,.35) 0%, transparent 70%);
-    }
-    body::after {
-      width: 400px; height: 400px; bottom: -130px; left: -100px;
-      background: radial-gradient(circle, rgba(255,100,0,.2) 0%, transparent 70%);
-    }
+    body::before, body::after { content: ''; position: fixed; border-radius: 50%; pointer-events: none; }
+    body::before { width: 520px; height: 520px; top: -180px; right: -140px; background: radial-gradient(circle, rgba(255,140,0,.35) 0%, transparent 70%); }
+    body::after { width: 400px; height: 400px; bottom: -130px; left: -100px; background: radial-gradient(circle, rgba(255,100,0,.2) 0%, transparent 70%); }
 
-    /* ── Capstone banner ──────────────────────────────────── */
     .banner {
-      width: 100%; max-width: 440px;
-      background: rgba(255,255,255,.12); backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.2); border-radius: 10px;
-      padding: .6rem 1rem; margin-bottom: 1rem;
-      display: flex; align-items: center; gap: .6rem;
-      animation: slideDown .4s ease both;
+      width: 100%; max-width: 440px; background: rgba(255,255,255,.12); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.2); border-radius: 10px; padding: .6rem 1rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .6rem; animation: slideDown .4s ease both;
     }
-    .banner-dot {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-      background: #FCD34D; box-shadow: 0 0 6px #FCD34D;
-      animation: blink 2s infinite;
-    }
-    @keyframes blink {
-      0%,100% { opacity:1; transform:scale(1); }
-      50%      { opacity:.6; transform:scale(.85); }
-    }
+    .banner-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #FCD34D; box-shadow: 0 0 6px #FCD34D; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.6; transform:scale(.85); } }
     .banner p { font-size: .78rem; color: rgba(255,255,255,.9); line-height: 1.4; }
     .banner strong { color: #FCD34D; }
 
-    /* ── Card ─────────────────────────────────────────────── */
     .card {
-      width: 100%; max-width: 440px;
-      background: #fff; border-radius: 20px; overflow: hidden;
-      box-shadow: 0 24px 64px rgba(194,65,12,.18), 0 4px 16px rgba(0,0,0,.08);
-      animation: slideUp .4s .1s ease both;
+      width: 100%; max-width: 440px; background: #fff; border-radius: 20px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(194,65,12,.18), 0 4px 16px rgba(0,0,0,.08); animation: slideUp .4s .1s ease both;
     }
-
-    .card-head {
-      background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 60%, var(--o3) 100%);
-      padding: 2rem 2rem 1.75rem;
-      position: relative; overflow: hidden;
-    }
-    .card-head::before {
-      content: ''; position: absolute; border-radius: 50%;
-      width: 180px; height: 180px; top: -60px; right: -40px;
-      background: rgba(255,255,255,.08);
-    }
-    .logo-row {
-      display: flex; align-items: center; gap: .75rem;
-      margin-bottom: 1rem; position: relative; z-index: 1;
-    }
-    .logo-icon {
-      width: 46px; height: 46px;
-      background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35);
-      border-radius: 12px;
-      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-    }
+    .card-head { background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 60%, var(--o3) 100%); padding: 2rem 2rem 1.75rem; position: relative; overflow: hidden; }
+    .card-head::before { content: ''; position: absolute; border-radius: 50%; width: 180px; height: 180px; top: -60px; right: -40px; background: rgba(255,255,255,.08); }
+    .logo-row { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; position: relative; z-index: 1; }
+    .logo-icon { width: 46px; height: 46px; background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
     .logo-name { font-family: 'Sora',sans-serif; font-size: 1.15rem; font-weight: 800; color: #fff; }
     .logo-sub  { font-size: .72rem; opacity: .8; color: #fff; margin-top: .1rem; }
-    .card-head h1 {
-      font-family: 'Sora',sans-serif; font-size: 1.5rem; font-weight: 800;
-      color: #fff; letter-spacing: -.4px; position: relative; z-index: 1;
-    }
+    .card-head h1 { font-family: 'Sora',sans-serif; font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: -.4px; position: relative; z-index: 1; }
     .card-head p { color: rgba(255,255,255,.75); font-size: .85rem; margin-top: .3rem; position: relative; z-index: 1; }
 
     .card-body { padding: 1.75rem 2rem 2rem; }
 
-    /* ── Error box ────────────────────────────────────────── */
-    .errors {
-      background: #FEF2F2; border: 1px solid #FECACA;
-      border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1.25rem;
-    }
+    .errors { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1.25rem; }
     .errors ul { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
-    .errors li {
-      font-size: .83rem; font-weight: 500; color: #991B1B;
-      display: flex; align-items: flex-start; gap: .4rem;
-    }
+    .errors li { font-size: .83rem; font-weight: 500; color: #991B1B; display: flex; align-items: flex-start; gap: .4rem; }
     .errors li::before { content: '⚠'; flex-shrink: 0; }
 
-    /* ── Alerts ───────────────────────────────────────────── */
-    .alert {
-      display:flex; align-items:flex-start; gap:.5rem;
-      border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem;
-      font-size:.83rem; font-weight:500;
-    }
-    .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
-    .alert li::before { content:'⚠ '; }
+    .alert { display:flex; align-items:flex-start; gap:.5rem; border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem; font-size:.83rem; font-weight:500; }
     .alert-success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
 
-    /* ── Form ─────────────────────────────────────────────── */
     .field { margin-bottom: 1.1rem; }
     label  { display: block; font-size: .8rem; font-weight: 600; color: #6B3A1F; margin-bottom: .4rem; }
 
     .inp-wrap { position: relative; }
-    .inp-icon {
-      position: absolute; left: .85rem; top: 50%;
-      transform: translateY(-50%); font-size: 1rem; pointer-events: none; opacity: .4;
+    .inp-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); font-size: 1rem; pointer-events: none; opacity: .4; }
+    
+    /* Show Password Style */
+    .toggle-pass {
+      position: absolute; right: .85rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5;
+      transition: opacity 0.15s; z-index: 5;
     }
+    .toggle-pass:hover { opacity: 0.9; }
+
     input[type="email"], input[type="password"] {
-      display: block; width: 100%;
-      padding: .7rem .85rem .7rem 2.5rem;
-      font-size: .9rem; font-family: 'DM Sans',sans-serif;
-      color: #1A0A00; background: var(--pale);
-      border: 1.5px solid #FED7AA; border-radius: 10px; outline: none;
-      transition: border-color .15s, box-shadow .15s, background .15s;
+      display: block; width: 100%; padding: .7rem .85rem .7rem 2.5rem;
+      font-size: .9rem; font-family: 'DM Sans',sans-serif; color: #1A0A00; background: var(--pale);
+      border: 1.5px solid #FED7AA; border-radius: 10px; outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
     }
+    input[type="password"] { padding-right: 2.5rem; }
     input::placeholder { color: #C4845A; opacity: .7; }
     input:focus        { border-color: var(--o2); background: #fff; box-shadow: 0 0 0 3px var(--ring); }
     input.err          { border-color: #EF4444; background: #FEF2F2; }
     input.err:focus    { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
 
-    /* ── Submit ───────────────────────────────────────────── */
     .btn-submit {
-      display: flex; align-items: center; justify-content: center; gap: .5rem;
-      width: 100%; padding: .8rem; margin-top: 1.5rem;
-      background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 100%);
-      color: #fff; font-family: 'Sora',sans-serif; font-size: .95rem; font-weight: 700;
-      border: none; border-radius: 10px; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(234,88,12,.4);
-      transition: filter .15s, transform .12s;
+      display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; padding: .8rem; margin-top: 1.5rem;
+      background: linear-gradient(135deg, var(--o1) 0%, var(--o2) 100%); color: #fff; font-family: 'Sora',sans-serif; font-size: .95rem; font-weight: 700;
+      border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(234,88,12,.4); transition: filter .15s, transform .12s;
     }
     .btn-submit:hover  { filter: brightness(1.08); transform: translateY(-1px); }
     .btn-submit:active { transform: none; }
@@ -300,9 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="banner">
   <div class="banner-dot"></div>
   <p>
-    <strong>Academic Project — </strong>
-    CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students.
-    For academic use only.
+    <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
   </p>
 </div>
 
@@ -331,9 +247,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </ul>
       </div>
     <?php endif; ?>
+    
     <?php if (!empty($Alert)): ?>
       <div class="alert alert-success">
-        <span>⚠</span>&nbsp;<?= h($Alert) ?>
+        <span>✅</span>&nbsp;<?= h($Alert) ?>
       </div>
     <?php endif; ?>
 
@@ -363,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             class="<?= !empty($errors) ? 'err' : '' ?>"
             autocomplete="current-password"
             required>
+          <button type="button" class="toggle-pass" data-target="password">👁️</button>
         </div>
       </div>
 
@@ -385,5 +303,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </p>
 </div>
 
+<script>
+// Toggle Password Visibility Functional Implementation
+document.querySelectorAll('.toggle-pass').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const targetId = this.getAttribute('data-target');
+    const input = document.getElementById(targetId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      this.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      this.textContent = '👁️';
+    }
+  });
+});
+</script>
 </body>
 </html>

@@ -1,15 +1,6 @@
 <?php
 // ============================================================
 //  register.php — Intern / Coordinator self-registration
-//
-//  What this does on POST:
-//  1. Validates all fields
-//  2. Inserts a row into `users`  (is_active = 0 for interns
-//     so the coordinator must approve before they can log in)
-//  3. If the role is intern, also inserts:
-//       • `intern_profiles`  — school / course / year / phone
-//       • `companies`        — placeholder row so the FK exists
-//       • `internships`      — links intern ↔ company (empty dates)
 // ============================================================
 
 require_once __DIR__ . '/config/db.php';   // provides getDB()
@@ -83,11 +74,6 @@ function validate(array $data): array {
 
 // ── Registration logic ────────────────────────────────────────
 
-/**
- * Insert the user account.
- * Interns are created with is_active = 0 so they cannot log in
- * until the coordinator approves them.
- */
 function create_user(array $data): int {
     $db   = getDB();
     $role = map_role($data['role']);
@@ -111,11 +97,6 @@ function create_user(array $data): int {
     return (int)$db->lastInsertId();
 }
 
-/**
- * Insert a placeholder company row.
- * Interns fill in their real company details later from their profile page.
- * Returns the new company ID.
- */
 function create_placeholder_company(): int {
     $db   = getDB();
     $stmt = $db->prepare(
@@ -125,10 +106,6 @@ function create_placeholder_company(): int {
     return (int)$db->lastInsertId();
 }
 
-/**
- * Insert the intern_profile row with the details from registration.
- * The rest (phone, joined_date) can be filled in later from the profile page.
- */
 function create_intern_profile(int $userId, array $data): void {
     $db   = getDB();
     $stmt = $db->prepare(
@@ -143,14 +120,10 @@ function create_intern_profile(int $userId, array $data): void {
         ':year_level'    => $data['year_level'] ?: null,
         ':phone'         => $data['phone']      ?: null,
         ':coordinator_id'=> $data['coordinator_id'] ?: null,
-        ':required_hours'=> 500,   // default; coordinator can adjust later
+        ':required_hours'=> 500,
     ]);
 }
 
-/**
- * Link the intern to the placeholder company via the internships table.
- * All date / position fields are left NULL — filled in later.
- */
 function create_internship(int $userId, int $companyId): void {
     $db   = getDB();
     $stmt = $db->prepare(
@@ -164,9 +137,6 @@ function create_internship(int $userId, int $companyId): void {
     ]);
 }
 
-/**
- * Check whether an email already exists in the users table.
- */
 function email_taken(string $email): bool {
     $db   = getDB();
     $stmt = $db->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
@@ -177,7 +147,6 @@ function email_taken(string $email): bool {
 // ── Handle POST ───────────────────────────────────────────────
 
 $errors  = [];
-$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -194,24 +163,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'terms'            => post('terms'),
     ];
 
-    // Step 1 — validate fields
     $errors = validate($data);
 
-    // Step 2 — check for duplicate email
     if (empty($errors) && email_taken($data['email'])) {
         $errors[] = 'An account with that email already exists.';
     }
 
-    // Step 3 — insert records in a transaction so it's all-or-nothing
     if (empty($errors)) {
         try {
             $db = getDB();
             $db->beginTransaction();
 
-            // Always create the user first
             $userId = create_user($data);
 
-            // Extra tables only for interns
             if (map_role($data['role']) === 'intern') {
                 $companyId = create_placeholder_company();
                 create_intern_profile($userId, $data);
@@ -221,18 +185,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->commit();
 
             $isIntern = map_role($data['role']) === 'intern';
-            $success  = $isIntern
+            
+            // Set the confirmation flash message in the session
+            $_SESSION['flash_success'] = $isIntern
                 ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
-                : 'Account created successfully! wait for Admin aproaval.';
+                : 'Account created successfully! Please wait for Admin approval.';
 
-            // Clear POST data so form resets
-            $_POST = [];
+            // Redirect to index.php (Sign In page)
+            header('Location: index.php');
+            exit;
 
         } catch (PDOException $e) {
             $db->rollBack();
-            // Show a safe message; log the real error server-side
             error_log('Registration error: ' . $e->getMessage());
-            $errors[] = 'Something went wrong. Please try again later. ' . $e->getMessage();
+            $errors[] = 'Something went wrong. Please try again later.';
         }
     }
 }
@@ -240,18 +206,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function getCoordinators(): array
 {
     $pdo = getDB();
-    $sql = "
-        SELECT id, name, email
-        FROM users
-        WHERE role = :role
-        ORDER BY name ASC
-    ";
-
+    $sql = "SELECT id, name, email FROM users WHERE role = :role ORDER BY name ASC";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':role' => 'coordinator'
-    ]);
-
+    $stmt->execute([':role' => 'coordinator']);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 $coordinators = getCoordinators();
@@ -282,7 +239,6 @@ $coordinators = getCoordinators();
     body::before { width:520px;height:520px;top:-180px;right:-140px; background:radial-gradient(circle,rgba(255,140,0,.35) 0%,transparent 70%); }
     body::after  { width:400px;height:400px;bottom:-130px;left:-100px; background:radial-gradient(circle,rgba(255,100,0,.2) 0%,transparent 70%); }
 
-    /* ── Banner ───────────────────────────────────────────── */
     .banner {
       width:100%; max-width:480px;
       background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
@@ -295,7 +251,6 @@ $coordinators = getCoordinators();
     .banner p { font-size:.78rem;color:rgba(255,255,255,.9);line-height:1.4; }
     .banner strong { color:#FCD34D; }
 
-    /* ── Card ─────────────────────────────────────────────── */
     .card {
       width:100%; max-width:480px; background:#fff; border-radius:20px; overflow:hidden;
       box-shadow:0 24px 64px rgba(194,65,12,.18),0 4px 16px rgba(0,0,0,.08);
@@ -314,7 +269,6 @@ $coordinators = getCoordinators();
 
     .card-body { padding:1.75rem 2rem 2rem; }
 
-    /* ── Alerts ───────────────────────────────────────────── */
     .alert {
       display:flex; align-items:flex-start; gap:.5rem;
       border-radius:10px; padding:.8rem 1rem; margin-bottom:1.1rem;
@@ -323,9 +277,7 @@ $coordinators = getCoordinators();
     .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
     .alert li::before { content:'⚠ '; }
     .alert-error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
-    .alert-success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
 
-    /* ── Section divider ──────────────────────────────────── */
     .section-label {
       font-size:.7rem; font-weight:700; text-transform:uppercase;
       letter-spacing:.08em; color:var(--o2);
@@ -334,16 +286,22 @@ $coordinators = getCoordinators();
     }
     .section-label:first-child { margin-top:0; }
 
-    /* ── Intern-only fields (hidden by default) ───────────── */
     #intern-fields { display:none; }
 
-    /* ── Form ─────────────────────────────────────────────── */
     .field { margin-bottom:.95rem; }
     label  { display:block;font-size:.79rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem; }
     .hint  { font-size:.72rem;color:var(--text-muted);margin-top:.3rem; }
 
     .inp-wrap { position:relative; }
     .inp-icon { position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4; }
+    
+    /* Show Password Icon Button */
+    .toggle-pass {
+      position: absolute; right: .85rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5;
+      transition: opacity 0.15s; z-index: 5;
+    }
+    .toggle-pass:hover { opacity: 0.9; }
 
     input[type="text"], input[type="email"],
     input[type="password"], input[type="tel"],
@@ -356,12 +314,12 @@ $coordinators = getCoordinators();
       transition:border-color .15s,box-shadow .15s,background .15s;
       -webkit-appearance:none;
     }
-    select { padding-left:.85rem; }   /* select has no icon */
+    input[type="password"] { padding-right: 2.5rem; } /* padded right for the view icon */
+    select { padding-left:.85rem; }
     input::placeholder { color:#C4845A;opacity:.7; }
     input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
     input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
-    /* Terms checkbox custom style */
     .terms-field { display: flex; align-items: flex-start; gap: .6rem; margin: 1.25rem 0 .5rem; }
     .terms-field input[type="checkbox"] {
       accent-color: var(--o2); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0;
@@ -370,11 +328,9 @@ $coordinators = getCoordinators();
     .terms-field a { color: var(--o2); font-weight: 600; text-decoration: none; }
     .terms-field a:hover { text-decoration: underline; }
 
-    /* Two-column row */
     .field-row { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
     @media(max-width:480px){ .field-row{grid-template-columns:1fr;} }
 
-    /* ── Submit ───────────────────────────────────────────── */
     .btn-submit {
       display:flex;align-items:center;justify-content:center;gap:.5rem;
       width:100%;padding:.8rem;margin-top:1.4rem;
@@ -395,7 +351,6 @@ $coordinators = getCoordinators();
     .page-foot p { font-size:.73rem;color:rgba(255,255,255,.5);line-height:1.9; }
     .page-foot strong { color:rgba(255,255,255,.75); }
 
-    /* ── Role info callout ────────────────────────────────── */
     .role-info {
       background:var(--pale); border:1px solid #FED7AA; border-radius:8px;
       padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid);
@@ -433,12 +388,6 @@ $coordinators = getCoordinators();
             <li><?= h($e) ?></li>
           <?php endforeach; ?>
         </ul>
-      </div>
-    <?php endif; ?>
-
-    <?php if (!empty($success)): ?>
-      <div class="alert alert-success">
-        <span>✅</span>&nbsp;<?= h($success) ?>
       </div>
     <?php endif; ?>
 
@@ -481,7 +430,7 @@ $coordinators = getCoordinators();
           ⏳ Intern accounts require coordinator approval before you can log in.
         </div>
         <div class="role-info" id="info-coordinator">
-          ⏳ Coordinator accounts will be activated after Admin approaval.
+          ⏳ Coordinator accounts will be activated after Admin approval.
         </div>
       </div>
 
@@ -492,9 +441,7 @@ $coordinators = getCoordinators();
           <div class="field">
             <label for="course">Course</label>
             <select id="course" name="course">
-              <option value="" disabled <?= empty(post('course')) ? 'selected' : '' ?>>
-                Select your course...
-              </option>
+              <option value="" disabled <?= empty(post('course')) ? 'selected' : '' ?>>Select your course...</option>
               <option value="BSIT" <?= post('course') === 'BSIT' ? 'selected' : '' ?>>BSIT</option>
               <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
               <option value="BSA"  <?= post('course') === 'BSA'  ? 'selected' : '' ?>>BSA</option>
@@ -507,9 +454,7 @@ $coordinators = getCoordinators();
           <div class="field">
             <label for="year_level">Year Level</label>
             <select id="year_level" name="year_level">
-              <option value="" disabled <?= empty(post('year_level')) ? 'selected' : '' ?>>
-                Select year level...
-              </option>
+              <option value="" disabled <?= empty(post('year_level')) ? 'selected' : '' ?>>Select year level...</option>
               <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
               <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
               <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
@@ -521,15 +466,9 @@ $coordinators = getCoordinators();
         <div class="field">
           <label for="coordinator_id">Coordinator</label>
           <select id="coordinator_id" name="coordinator_id">
-            <option value="" disabled <?= empty(post('coordinator_id')) ? 'selected' : '' ?>>
-              Select coordinator...
-            </option>
-
+            <option value="" disabled <?= empty(post('coordinator_id')) ? 'selected' : '' ?>>Select coordinator...</option>
             <?php foreach ($coordinators as $coordinator): ?>
-              <option
-                value="<?= $coordinator['id'] ?>"
-                <?= post('coordinator_id') == $coordinator['id'] ? 'selected' : '' ?>
-              >
+              <option value="<?= $coordinator['id'] ?>" <?= post('coordinator_id') == $coordinator['id'] ? 'selected' : '' ?>>
                 <?= htmlspecialchars($coordinator['name']) ?>
               </option>
             <?php endforeach; ?>
@@ -537,19 +476,10 @@ $coordinators = getCoordinators();
         </div>
 
         <div class="field">
-          <label for="phone">
-            Phone Number
-            <span style="font-weight:400;opacity:.6">(optional)</span>
-          </label>
+          <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
           <div class="inp-wrap">
             <span class="inp-icon">📱</span>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              placeholder="+63 9xx xxx xxxx"
-              value="<?= h(post('phone')) ?>"
-            >
+            <input type="tel" id="phone" name="phone" placeholder="+63 9xx xxx xxxx" value="<?= h(post('phone')) ?>">
           </div>
         </div>
 
@@ -565,8 +495,8 @@ $coordinators = getCoordinators();
           <label for="password">Create Password</label>
           <div class="inp-wrap">
             <span class="inp-icon">🔒</span>
-            <input type="password" id="password" name="password"
-              placeholder="Min. 6 characters" required autocomplete="new-password">
+            <input type="password" id="password" name="password" placeholder="Min. 6 characters" required autocomplete="new-password">
+            <button type="button" class="toggle-pass" data-target="password">👁️</button>
           </div>
           <div class="hint">Minimum 6 characters.</div>
         </div>
@@ -574,8 +504,8 @@ $coordinators = getCoordinators();
           <label for="confirm_password">Confirm Password</label>
           <div class="inp-wrap">
             <span class="inp-icon">🔑</span>
-            <input type="password" id="confirm_password" name="confirm_password"
-              placeholder="Repeat password" required autocomplete="new-password">
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat password" required autocomplete="new-password">
+            <button type="button" class="toggle-pass" data-target="confirm_password">👁️</button>
           </div>
         </div>
       </div>
@@ -607,7 +537,6 @@ $coordinators = getCoordinators();
 </div>
 
 <script>
-// ── Update JavaScript ────────────────────────────────────────
 const roleSelect   = document.getElementById('role');
 const internFields = document.getElementById('intern-fields');
 const infoIntern   = document.getElementById('info-intern');
@@ -618,7 +547,6 @@ const coordinatorInput    = document.getElementById('coordinator_id');
 
 function updateRoleUI() {
   const role = roleSelect.value;
-
   internFields.style.display = role === 'intern' ? 'block' : 'none';
   infoIntern.style.display   = role === 'intern' ? 'block' : 'none';
   infoCoord.style.display    = role === 'coordinator' ? 'block' : 'none';
@@ -630,6 +558,21 @@ function updateRoleUI() {
 
 roleSelect.addEventListener('change', updateRoleUI);
 updateRoleUI();
+
+// Toggle Password Visibility Functional Implementation
+document.querySelectorAll('.toggle-pass').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const targetId = this.getAttribute('data-target');
+    const input = document.getElementById(targetId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      this.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      this.textContent = '👁️';
+    }
+  });
+});
 </script>
 </body>
 </html>
