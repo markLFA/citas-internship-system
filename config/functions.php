@@ -1537,12 +1537,12 @@ function getCoordinatorDocuments(): array
             FROM intern_documents d
             JOIN users u ON d.intern_id = u.id
             LEFT JOIN intern_profiles p ON d.intern_id = p.user_id
-            WHERE d.coordinator_id = :coordinator_id
+            WHERE d.coordinator_id = ?
             ORDER BY d.id DESC";
 
     try {
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':coordinator_id' => $coordinatorId]);
+        $stmt->execute([$coordinatorId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (PDOException $e) {
         error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
