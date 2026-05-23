@@ -637,6 +637,14 @@ const Profile = {
     return this.internship.company || {};
   },
 
+  // 🔹 Helper to convert YYYY-MM-DD to "Month Day, Year"
+  formatReadableDate(dateString) {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // Fallback if already formatted or invalid
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  },
+
   leftColumn() {
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
@@ -661,7 +669,7 @@ const Profile = {
       email: InternData.user.email,
       dept: InternData.profile.course,
       yearLevel: InternData.profile.year_level,
-      joined: InternData.profile.joined_date || '—',
+      joined: this.formatReadableDate(InternData.profile.joined_date),
     });
   },
 
@@ -671,7 +679,7 @@ const Profile = {
       ['📱', 'Phone', InternData.profile.phone],
       ['📚', 'Course', InternData.profile.course],
       ['🎓', 'Year Level', InternData.profile.year_level],
-      ['📅', 'Joined', InternData.profile.joined_date || '—'],
+      ['📅', 'Joined', this.formatReadableDate(InternData.profile.joined_date)],
     ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v || '—')));
 
     return UI.card({ title: '📋 Personal Details', body });
@@ -693,8 +701,8 @@ const Profile = {
       supervisor: this.internship.supervisor || '—',
       phone:      this.company.phone || '—',
       email:      this.company.email || '—',
-      startDate:  this.internship.start_date || '—',
-      endDate:    this.internship.end_date || '—',
+      startDate:  this.formatReadableDate(this.internship.start_date),
+      endDate:    this.formatReadableDate(this.internship.end_date),
     });
   },
 
@@ -845,11 +853,9 @@ const Profile = {
       const hoursPerDay = 8; 
       const workDaysNeeded = Math.ceil(requiredHours / hoursPerDay);
 
-      // Create a date object based on the user's start input selection
       const calculatedDate = new Date(this.startDateField.value);
       let workDaysAdded = 0;
 
-      // Forward step sequence tracking business days (skipping Saturday/Sunday)
       while (workDaysAdded < workDaysNeeded) {
         calculatedDate.setDate(calculatedDate.getDate() + 1);
         const dayOfWeek = calculatedDate.getDay();
@@ -858,7 +864,6 @@ const Profile = {
         }
       }
 
-      // Convert date string structure cleanly into standard compliant input YYYY-MM-DD template values
       const yyyy = calculatedDate.getFullYear();
       const mm = String(calculatedDate.getMonth() + 1).padStart(2, '0');
       const dd = String(calculatedDate.getDate()).padStart(2, '0');
@@ -895,6 +900,7 @@ const Profile = {
   },
 
   populateEditModal() {
+    // Keeps raw YYYY-MM-DD input field binding compliant
     this.nameField.value = InternData.user?.name || '';
     this.phoneField.value = InternData.profile?.phone || '';
     this.courseField.value = InternData.profile?.course || '';
@@ -1009,8 +1015,7 @@ const Profile = {
       }
     }
   }  
-};
-// ─────────────────────────────────────────────────────────────
+};// ─────────────────────────────────────────────────────────────
 //  ATTENDANCE
 // ─────────────────────────────────────────────────────────────
 const Attendance = {
