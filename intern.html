@@ -923,7 +923,7 @@ const Profile = {
     this.positionField.value = this.internship?.position || '';
     this.addressField.value = this.company?.address || '';
     this.supervisorField.value = this.internship?.supervisor || '';
-    this.companyPhoneNumber.value = this.internship?.supervisor_phone || '';
+    this.companyPhoneNumber.value = InternData.internships[0].company.phone || '';
     this.companyEmail.value = this.company?.email || '';
     this.startDateField.value = this.internship?.start_date || '';
     this.endDateField.value = this.internship?.end_date || '';
@@ -953,6 +953,7 @@ const Profile = {
         end_date: document.getElementById('endDateField').value || null,
       },
       company: {
+        phone: document.getElementById('companyPhoneNumber').value.trim(),
         email: document.getElementById('companyEmail').value.trim(),
        }
     };

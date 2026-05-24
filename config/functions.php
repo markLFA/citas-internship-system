@@ -326,6 +326,7 @@ function updateInternProfile(array $data): void
                 SET
                     name = ?,
                     address = ?,
+                    phone = ?,
                     email = ?
                 WHERE id = ?
             ");
@@ -333,6 +334,7 @@ function updateInternProfile(array $data): void
             $stmt->execute([
                 trim($internship['company_name'] ?? ''),
                 trim($internship['address'] ?? ''),
+                trim($company['phone'] ?? ''),
                 trim($company['email'] ?? ''),
                 $currentInternship['company_id']
             ]);
