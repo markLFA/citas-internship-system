@@ -2412,7 +2412,7 @@ const CoordinatorDocuments = {
         actions.appendChild(Helpers.ghostBtn('👁 View', () => {
           // Point directly to your live website proxy file instead of a static folder asset path
           const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-          console.log('Generated Hostinger URL for document preview:', hostingerFileUrl);e
+          console.log('Generated Hostinger URL for document preview:', hostingerFileUrl);
           // Pass your secure proxy link over into the Microsoft Office Online Viewer
           const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
           
