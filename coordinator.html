@@ -2412,7 +2412,7 @@ const CoordinatorDocuments = {
         actions.appendChild(Helpers.ghostBtn('👁 View', () => {
           const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/uploads/${doc.file_path}`;
           const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
-          console.warn('Opening document preview via Microsoft Viewer: '+ hostingerFileUrl);
+          //console.warn('Opening document preview via Microsoft Viewer: '+ hostingerFileUrl);
           window.open(previewUrl, '_blank');
         }));
 

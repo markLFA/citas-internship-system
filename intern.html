@@ -2062,9 +2062,14 @@ async function boot() {
     // Fetch all data in parallel so nothing blocks
     const [internRes, currPageRes, annRes, logsRes, reportsRes] = await Promise.all([
       apiCall('getAllInternData').then (data => {
+        if (!data) {
+              window.location.href = 'https://palegoldenrod-raven-703625.hostingersite.com'; 
+              return
+        }
         console.log('Intern data loaded:', JSON.stringify(data, null, 2));
         InternData = data;
         buildNavBar ()
+
         return data;
       }),
       apiCall('getCurrentPage'),
