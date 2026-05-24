@@ -255,6 +255,8 @@ function updateInternProfile(array $data): void
     $user       = $data['user'] ?? [];
     $profile    = $data['profile'] ?? [];
     $internship = $data['internship'] ?? [];
+    $company = $data['company'] ?? [];
+
 
     try {
         $pdo->beginTransaction();
@@ -313,6 +315,7 @@ function updateInternProfile(array $data): void
         $currentInternship = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($currentInternship) {
+            
             /*
             --------------------------------------------------------------
             | Update companies table
@@ -323,12 +326,14 @@ function updateInternProfile(array $data): void
                 SET
                     name = ?,
                     address = ?
+                    email = ?,
                 WHERE id = ?
             ");
 
             $stmt->execute([
                 trim($internship['company_name'] ?? ''),
                 trim($internship['address'] ?? ''),
+                trim($internship['email'] ?? ''),
                 $currentInternship['company_id']
             ]);
             /*
