@@ -19,16 +19,6 @@ function setReportStatus(): void
 
     try {
 
-        // Verify login
-        if (empty($_SESSION['user']['id'])) {
-            throw new Exception('You must be logged in.');
-        }
-
-
-        // Validation
-        if ($reportId <= 0) {
-            throw new Exception('Invalid report ID.');
-        }
 
         $allowedStatuses = [
             'pending',
