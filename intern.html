@@ -956,7 +956,7 @@ const Profile = {
         email: document.getElementById('companyEmail').value.trim(),
        }
     };
-
+    console.log('Payload to be sent for profile update:', JSON.stringfy(payload, null, 2)); // Debug log  
     try {
       const response = await fetch('config/api.php', {
         method: 'POST',
