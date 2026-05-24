@@ -1840,7 +1840,6 @@ const Reports = {
           const feedback = document.getElementById('review-feedback')?.value.trim() ?? '';
           report.status   = selectedStatus;
           report.feedback = feedback;
-          console.log("report "+JSON.stringify(report, null,2))
           Helpers.api('setReportStatus', {id: report.id, status: report.status, feedback: report.feedback}).then (() => {
             this.renderTable();
             m.close();

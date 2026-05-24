@@ -662,8 +662,7 @@ function setReportStatus($reportId, $status): void
 
         echo json_encode([
             'success' => false,
-            'message' => $e->getMessage(),
-            'addiii' => 'id ' . $reportId ' status ' . $stats
+            'message' => $e->getMessage()
         ]);
     }
 
