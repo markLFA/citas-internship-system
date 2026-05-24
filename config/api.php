@@ -221,7 +221,7 @@ switch ($action) {
     case 'setReportStatus':
         $status        = $data['status'] ?? '';
         $id      = $data['id'] ?? '';
-        echo json_encode(setReportStatus($d, $status));
+        echo json_encode(setReportStatus($id, $status));
         break;
     default:
         echo json_encode([
