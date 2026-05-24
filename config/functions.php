@@ -333,7 +333,7 @@ function updateInternProfile(array $data): void
             $stmt->execute([
                 trim($internship['company_name'] ?? ''),
                 trim($internship['address'] ?? ''),
-                trim($internship['email'] ?? ''),
+                trim($company['email'] ?? ''),
                 $currentInternship['company_id']
             ]);
             /*
