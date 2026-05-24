@@ -593,6 +593,7 @@ function getInternReports(): array
 
 function setReportStatus($reportId, $status): void
 {
+    $status = strtolower($status);
     $pdo = getDB();
     header('Content-Type: application/json');
 
