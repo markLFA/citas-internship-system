@@ -2410,9 +2410,12 @@ const CoordinatorDocuments = {
 
         // 👁 Inline View Action -> Now utilizes Microsoft Viewer
         actions.appendChild(Helpers.ghostBtn('👁 View', () => {
-          const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/uploads/${doc.file_path}`;
+          // Point directly to your live website proxy file instead of a static folder asset path
+          const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+          
+          // Pass your secure proxy link over into the Microsoft Office Online Viewer
           const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
-          //console.warn('Opening document preview via Microsoft Viewer: '+ hostingerFileUrl);
+          
           window.open(previewUrl, '_blank');
         }));
 
