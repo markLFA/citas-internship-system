@@ -218,6 +218,11 @@ switch ($action) {
             echo json_encode(reviewInternDocument($docId, $status, $feedback, $coordinatorId));
         }
         break;
+    case 'setReportStatus':
+        $status        = $data['status'] ?? '';
+        $id      = $data['id'] ?? '';
+        echo json_encode(setReportStatus($d, $status));
+        break;
     default:
         echo json_encode([
             "error" => "Invalid action"
