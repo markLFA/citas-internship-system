@@ -219,7 +219,7 @@ switch ($action) {
         }
         break;
     case 'setReportStatus':
-        $status        = $data['status'] ?? '';
+        $status        = $data['status'] ?? 'approved';
         $id      = $data['id'] ?? '';
         echo json_encode(setReportStatus($id, $status));
         break;
