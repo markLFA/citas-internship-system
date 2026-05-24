@@ -325,7 +325,7 @@ function updateInternProfile(array $data): void
                 UPDATE companies
                 SET
                     name = ?,
-                    address = ?
+                    address = ?,
                     email = ?,
                 WHERE id = ?
             ");
