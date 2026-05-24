@@ -2479,9 +2479,9 @@ const CoordinatorDocuments = {
     hdr.append(iconCircle, hdrInfo, statusBadge);
     body.appendChild(hdr);
 
-    // 📋 Modal View Link Box -> Re-routed directly into Microsoft Viewer layout
-    const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/config/uploads/${doc.file_path}`;
-    const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
+    const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+    const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
+    window.open(previewUrl, '_blank');
 
     const fileLink = document.createElement('a');
     fileLink.href   = previewUrl;
