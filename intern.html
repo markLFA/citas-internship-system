@@ -2057,7 +2057,7 @@ function apiCall(action, extra = {}) {
     body:    JSON.stringify({ action, ...extra }),
   }).then(r => r.json());
 }
-
+/*
 async function boot() {
   try {
     // Fetch all data in parallel so nothing blocks
@@ -2100,7 +2100,89 @@ async function boot() {
     console.error('Boot error:', err);
   }
 }
+  */
+async function boot() {
+  try {
 
+    // INTERN DATA
+    apiCall('getAllInternData')
+      .then(data => {
+        if (!data) {
+          window.location.href = 'https://palegoldenrod-raven-703625.hostingersite.com';
+          return;
+        }
+
+        console.log('Intern data loaded:', JSON.stringify(data, null, 2));
+
+        InternData = data;
+
+        buildNavBar();
+
+        // Sections that need InternData
+        Dashboard.build();
+        Profile.build();
+        InternDocuments.build();
+      })
+      .catch(err => {
+        console.error('Intern data error:', err);
+      });
+
+
+    // CURRENT PAGE
+    apiCall('getCurrentPage')
+      .then(currPageRes => {
+        console.log('Current page:', currPageRes);
+
+        navigate(currPageRes?.currentPage || 'dashboard');
+      })
+      .catch(err => {
+        console.error('Current page error:', err);
+      });
+
+
+    // ANNOUNCEMENTS
+    apiCall('getAnnouncements')
+      .then(annRes => {
+        ANNOUNCEMENTS = Array.isArray(annRes) ? annRes : [];
+
+        // Build/update section immediately
+        Dashboard.build();
+      })
+      .catch(err => {
+        console.error('Announcements error:', err);
+      });
+
+
+    // ATTENDANCE LOGS
+    apiCall('getAttendanceLogs')
+      .then(logsRes => {
+        ATTENDANCE_LOG = Array.isArray(logsRes) ? logsRes : [];
+
+        Attendance.build();
+      })
+      .catch(err => {
+        console.error('Attendance logs error:', err);
+      });
+
+
+    // REPORTS
+    apiCall('getInternReports')
+      .then(reportsRes => {
+        REPORTS_DATA = Array.isArray(reportsRes) ? reportsRes : [];
+
+        Reports.build();
+
+        // Rebuild navbar if badge count depends on reports
+        buildNavBar();
+      })
+      .catch(err => {
+        console.error('Reports error:', err);
+      });
+
+  } catch (err) {
+    console.error('Boot error:', err);
+  }
+}
 boot();
 
 </script>
