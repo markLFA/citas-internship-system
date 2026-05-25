@@ -2057,7 +2057,7 @@ function apiCall(action, extra = {}) {
     body:    JSON.stringify({ action, ...extra }),
   }).then(r => r.json());
 }
-/*
+
 async function boot() {
   try {
     // Fetch all data in parallel so nothing blocks
@@ -2100,7 +2100,8 @@ async function boot() {
     console.error('Boot error:', err);
   }
 }
-  */
+  
+ /*
 async function boot() {
   try {
 
@@ -2183,6 +2184,7 @@ async function boot() {
     console.error('Boot error:', err);
   }
 }
+  */
 boot();
 
 </script>
