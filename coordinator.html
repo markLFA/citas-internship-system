@@ -2231,15 +2231,16 @@ const Analytics = {
 // ─────────────────────────────────────────────────────────────
 //  COORDINATOR DOCUMENTS
 //  Review intern-submitted end-of-internship documents
+//  + Analytics tab with charts and intern progress tables
 // ─────────────────────────────────────────────────────────────
 const CoordinatorDocuments = {
 
-  // Live state tracking cache array
   _docs: [],
-
   _filterStatus: '',
   _filterIntern: '',
   _filterType:   '',
+  _activeTab:    'submissions',  // 'submissions' | 'analytics'
+  _chartInstances: [],           // track Chart.js instances to destroy on rebuild
 
   build() {
     const sec = document.getElementById('sec-documents');
@@ -2250,23 +2251,84 @@ const CoordinatorDocuments = {
       'Review end-of-internship documents submitted by interns'
     ));
 
-    // Dynamic database network integration point
     Helpers.api('getCoordinatorDocuments').then(data => {
       this._docs = data || [];
 
       sec.appendChild(this._summaryStrip());
+      sec.appendChild(this._tabStrip());
       sec.appendChild(this._filterBar());
 
+      // Submissions panel
       const listWrap = document.createElement('div');
       listWrap.id = 'cdoc-list-wrap';
       sec.appendChild(listWrap);
+
+      // Analytics panel (hidden by default)
+      const analyticsWrap = document.createElement('div');
+      analyticsWrap.id = 'cdoc-analytics-wrap';
+      analyticsWrap.style.display = 'none';
+      sec.appendChild(analyticsWrap);
+
+      this._applyTabVisibility();
       this._renderList();
     }).catch(err => {
       console.error(err);
-      UI.toast('Failed to sync documents from server database profile.', 'danger');
+      UI.toast('Failed to sync documents from server.', 'danger');
     });
   },
 
+  // ── Tab strip ──────────────────────────────────────────────
+  _tabStrip() {
+    const wrap = document.createElement('div');
+    wrap.id = 'cdoc-tab-strip';
+    wrap.style.cssText = 'display:flex;gap:.4rem;margin-bottom:1rem';
+
+    [
+      { id: 'submissions', label: '📋 Submissions' },
+      { id: 'analytics',   label: '📊 Analytics'   },
+    ].forEach(t => {
+      const btn = document.createElement('button');
+      btn.id = 'cdoc-tab-' + t.id;
+      btn.style.cssText = 'padding:.4rem .9rem;border-radius:20px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1.5px solid #FED7AA;background:#fff;color:#9A6647';
+      btn.textContent = t.label;
+      btn.addEventListener('click', () => {
+        this._activeTab = t.id;
+        this._applyTabVisibility();
+
+        // Build analytics lazily on first open
+        if (t.id === 'analytics') {
+          const wrap = document.getElementById('cdoc-analytics-wrap');
+          if (!wrap.hasChildNodes()) this._buildAnalytics(wrap);
+        }
+      });
+      wrap.appendChild(btn);
+    });
+
+    return wrap;
+  },
+
+  _applyTabVisibility() {
+    const isSubmissions = this._activeTab === 'submissions';
+
+    ['submissions', 'analytics'].forEach(id => {
+      const btn = document.getElementById('cdoc-tab-' + id);
+      if (!btn) return;
+      const active = (id === this._activeTab);
+      btn.style.background  = active ? '#EA580C' : '#fff';
+      btn.style.borderColor = active ? '#EA580C' : '#FED7AA';
+      btn.style.color       = active ? '#fff'    : '#9A6647';
+    });
+
+    const listWrap = document.getElementById('cdoc-list-wrap');
+    const analyticsWrap = document.getElementById('cdoc-analytics-wrap');
+    const filterBar = document.querySelector('#sec-documents .cui-filter-bar');
+
+    if (listWrap)   listWrap.style.display      = isSubmissions ? 'block' : 'none';
+    if (analyticsWrap) analyticsWrap.style.display = isSubmissions ? 'none'  : 'block';
+    if (filterBar)  filterBar.style.display     = isSubmissions ? 'flex'  : 'none';
+  },
+
+  // ── Summary strip ──────────────────────────────────────────
   _summaryStrip() {
     const docs    = this._docs;
     const pending  = docs.filter(d => d.status === 'pending').length;
@@ -2281,43 +2343,36 @@ const CoordinatorDocuments = {
     ]);
   },
 
+  // ── Filter bar ─────────────────────────────────────────────
   _filterBar() {
     const bar = document.createElement('div');
     bar.className = 'cui-filter-bar';
 
-    // Intern name search
     const search = UI.input({ placeholder: '🔍 Search intern name…' });
     search.addEventListener('input', e => {
       this._filterIntern = e.target.value.toLowerCase();
       this._renderList();
     });
 
-    // Document type filter
     const types = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
     const typeSelect = UI.select({ options: types, placeholder: 'All Document Types' });
     typeSelect.style.minWidth = '190px';
-    typeSelect.addEventListener('change', e => {
-      this._filterType = e.target.value;
-      this._renderList();
-    });
+    typeSelect.addEventListener('change', e => { this._filterType = e.target.value; this._renderList(); });
 
-    // Status filter tabs (pill row)
     const tabs = document.createElement('div');
     tabs.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;align-items:center';
     [
-      { value:'',         label:'All'       },
-      { value:'pending',  label:'⏳ Pending' },
-      { value:'approved', label:'✅ Approved'},
-      { value:'rejected', label:'✗ Rejected' },
+      { value: '',         label: 'All'        },
+      { value: 'pending',  label: '⏳ Pending'  },
+      { value: 'approved', label: '✅ Approved' },
+      { value: 'rejected', label: '✗ Rejected'  },
     ].forEach(t => {
       const btn = document.createElement('button');
       btn.style.cssText = 'padding:.35rem .8rem;border-radius:20px;font-size:.78rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1.5px solid #FED7AA;background:#fff;color:#9A6647;white-space:nowrap';
       btn.textContent   = t.label;
       btn.dataset.value = t.value;
       if (this._filterStatus === t.value) {
-        btn.style.background  = '#EA580C';
-        btn.style.borderColor = '#EA580C';
-        btn.style.color       = '#fff';
+        btn.style.background = '#EA580C'; btn.style.borderColor = '#EA580C'; btn.style.color = '#fff';
       }
       btn.addEventListener('click', () => {
         this._filterStatus = t.value;
@@ -2336,6 +2391,7 @@ const CoordinatorDocuments = {
     return bar;
   },
 
+  // ── Filter helper ──────────────────────────────────────────
   _filtered() {
     return this._docs.filter(d =>
       (!this._filterIntern || d.internName.toLowerCase().includes(this._filterIntern)) &&
@@ -2344,6 +2400,7 @@ const CoordinatorDocuments = {
     );
   },
 
+  // ── Submissions list ───────────────────────────────────────
   _renderList() {
     const wrap = document.getElementById('cdoc-list-wrap');
     if (!wrap) return;
@@ -2354,12 +2411,11 @@ const CoordinatorDocuments = {
     if (!list.length) {
       wrap.appendChild(UI.card({
         title: 'Submitted Documents',
-        body:  UI.empty('📭', 'No documents found', 'No submissions match the current filters.'),
+        body: UI.empty('📭', 'No documents found', 'No submissions match the current filters.'),
       }));
       return;
     }
 
-    // Group by intern
     const grouped = {};
     list.forEach(d => {
       if (!grouped[d.internId]) grouped[d.internId] = { name: d.internName, dept: d.dept || 'General', docs: [] };
@@ -2367,16 +2423,14 @@ const CoordinatorDocuments = {
     });
 
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
-    const slLbl = { pending:'⏳ Pending',  approved:'✅ Approved',  rejected:'✗ Rejected'  };
+    const slLbl = { pending:'⏳ Pending',  approved:'✅ Approved',  rejected:'✗ Rejected' };
 
     Object.values(grouped).forEach(group => {
       const pendingCount = group.docs.filter(d => d.status === 'pending').length;
 
       const headerActions = document.createElement('div');
       headerActions.style.cssText = 'display:flex;align-items:center;gap:.5rem';
-      if (pendingCount) {
-        headerActions.appendChild(UI.badge(pendingCount + ' pending', { base:'#FEF3C7', text:'#92400E' }));
-      }
+      if (pendingCount) headerActions.appendChild(UI.badge(pendingCount + ' pending', { base:'#FEF3C7', text:'#92400E' }));
       headerActions.appendChild(UI.badge(group.docs.length + ' doc' + (group.docs.length !== 1 ? 's' : ''), { base:'#DBEAFE', text:'#1E40AF' }));
 
       const body = document.createElement('div');
@@ -2386,16 +2440,15 @@ const CoordinatorDocuments = {
         row.className = 'doc-row';
 
         const icons = {
-          'TOR': '🎓', 'Certificate of Completion': '🏅',
-          'Endorsement Letter': '📨', 'Final Report': '📋',
-          'Waiver / MOA': '📝', 'Medical Certificate': '🩺', 'Other': '📎',
+          'TOR':'🎓','Certificate of Completion':'🏅','Endorsement Letter':'📨',
+          'Final Report':'📋','Waiver / MOA':'📝','Medical Certificate':'🩺','Other':'📎',
         };
         const iconEl = document.createElement('div');
         iconEl.className   = 'doc-row-icon';
         iconEl.textContent = icons[doc.type] || '📎';
 
         const info = document.createElement('div');
-        const docDownloadpath =`https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+        const docDownloadpath = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
         info.className = 'doc-row-info';
         info.innerHTML = `
           <div class="doc-row-name">${doc.type}</div>
@@ -2403,7 +2456,7 @@ const CoordinatorDocuments = {
             <a href="config/uploads/${docDownloadpath}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
             <span style="margin:0 .35rem;opacity:.4">·</span>
             Submitted ${doc.submitted}
-            ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1">💬 Has feedback</span>` : ''}
+            ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1;font-size:.74rem">💬 Has feedback</span>` : ''}
           </div>`;
 
         const badge = document.createElement('span');
@@ -2413,20 +2466,17 @@ const CoordinatorDocuments = {
         const actions = document.createElement('div');
         actions.className = 'doc-row-actions';
 
-        // 👁 Inline View Action -> Now utilizes Microsoft Viewer
         actions.appendChild(Helpers.ghostBtn('👁 View', () => {
-          // Point directly to your live website proxy file instead of a static folder asset path
           const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-          console.log('Generated Hostinger URL for document preview:', hostingerFileUrl);
-          // Pass your secure proxy link over into the Microsoft Office Online Viewer
-          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
-          
+          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
           window.open(previewUrl, '_blank');
         }));
 
         if (doc.status === 'pending') {
           actions.appendChild(Helpers.approveBtn('✅ Approve', () => this._quickAction(doc, 'approved')));
           actions.appendChild(Helpers.rejectBtn('✗ Reject',   () => this._quickAction(doc, 'rejected')));
+        } else {
+          actions.appendChild(Helpers.ghostBtn('✏️ Review', () => this._openReviewModal(doc)));
         }
 
         row.append(iconEl, info, badge, actions);
@@ -2444,22 +2494,308 @@ const CoordinatorDocuments = {
       })());
       body.prepend(internHeader);
 
-      wrap.appendChild(UI.card({
-        title: '',
-        padding: true,
-        headerActions,
-        body,
-      }));
+      wrap.appendChild(UI.card({ title: '', padding: true, headerActions, body }));
     });
   },
 
+  // ── Analytics tab ──────────────────────────────────────────
+  _buildAnalytics(container) {
+    const REQUIRED_TYPES = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report'];
+    const ALL_TYPES      = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
+    const docs = this._docs;
+
+    const total    = docs.length;
+    const approved = docs.filter(d => d.status === 'approved').length;
+    const pending  = docs.filter(d => d.status === 'pending').length;
+    const rejected = docs.filter(d => d.status === 'rejected').length;
+
+    // ── Stat strip ────────────────────────────────────────────
+    container.appendChild(UI.statRow([
+      { value: total,    label: 'Total Submitted',  color: '#EA580C' },
+      { value: approved, label: 'Approved',          color: '#10B981' },
+      { value: pending,  label: 'Pending Review',    color: '#F59E0B' },
+      { value: rejected, label: 'Needs Resubmit',    color: '#EF4444' },
+    ]));
+
+    // ── Charts row ────────────────────────────────────────────
+    const chartsRow = document.createElement('div');
+    chartsRow.className = 'pg-grid-2 mt-lg';
+    chartsRow.style.alignItems = 'start';
+
+    // Donut card
+    const donutBody = document.createElement('div');
+    const donutLegend = document.createElement('div');
+    donutLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem;justify-content:center';
+    [
+      ['#10B981', 'Approved', approved],
+      ['#F59E0B', 'Pending',  pending ],
+      ['#EF4444', 'Rejected', rejected],
+    ].forEach(([color, label, count]) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
+      item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>${label} (${count})`;
+      donutLegend.appendChild(item);
+    });
+    donutBody.appendChild(donutLegend);
+    const donutCanvas = document.createElement('canvas');
+    donutCanvas.id = 'chart-cdoc-donut';
+    donutCanvas.height = 200;
+    donutBody.appendChild(donutCanvas);
+    chartsRow.appendChild(UI.card({ title: '🍩 Status Breakdown', body: donutBody }));
+
+    // Bar card — submissions by type
+    const barBody = document.createElement('div');
+    const barLegend = document.createElement('div');
+    barLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem';
+    [['#10B981','Approved'],['#F59E0B','Pending'],['#EF4444','Rejected']].forEach(([color, label]) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
+      item.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></span>${label}`;
+      barLegend.appendChild(item);
+    });
+    barBody.appendChild(barLegend);
+    const barCanvas = document.createElement('canvas');
+    barCanvas.id = 'chart-cdoc-bar';
+    barCanvas.height = 220;
+    barBody.appendChild(barCanvas);
+    chartsRow.appendChild(UI.card({ title: '📂 Submissions by Document Type', body: barBody }));
+
+    container.appendChild(chartsRow);
+
+    // ── Per-intern data ───────────────────────────────────────
+    const byIntern = {};
+    docs.forEach(d => {
+      if (!byIntern[d.internId]) byIntern[d.internId] = { name: d.internName, dept: d.dept || '', docs: [] };
+      byIntern[d.internId].docs.push(d);
+    });
+
+    const internList = Object.values(byIntern).map(intern => {
+      const submittedReqTypes = intern.docs
+        .filter(d => REQUIRED_TYPES.includes(d.type) && d.status !== 'rejected')
+        .map(d => d.type);
+      const missing = REQUIRED_TYPES.filter(t => !submittedReqTypes.includes(t));
+      const appCount = intern.docs.filter(d => d.status === 'approved').length;
+      const penCount = intern.docs.filter(d => d.status === 'pending').length;
+      const rejCount = intern.docs.filter(d => d.status === 'rejected').length;
+      const pct = Math.round(((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100);
+      return { ...intern, approved: appCount, pending: penCount, rejected: rejCount, missing, pct };
+    }).sort((a, b) => a.pct - b.pct);
+
+    const behind = internList.filter(i => i.missing.length > 0);
+
+    // ── Intern progress table ─────────────────────────────────
+    const progressLabel = document.createElement('p');
+    progressLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
+    progressLabel.textContent = '📋 Intern Document Progress';
+    container.appendChild(progressLabel);
+
+    if (!internList.length) {
+      container.appendChild(UI.card({
+        title: '',
+        body: UI.empty('📭', 'No submissions yet', 'Documents submitted by your interns will appear here.'),
+      }));
+    } else {
+      const progressTbl = UI.table([
+        {
+          key: 'name', label: 'Intern',
+          render: (v, row) => {
+            const cell = document.createElement('div');
+            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+            const av = UI.avatar(v);
+            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+            const info = document.createElement('div');
+            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
+            cell.append(av, info);
+            return cell;
+          },
+        },
+        {
+          key: 'approved', label: 'Approved', align: 'center',
+          render: v => `<strong style="color:#10B981">${v}</strong>`,
+        },
+        {
+          key: 'pending', label: 'Pending', align: 'center',
+          render: v => `<span style="color:#F59E0B;font-weight:600">${v}</span>`,
+        },
+        {
+          key: 'rejected', label: 'Rejected', align: 'center',
+          render: v => `<span style="color:#EF4444;font-weight:600">${v}</span>`,
+        },
+        {
+          key: 'pct', label: 'Required Progress',
+          render: (v) => {
+            const color = v >= 75 ? '#10B981' : v >= 50 ? '#F59E0B' : '#EF4444';
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;align-items:center;gap:.5rem';
+            const track = document.createElement('div');
+            track.style.cssText = 'flex:1;height:6px;background:#FEE2E2;border-radius:10px;overflow:hidden;min-width:60px';
+            const fill = document.createElement('div');
+            fill.style.cssText = `height:100%;width:${v}%;background:${color};border-radius:10px`;
+            track.appendChild(fill);
+            wrap.innerHTML = `<span style="font-size:.78rem;font-weight:700;color:${color};width:34px;flex-shrink:0">${v}%</span>`;
+            wrap.appendChild(track);
+            return wrap;
+          },
+        },
+        {
+          key: 'missing', label: 'Missing Required',
+          render: v => {
+            if (!v.length) return `<span style="color:#10B981;font-size:.78rem;font-weight:600">✓ All submitted</span>`;
+            return `<span style="font-size:.76rem;color:#EF4444">${v.join(', ')}</span>`;
+          },
+        },
+      ], internList, { hoverable: true });
+
+      container.appendChild(UI.card({
+        title: '',
+        headerActions: UI.badge(internList.length + ' interns', { base:'#DBEAFE', text:'#1E40AF' }),
+        padding: false,
+        body: progressTbl,
+      }));
+    }
+
+    // ── Behind schedule card ──────────────────────────────────
+    const behindLabel = document.createElement('p');
+    behindLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
+    behindLabel.textContent = `⚠️ Behind on Required Documents`;
+    container.appendChild(behindLabel);
+
+    if (!behind.length) {
+      container.appendChild(UI.card({
+        title: '',
+        body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.'),
+      }));
+    } else {
+      // Sort worst first
+      const sortedBehind = [...behind].sort((a, b) => b.missing.length - a.missing.length);
+
+      const behindTbl = UI.table([
+        {
+          key: 'name', label: 'Intern',
+          render: (v, row) => {
+            const cell = document.createElement('div');
+            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+            const av = UI.avatar(v);
+            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+            const info = document.createElement('div');
+            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
+            cell.append(av, info);
+            return cell;
+          },
+        },
+        {
+          key: 'missing', label: 'Missing Documents',
+          render: v => {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.25rem';
+            v.forEach(t => {
+              const pill = document.createElement('span');
+              pill.className = 'cui-badge';
+              pill.style.cssText = 'background:#FEE2E2;color:#991B1B;font-size:.68rem';
+              pill.textContent = t;
+              wrap.appendChild(pill);
+            });
+            return wrap;
+          },
+        },
+        {
+          key: 'approved', label: 'Approved', align: 'center',
+          render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }),
+        },
+        {
+          key: 'pct', label: 'Completion', align: 'center',
+          render: v => {
+            const b = document.createElement('span');
+            b.className = 'cui-badge';
+            b.style.cssText = `background:${v < 50 ? '#FEE2E2' : '#FEF3C7'};color:${v < 50 ? '#991B1B' : '#92400E'}`;
+            b.textContent = v + '%';
+            return b;
+          },
+        },
+      ], sortedBehind, { hoverable: true });
+
+      container.appendChild(UI.card({
+        title: '',
+        headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base:'#FEE2E2', text:'#991B1B' }),
+        padding: false,
+        body: behindTbl,
+      }));
+    }
+
+    // ── Draw charts (after DOM is ready) ──────────────────────
+    setTimeout(() => {
+      // Destroy any previous chart instances
+      this._chartInstances.forEach(c => c.destroy());
+      this._chartInstances = [];
+
+      // Donut
+      const donutCtx = document.getElementById('chart-cdoc-donut');
+      if (donutCtx) {
+        this._chartInstances.push(new Chart(donutCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Approved', 'Pending', 'Rejected'],
+            datasets: [{
+              data: [approved, pending, rejected],
+              backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+              borderWidth: 2,
+              borderColor: '#fff',
+              hoverOffset: 5,
+            }],
+          },
+          options: {
+            responsive: true,
+            cutout: '62%',
+            plugins: { legend: { display: false } },
+          },
+        }));
+      }
+
+      // Stacked bar by type
+      const typeCounts = {};
+      ALL_TYPES.forEach(t => { typeCounts[t] = { approved: 0, pending: 0, rejected: 0 }; });
+      docs.forEach(d => { if (typeCounts[d.type]) typeCounts[d.type][d.status]++; });
+
+      const barCtx = document.getElementById('chart-cdoc-bar');
+      if (barCtx) {
+        this._chartInstances.push(new Chart(barCtx, {
+          type: 'bar',
+          data: {
+            labels: ALL_TYPES.map(t => t.length > 12 ? t.slice(0, 11) + '…' : t),
+            datasets: [
+              { label: 'Approved', data: ALL_TYPES.map(t => typeCounts[t].approved), backgroundColor: '#10B981', borderRadius: 4, stack: 'stack' },
+              { label: 'Pending',  data: ALL_TYPES.map(t => typeCounts[t].pending),  backgroundColor: '#F59E0B', borderRadius: 0, stack: 'stack' },
+              { label: 'Rejected', data: ALL_TYPES.map(t => typeCounts[t].rejected), backgroundColor: '#EF4444', borderRadius: 0, stack: 'stack' },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                stacked: true,
+                grid: { display: false },
+                ticks: { font: { size: 9 }, maxRotation: 45, autoSkip: false },
+              },
+              y: {
+                stacked: true,
+                ticks: { font: { size: 11 }, stepSize: 1 },
+                grid: { color: '#FFF0E0' },
+              },
+            },
+          },
+        }));
+      }
+    }, 50);
+  },
+
+  // ── Review modal ───────────────────────────────────────────
   _openReviewModal(doc) {
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
-    const slLbl = { pending:'⏳ Pending',  approved:'✅ Approved',  rejected:'✗ Rejected'  };
+    const slLbl = { pending:'⏳ Pending',  approved:'✅ Approved',  rejected:'✗ Rejected' };
     const icons  = {
-      'TOR': '🎓', 'Certificate of Completion': '🏅',
-      'Endorsement Letter': '📨', 'Final Report': '📋',
-      'Waiver / MOA': '📝', 'Medical Certificate': '🩺', 'Other': '📎',
+      'TOR':'🎓','Certificate of Completion':'🏅','Endorsement Letter':'📨',
+      'Final Report':'📋','Waiver / MOA':'📝','Medical Certificate':'🩺','Other':'📎',
     };
 
     let selectedStatus = doc.status;
@@ -2469,15 +2805,13 @@ const CoordinatorDocuments = {
     hdr.style.cssText = 'display:flex;align-items:center;gap:.85rem;margin-bottom:1.25rem;padding-bottom:1.1rem;border-bottom:1px solid #FED7AA';
     const iconCircle = document.createElement('div');
     iconCircle.style.cssText = 'width:48px;height:48px;border-radius:12px;background:#FFF7ED;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0';
-    iconCircle.textContent   = icons[doc.type] || '📎';
-    
+    iconCircle.textContent = icons[doc.type] || '📎';
     const hdrInfo = document.createElement('div');
     hdrInfo.style.flex = '1';
     hdrInfo.innerHTML  = `
       <div style="font-family:Sora,sans-serif;font-size:1rem;font-weight:800;color:#1A0A00">${doc.type}</div>
       <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${doc.internName} · ${doc.dept || 'General'}</div>
       <div style="font-size:.78rem;color:#9A6647">Submitted: ${doc.submitted}</div>`;
-    
     const statusBadge = document.createElement('span');
     statusBadge.className   = 'cui-badge ' + (slCls[doc.status] || 'ds-pending');
     statusBadge.textContent = slLbl[doc.status] || doc.status;
@@ -2485,9 +2819,7 @@ const CoordinatorDocuments = {
     body.appendChild(hdr);
 
     const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-    const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`; 
-    //window.open(previewUrl, '_blank');
-
+    const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
     const fileLink = document.createElement('a');
     fileLink.href   = previewUrl;
     fileLink.target = '_blank';
@@ -2497,19 +2829,19 @@ const CoordinatorDocuments = {
 
     const statusLbl = document.createElement('div');
     statusLbl.style.cssText = 'font-size:.78rem;font-weight:700;color:#6B3A1F;margin-bottom:.55rem';
-    statusLbl.textContent   = 'Set Status';
+    statusLbl.textContent = 'Set Status';
     body.appendChild(statusLbl);
 
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:1.25rem';
     [
-      { value:'approved', label:'✅ Approve',  base:'#D1FAE5', text:'#065F46', active:'#10B981' },
-      { value:'pending',  label:'⏳ Pending',   base:'#FEF3C7', text:'#92400E', active:'#F59E0B' },
-      { value:'rejected', label:'✗ Reject',    base:'#FEE2E2', text:'#991B1B', active:'#EF4444' },
+      { value:'approved', label:'✅ Approve', base:'#D1FAE5', text:'#065F46', active:'#10B981' },
+      { value:'pending',  label:'⏳ Pending',  base:'#FEF3C7', text:'#92400E', active:'#F59E0B' },
+      { value:'rejected', label:'✗ Reject',   base:'#FEE2E2', text:'#991B1B', active:'#EF4444' },
     ].forEach(opt => {
       const btn = document.createElement('button');
       btn.style.cssText = `padding:.55rem .75rem;border-radius:8px;font-size:.82rem;font-weight:600;font-family:inherit;cursor:pointer;border:2px solid transparent;transition:all .15s;background:${opt.base};color:${opt.text}`;
-      btn.textContent   = opt.label;
+      btn.textContent = opt.label;
       btn.dataset.value = opt.value;
       const highlight = () => {
         btnRow.querySelectorAll('button').forEach(b => { b.style.borderColor = 'transparent'; b.style.transform = 'none'; });
@@ -2523,64 +2855,53 @@ const CoordinatorDocuments = {
     body.appendChild(btnRow);
 
     body.appendChild(UI.formGroup('Feedback / Notes (optional)',
-      UI.textarea({ id:'cdoc-feedback', value: doc.feedback, placeholder:'Write your comments for this document…', rows:3 })
+      UI.textarea({ id:'cdoc-feedback', value: doc.feedback || '', placeholder:'Write your comments for this document…', rows: 3 })
     ));
 
     const m = UI.modal({
-      title: '📋 Review Document',
-      body,
-      size: 'lg',
+      title: '📋 Review Document', body, size: 'lg',
       footer: [
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         Helpers.orangeBtn('Save Review', () => {
           const fb = document.getElementById('cdoc-feedback')?.value.trim() ?? '';
-          
           Helpers.api('reviewInternDocument', {
-            docId: doc.id,
-            status: selectedStatus,
-            feedback: fb
+            docId: doc.id, status: selectedStatus, feedback: fb,
           }).then(res => {
             if (res.success) {
               doc.status   = selectedStatus;
               doc.feedback = fb;
               m.close();
-              this.build(); // Triggers re-sync and UI build
-              UI.toast('Review saved and synced successfully!', 'success');
+              this.build();
+              UI.toast('Review saved!', 'success');
             } else {
-              UI.toast(res.message || 'Failed to save review changes.', 'danger');
+              UI.toast(res.message || 'Failed to save review.', 'danger');
             }
-          }).catch(err => {
-            console.error(err);
-            UI.toast('API connection error saving review metrics.', 'danger');
-          });
+          }).catch(() => UI.toast('Connection error.', 'danger'));
         }),
       ],
     });
     m.open();
   },
 
+  // ── Quick approve / reject ─────────────────────────────────
   _quickAction(doc, status) {
     const label = status === 'approved' ? 'approve' : 'reject';
     if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} "${doc.type}" from ${doc.internName}?`)) return;
 
     Helpers.api('reviewInternDocument', {
-      docId: doc.id,
-      status: status,
-      feedback: doc.feedback || ''
+      docId: doc.id, status, feedback: doc.feedback || '',
     }).then(res => {
       if (res.success) {
         doc.status = status;
-        this.build(); // Rebuild metrics counters synchronously
-        UI.toast(status === 'approved' ? `✅ Approved.` : `Document rejected.`, status === 'approved' ? 'success' : 'danger');
+        this.build();
+        UI.toast(status === 'approved' ? '✅ Approved.' : 'Document rejected.', status === 'approved' ? 'success' : 'danger');
       } else {
         UI.toast(res.message || 'Operation failed.', 'danger');
       }
-    }).catch(err => {
-      console.error(err);
-      UI.toast('Server connection profile execution timeout error.', 'danger');
-    });
+    }).catch(() => UI.toast('Server connection error.', 'danger'));
   },
 };
+
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
