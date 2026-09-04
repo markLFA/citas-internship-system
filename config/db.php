@@ -24,9 +24,9 @@ function getDB() {
     */
 
     $host = "localhost";
-    $user = "u537499572_internship";
+    $user = "u894964735_internship";
     $pass = "Pa537499572"; 
-    $db   = "u537499572_internship"; 
+    $db   = "u894964735_internship"; 
 
     // Set PHP timezone
     date_default_timezone_set('Asia/Manila');
