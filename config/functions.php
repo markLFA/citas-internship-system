@@ -1517,7 +1517,7 @@ string $notes,
 ?int $coordinatorId
 ): array {
 
-```
+
 $pdo = getDB();
 
 /*
@@ -1905,7 +1905,6 @@ try {
             $e->getMessage()
     ];
 }
-```
 
 }
 
