@@ -1510,439 +1510,405 @@ function getInternDocuments(int $internId): array
  * @return array A response array indicating transaction status.
  */
 function uploadInternDocument(
-    int $internId,
-    string $type,
-    array $fileMeta,
-    string $notes,
-    ?int $coordinatorId
+int $internId,
+string $type,
+array $fileMeta,
+string $notes,
+?int $coordinatorId
 ): array {
-    
-    $pdo = getDB();
 
-    /*
-    |--------------------------------------------------------------------------
-    | 1. Validate Upload
-    |--------------------------------------------------------------------------
-    */
+```
+$pdo = getDB();
 
-    if (
-        !isset($fileMeta['error']) ||
-        !isset($fileMeta['tmp_name']) ||
-        !isset($fileMeta['name']) ||
-        !isset($fileMeta['size']) ||
-        $fileMeta['error'] !== UPLOAD_ERR_OK
-    ) {
+/*
+============================================================
+FILE UPLOAD SETTINGS
+============================================================
+*/
 
-        $errorMessages = [
-            UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the server upload limit.',
-            UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the form upload limit.',
-            UPLOAD_ERR_PARTIAL    => 'The file was only partially uploaded.',
-            UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write the file to disk.',
-            UPLOAD_ERR_EXTENSION  => 'The file upload was stopped by a PHP extension.'
-        ];
-
-        $errorCode = $fileMeta['error'] ?? -1;
-
-        return [
-            'success' => false,
-            'message' => $errorMessages[$errorCode]
-                ?? 'Unknown upload error occurred.'
-        ];
-    }
+$uploadDir   = dirname(__DIR__) . '/uploads/documents/';
+$maxBytes    = 10485760; // 10 MB
+$allowedExts = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'];
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 2. Validate File Size
-    |--------------------------------------------------------------------------
-    */
+/*
+============================================================
+1. VALIDATE FILE UPLOAD
+============================================================
+*/
 
-    $maxFileSize = 10 * 1024 * 1024; // 10 MB
-
-    if ($fileMeta['size'] <= 0) {
-        return [
-            'success' => false,
-            'message' => 'The uploaded file is empty.'
-        ];
-    }
-
-    if ($fileMeta['size'] > $maxFileSize) {
-        return [
-            'success' => false,
-            'message' => 'File exceeds the maximum 10 MB limit.'
-        ];
-    }
+if (
+    !isset($fileMeta['error']) ||
+    !isset($fileMeta['name']) ||
+    !isset($fileMeta['tmp_name']) ||
+    !isset($fileMeta['size'])
+) {
+    return [
+        'success' => false,
+        'message' => 'Invalid file upload data.'
+    ];
+}
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 3. Validate Extension
-    |--------------------------------------------------------------------------
-    */
+$errorCode = (int) $fileMeta['error'];
 
-    $allowedExts = [
-        'pdf',
-        'doc',
-        'docx',
-        'png',
-        'jpg',
-        'jpeg'
+if ($errorCode !== UPLOAD_ERR_OK) {
+
+    $errorMessages = [
+        UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the server upload limit.',
+        UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the form upload limit.',
+        UPLOAD_ERR_PARTIAL    => 'The file was only partially uploaded.',
+        UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
+        UPLOAD_ERR_CANT_WRITE => 'Failed to write the file to disk.',
+        UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the file upload.'
     ];
 
-    $originalFileName = basename($fileMeta['name']);
-
-    $extension = strtolower(
-        pathinfo($originalFileName, PATHINFO_EXTENSION)
-    );
-
-    if (empty($extension) || !in_array($extension, $allowedExts, true)) {
-
-        return [
-            'success' => false,
-            'message' => 'Invalid file type. Allowed types: ' .
-                implode(', ', $allowedExts)
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | 4. Verify That This Is a Real HTTP Uploaded File
-    |--------------------------------------------------------------------------
-    */
-
-    if (!is_uploaded_file($fileMeta['tmp_name'])) {
-
-        return [
-            'success' => false,
-            'message' => 'Invalid file upload detected.'
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | 5. Validate MIME Type
-    |--------------------------------------------------------------------------
-    */
-
-    $allowedMimeTypes = [
-
-        'pdf' => [
-            'application/pdf'
-        ],
-
-        'doc' => [
-            'application/msword'
-        ],
-
-        'docx' => [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ],
-
-        'png' => [
-            'image/png'
-        ],
-
-        'jpg' => [
-            'image/jpeg'
-        ],
-
-        'jpeg' => [
-            'image/jpeg'
-        ]
+    return [
+        'success' => false,
+        'message' => $errorMessages[$errorCode]
+            ?? 'Unknown upload error (' . $errorCode . ').'
     ];
-
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-
-    $mimeType = $finfo->file($fileMeta['tmp_name']);
-
-    if (
-        !isset($allowedMimeTypes[$extension]) ||
-        !in_array($mimeType, $allowedMimeTypes[$extension], true)
-    ) {
-
-        return [
-            'success' => false,
-            'message' => 'The uploaded file content does not match its extension.'
-        ];
-    }
+}
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 6. Setup Private Upload Directory
-    |--------------------------------------------------------------------------
-    */
+/*
+============================================================
+2. VALIDATE FILE SIZE
+============================================================
+*/
 
-    $accountRoot = dirname($_SERVER['DOCUMENT_ROOT'], 2);
+$fileSize = (int) $fileMeta['size'];
 
-    $uploadDir = rtrim($accountRoot, '/\\') .
-        DIRECTORY_SEPARATOR .
-        'uploads' .
-        DIRECTORY_SEPARATOR;
+if ($fileSize <= 0) {
+    return [
+        'success' => false,
+        'message' => 'The uploaded file is empty.'
+    ];
+}
 
-    if (!is_dir($uploadDir)) {
-
-        if (!mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
-
-            error_log(
-                "Failed to create uploads directory: " . $uploadDir
-            );
-
-            return [
-                'success' => false,
-                'message' => 'Server failed to initialize the upload directory.'
-            ];
-        }
-    }
+if ($fileSize > $maxBytes) {
+    return [
+        'success' => false,
+        'message' => 'File exceeds the 10 MB limit.'
+    ];
+}
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 7. Generate Secure Filename
-    |--------------------------------------------------------------------------
-    */
+/*
+============================================================
+3. VALIDATE FILE EXTENSION
+============================================================
+*/
 
-    try {
+$originalFileName = basename($fileMeta['name']);
 
-        $uniqueName =
-            'doc_' .
-            bin2hex(random_bytes(16)) .
-            '.' .
-            $extension;
+$ext = strtolower(
+    pathinfo($originalFileName, PATHINFO_EXTENSION)
+);
 
-    } catch (Exception $e) {
+if (!in_array($ext, $allowedExts, true)) {
+
+    return [
+        'success' => false,
+        'message' => 'Invalid file type. Allowed types: ' .
+            implode(', ', $allowedExts)
+    ];
+}
+
+
+/*
+============================================================
+4. MAKE SURE THE UPLOAD DIRECTORY EXISTS
+============================================================
+
+Same approach as upload_report.php
+*/
+
+if (!is_dir($uploadDir)) {
+
+    if (!mkdir($uploadDir, 0755, true)) {
 
         error_log(
-            "Failed to generate secure filename: " . $e->getMessage()
+            'uploadInternDocument: cannot create ' .
+            $uploadDir
         );
 
         return [
             'success' => false,
-            'message' => 'Failed to generate a secure filename.'
+            'message' => 'Server error: cannot create upload folder.'
         ];
     }
+}
 
 
-    $targetPath = $uploadDir . $uniqueName;
+/*
+============================================================
+5. GENERATE UNIQUE FILENAME
+
+Same style as upload_report.php
+============================================================
+*/
+
+$storedFileName =
+    uniqid('doc_', true) . '.' . $ext;
+
+$targetPath = $uploadDir . $storedFileName;
+
+
+/*
+============================================================
+6. DETECT MIME TYPE
+
+Same approach as upload_report.php
+============================================================
+*/
+
+$mimeType = 'application/octet-stream';
+
+if (function_exists('finfo_open')) {
+
+    $fi = finfo_open(FILEINFO_MIME_TYPE);
+
+    if ($fi !== false) {
+
+        $detectedMime = finfo_file(
+            $fi,
+            $fileMeta['tmp_name']
+        );
+
+        if ($detectedMime !== false) {
+            $mimeType = $detectedMime;
+        }
+
+        finfo_close($fi);
+    }
+
+} elseif (!empty($fileMeta['type'])) {
+
+    $mimeType = $fileMeta['type'];
+}
+
+
+/*
+============================================================
+7. DATABASE TRANSACTION
+
+Same structure as upload_report.php
+============================================================
+*/
+
+try {
+
+    $pdo->beginTransaction();
 
 
     /*
-    |--------------------------------------------------------------------------
-    | 8. Start Database Transaction
-    |--------------------------------------------------------------------------
+    --------------------------------------------------------
+    CHECK IF THIS DOCUMENT ALREADY EXISTS
+    --------------------------------------------------------
     */
 
-    $oldFileName = null;
+    $checkSql = "
+        SELECT id, file_path
+        FROM intern_documents
+        WHERE intern_id = :intern_id
+        AND document_type = :type
+        LIMIT 1
+    ";
 
-    try {
+    $checkStmt = $pdo->prepare($checkSql);
 
-        $pdo->beginTransaction();
+    $checkStmt->execute([
+        ':intern_id' => $internId,
+        ':type'      => $type
+    ]);
+
+    $existingRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Check Existing Document
-        |--------------------------------------------------------------------------
-        */
+    /*
+    --------------------------------------------------------
+    MOVE THE FILE
 
-        $checkSql = "
-            SELECT id, file_path
-            FROM intern_documents
-            WHERE intern_id = :intern_id
-            AND document_type = :type
-            LIMIT 1
+    Same location strategy as upload_report.php
+    --------------------------------------------------------
+    */
+
+    if (!move_uploaded_file(
+        $fileMeta['tmp_name'],
+        $targetPath
+    )) {
+
+        throw new RuntimeException(
+            'Could not save uploaded file: ' .
+            $originalFileName
+        );
+    }
+
+
+    /*
+    --------------------------------------------------------
+    UPDATE EXISTING DOCUMENT
+    --------------------------------------------------------
+    */
+
+    if ($existingRow) {
+
+        $oldFileName = $existingRow['file_path'];
+
+        $sql = "
+            UPDATE intern_documents
+            SET
+                file_path = :file_path,
+                file_name = :file_name,
+                notes = :notes,
+                status = 'pending',
+                feedback = NULL,
+                coordinator_id = :coordinator_id,
+                reviewed_at = NULL
+            WHERE id = :id
         ";
 
-        $checkStmt = $pdo->prepare($checkSql);
+        $stmt = $pdo->prepare($sql);
 
-        $checkStmt->execute([
-            ':intern_id' => $internId,
-            ':type'      => $type
+        $stmt->execute([
+            ':file_path'      => $storedFileName,
+            ':file_name'      => $originalFileName,
+            ':notes'          => trim($notes) !== ''
+                ? trim($notes)
+                : null,
+            ':coordinator_id' => $coordinatorId,
+            ':id'             => $existingRow['id']
         ]);
 
-        $existingRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
 
         /*
-        |--------------------------------------------------------------------------
-        | Move New File
-        |--------------------------------------------------------------------------
-        */
-
-        if (!move_uploaded_file(
-            $fileMeta['tmp_name'],
-            $targetPath
-        )) {
-
-            throw new RuntimeException(
-                'Failed to move uploaded file to storage.'
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Update Existing Document
-        |--------------------------------------------------------------------------
-        */
-
-        if ($existingRow) {
-
-            $oldFileName = $existingRow['file_path'] ?? null;
-
-            $sql = "
-                UPDATE intern_documents
-                SET
-                    file_path = :file_path,
-                    file_name = :file_name,
-                    notes = :notes,
-                    status = 'pending',
-                    feedback = NULL,
-                    coordinator_id = :coordinator_id,
-                    reviewed_at = NULL
-                WHERE id = :id
-            ";
-
-            $stmt = $pdo->prepare($sql);
-
-            $stmt->execute([
-                ':file_path'      => $uniqueName,
-                ':file_name'      => $originalFileName,
-                ':notes'          => trim($notes) !== ''
-                    ? trim($notes)
-                    : null,
-                ':coordinator_id' => $coordinatorId,
-                ':id'             => $existingRow['id']
-            ]);
-
-        } else {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Insert New Document
-            |--------------------------------------------------------------------------
-            */
-
-            $sql = "
-                INSERT INTO intern_documents (
-                    intern_id,
-                    document_type,
-                    file_path,
-                    file_name,
-                    notes,
-                    status,
-                    coordinator_id
-                )
-                VALUES (
-                    :intern_id,
-                    :type,
-                    :file_path,
-                    :file_name,
-                    :notes,
-                    'pending',
-                    :coordinator_id
-                )
-            ";
-
-            $stmt = $pdo->prepare($sql);
-
-            $stmt->execute([
-                ':intern_id'      => $internId,
-                ':type'           => $type,
-                ':file_path'      => $uniqueName,
-                ':file_name'      => $originalFileName,
-                ':notes'          => trim($notes) !== ''
-                    ? trim($notes)
-                    : null,
-                ':coordinator_id' => $coordinatorId
-            ]);
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Commit Database Changes
-        |--------------------------------------------------------------------------
-        */
-
-        $pdo->commit();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Delete Old File AFTER Successful Database Update
-        |--------------------------------------------------------------------------
+        ----------------------------------------------------
+        DELETE OLD FILE ONLY AFTER DATABASE UPDATE
+        ----------------------------------------------------
         */
 
         if (!empty($oldFileName)) {
 
-            $oldFilePath = $uploadDir . basename($oldFileName);
+            $oldPath =
+                $uploadDir .
+                basename($oldFileName);
 
             if (
-                file_exists($oldFilePath) &&
-                is_file($oldFilePath)
+                file_exists($oldPath) &&
+                is_file($oldPath)
             ) {
-
-                if (!@unlink($oldFilePath)) {
-
-                    error_log(
-                        "Could not delete old document: " .
-                        $oldFilePath
-                    );
-                }
+                @unlink($oldPath);
             }
         }
 
 
-        return [
-            'success' => true,
-            'message' => 'Document submitted successfully.'
-        ];
-
-
-    } catch (Throwable $e) {
+    } else {
 
         /*
-        |--------------------------------------------------------------------------
-        | Roll Back Database
-        |--------------------------------------------------------------------------
+        ----------------------------------------------------
+        INSERT NEW DOCUMENT
+        ----------------------------------------------------
         */
 
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
+        $sql = "
+            INSERT INTO intern_documents (
+                intern_id,
+                document_type,
+                file_path,
+                file_name,
+                notes,
+                status,
+                coordinator_id
+            )
+            VALUES (
+                :intern_id,
+                :type,
+                :file_path,
+                :file_name,
+                :notes,
+                'pending',
+                :coordinator_id
+            )
+        ";
 
+        $stmt = $pdo->prepare($sql);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Remove Newly Uploaded File If Something Failed
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            file_exists($targetPath) &&
-            is_file($targetPath)
-        ) {
-            @unlink($targetPath);
-        }
-
-
-        error_log(
-            "uploadInternDocument error: " .
-            $e->getMessage()
-        );
-
-
-        return [
-            'success' => false,
-            'message' => 'Failed to save the document. Please try again.'
-        ];
+        $stmt->execute([
+            ':intern_id'      => $internId,
+            ':type'           => $type,
+            ':file_path'      => $storedFileName,
+            ':file_name'      => $originalFileName,
+            ':notes'          => trim($notes) !== ''
+                ? trim($notes)
+                : null,
+            ':coordinator_id' => $coordinatorId
+        ]);
     }
+
+
+    /*
+    ========================================================
+    COMMIT DATABASE TRANSACTION
+    ========================================================
+    */
+
+    $pdo->commit();
+
+
+    return [
+        'success' => true,
+        'message' => 'Document submitted successfully.',
+        'file_name' => $originalFileName,
+        'stored_file' => $storedFileName,
+        'mime_type' => $mimeType
+    ];
+
+
+} catch (Throwable $e) {
+
+    /*
+    ========================================================
+    ROLLBACK DATABASE
+    ========================================================
+    */
+
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+
+    /*
+    ========================================================
+    DELETE NEW FILE IF DATABASE OPERATION FAILED
+    ========================================================
+    */
+
+    if (
+        file_exists($targetPath) &&
+        is_file($targetPath)
+    ) {
+        @unlink($targetPath);
+    }
+
+
+    error_log(
+        'uploadInternDocument: ' .
+        $e->getMessage()
+    );
+
+
+    return [
+        'success' => false,
+        'message' => 'Document submission failed: ' .
+            $e->getMessage()
+    ];
 }
+```
+
+}
+
 
 /**
  * Retrieves all files submitted by interns assigned to the currently logged-in coordinator.
