@@ -1539,7 +1539,7 @@ const Reports = {
     // Wire up click and drag events
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('cui-upload-zone-over'); });
-    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('cui-upload-zone-over'));
+    dropZone.addEventListener('dragleave',  ()  => dropZone.classList.remove('cui-upload-zone-over'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('cui-upload-zone-over');
@@ -1647,7 +1647,7 @@ const Reports = {
   // ── Reports table card ─────────────────────────────────────
   tableCard() {
     const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
-    const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+    const tl = { pending:'⏳ Pending', approved:'✅ Accepted', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
 
     if (!this.data.length) {
       return UI.card({
@@ -1712,7 +1712,6 @@ const Reports = {
     if (d) d.value = mon.toISOString().split('T')[0];
   },
 };
-
 // ─────────────────────────────────────────────────────────────
 //  BOOT  — load ALL data from API first, then build sections
 // ─────────────────────────────────────────────────────────────
@@ -1775,7 +1774,7 @@ const InternDocuments = {
     // Stat row
     body.appendChild(UI.statRow([
       { value: `${submittedR}/${required.length}`, label: 'Required Docs',   color: '#EA580C' },
-      { value: approved,                            label: 'Approved',         color: '#10B981' },
+      { value: approved,                            label: 'Accepted',         color: '#10B981' },
       { value: pending,                             label: 'Under Review',     color: '#F59E0B' },
       { value: rejected,                            label: 'Needs Resubmit',   color: '#EF4444' },
     ]));
@@ -1835,7 +1834,7 @@ const InternDocuments = {
       if (existing) {
         const pill = document.createElement('div');
         const pillMap = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
-        const pillLbl = { pending:'⏳ Under Review', approved:'✅ Approved', rejected:'✗ Rejected' };
+        const pillLbl = { pending:'⏳ Under Review', approved:'✅ Accepted', rejected:'✗ Rejected' };
         pill.className   = 'cui-badge ' + (pillMap[existing.status] || 'ds-pending');
         pill.style.cssText = 'margin-top:.25rem;align-self:flex-start';
         pill.textContent = pillLbl[existing.status] || existing.status;
@@ -1984,7 +1983,7 @@ const InternDocuments = {
   // List of all past submissions
   _submissionsCard() {
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
-    const slLbl = { pending:'⏳ Under Review', approved:'✅ Approved', rejected:'✗ Needs Resubmit' };
+    const slLbl = { pending:'⏳ Under Review', approved:'✅ Accepted', rejected:'✗ Needs Resubmit' };
     const icons  = {
       'TOR':'🎓','Certificate of Completion':'🏅','Endorsement Letter':'📨',
       'Final Report':'📋','Waiver / MOA':'📝','Medical Certificate':'🩺','Other':'📎',
@@ -2046,7 +2045,6 @@ const InternDocuments = {
     });
   },
 };
-
 // ─────────────────────────────────────────────────────────────
 // Generic API helper — used here and by Attendance / Reports
 // ─────────────────────────────────────────────────────────────
