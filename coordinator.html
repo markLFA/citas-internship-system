@@ -2498,298 +2498,515 @@ const CoordinatorDocuments = {
   },
 
   // ── Analytics tab ──────────────────────────────────────────
-  _buildAnalytics(container) {
-    const REQUIRED_TYPES = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report'];
-    const ALL_TYPES      = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
-    const docs = this._docs;
+_buildAnalytics(container) {
+  const REQUIRED_TYPES = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report'];
+  const ALL_TYPES      = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
+  const docs = this._docs;
 
-    const total    = docs.length;
-    const approved = docs.filter(d => d.status === 'approved').length;
-    const pending  = docs.filter(d => d.status === 'pending').length;
-    const rejected = docs.filter(d => d.status === 'rejected').length;
+  const total    = docs.length;
+  const approved = docs.filter(d => d.status === 'approved').length;
+  const pending  = docs.filter(d => d.status === 'pending').length;
+  const rejected = docs.filter(d => d.status === 'rejected').length;
 
-    // ── Stat strip ────────────────────────────────────────────
-    container.appendChild(UI.statRow([
-      { value: total,    label: 'Total Submitted',  color: '#EA580C' },
-      { value: approved, label: 'Accepted',          color: '#10B981' },
-      { value: pending,  label: 'Pending Review',    color: '#F59E0B' },
-      { value: rejected, label: 'Needs Resubmit',    color: '#EF4444' },
-    ]));
+  // ── Stat strip ────────────────────────────────────────────
+  container.appendChild(UI.statRow([
+    { value: total,    label: 'Total Submitted',  color: '#EA580C' },
+    { value: approved, label: 'Accepted',          color: '#10B981' },
+    { value: pending,  label: 'Pending Review',    color: '#F59E0B' },
+    { value: rejected, label: 'Needs Resubmit',    color: '#EF4444' },
+  ]));
 
-    // ── Behind schedule card ──────────────────────────────────
-    const behindLabel = document.createElement('p');
-    behindLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
-    behindLabel.textContent = `⚠️ Behind on Required Documents`;
-    container.appendChild(behindLabel);
+  // ── Per-intern data ───────────────────────────────────────
+  const byIntern = {};
 
-    if (!behind.length) {
-      container.appendChild(UI.card({
-        title: '',
-        body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.'),
-      }));
-    } else {
-      // Sort worst first
-      const sortedBehind = [...behind].sort((a, b) => b.missing.length - a.missing.length);
-
-      const behindTbl = UI.table([
-        {
-          key: 'name', label: 'Intern',
-          render: (v, row) => {
-            const cell = document.createElement('div');
-            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
-            const av = UI.avatar(v);
-            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-            const info = document.createElement('div');
-            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
-            cell.append(av, info);
-            return cell;
-          },
-        },
-        {
-          key: 'missing', label: 'Missing Documents',
-          render: v => {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.25rem';
-            v.forEach(t => {
-              const pill = document.createElement('span');
-              pill.className = 'cui-badge';
-              pill.style.cssText = 'background:#FEE2E2;color:#991B1B;font-size:.68rem';
-              pill.textContent = t;
-              wrap.appendChild(pill);
-            });
-            return wrap;
-          },
-        },
-        {
-          key: 'approved', label: 'Accepted', align: 'center',
-          render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }),
-        },
-        {
-          key: 'pct', label: 'Completion', align: 'center',
-          render: v => {
-            const b = document.createElement('span');
-            b.className = 'cui-badge';
-            b.style.cssText = `background:${v < 50 ? '#FEE2E2' : '#FEF3C7'};color:${v < 50 ? '#991B1B' : '#92400E'}`;
-            b.textContent = v + '%';
-            return b;
-          },
-        },
-      ], sortedBehind, { hoverable: true });
-
-      container.appendChild(UI.card({
-        title: '',
-        headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base:'#FEE2E2', text:'#991B1B' }),
-        padding: false,
-        body: behindTbl,
-      }));
-    }
-    
-    // ── Charts row ────────────────────────────────────────────
-    const chartsRow = document.createElement('div');
-    chartsRow.className = 'pg-grid-2 mt-lg';
-    chartsRow.style.alignItems = 'start';
-
-    // Donut card
-    const donutBody = document.createElement('div');
-    const donutLegend = document.createElement('div');
-    donutLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem;justify-content:center';
-    [
-      ['#10B981', 'Accepted', approved],
-      ['#F59E0B', 'Pending',  pending ],
-      ['#EF4444', 'Rejected', rejected],
-    ].forEach(([color, label, count]) => {
-      const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
-      item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>${label} (${count})`;
-      donutLegend.appendChild(item);
-    });
-    donutBody.appendChild(donutLegend);
-    const donutCanvas = document.createElement('canvas');
-    donutCanvas.id = 'chart-cdoc-donut';
-    donutCanvas.height = 200;
-    donutBody.appendChild(donutCanvas);
-    chartsRow.appendChild(UI.card({ title: '🍩 Status Breakdown', body: donutBody }));
-
-    // Bar card — submissions by type
-    const barBody = document.createElement('div');
-    const barLegend = document.createElement('div');
-    barLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem';
-    [['#10B981','Accepted'],['#F59E0B','Pending'],['#EF4444','Rejected']].forEach(([color, label]) => {
-      const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
-      item.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></span>${label}`;
-      barLegend.appendChild(item);
-    });
-    barBody.appendChild(barLegend);
-    const barCanvas = document.createElement('canvas');
-    barCanvas.id = 'chart-cdoc-bar';
-    barCanvas.height = 220;
-    barBody.appendChild(barCanvas);
-    chartsRow.appendChild(UI.card({ title: '📂 Submissions by Document Type', body: barBody }));
-
-    container.appendChild(chartsRow);
-
-    // ── Per-intern data ───────────────────────────────────────
-    const byIntern = {};
-    docs.forEach(d => {
-      if (!byIntern[d.internId]) byIntern[d.internId] = { name: d.internName, dept: d.dept || '', docs: [] };
-      byIntern[d.internId].docs.push(d);
-    });
-
-    const internList = Object.values(byIntern).map(intern => {
-      const submittedReqTypes = intern.docs
-        .filter(d => REQUIRED_TYPES.includes(d.type) && d.status !== 'rejected')
-        .map(d => d.type);
-      const missing = REQUIRED_TYPES.filter(t => !submittedReqTypes.includes(t));
-      const appCount = intern.docs.filter(d => d.status === 'approved').length;
-      const penCount = intern.docs.filter(d => d.status === 'pending').length;
-      const rejCount = intern.docs.filter(d => d.status === 'rejected').length;
-      const pct = Math.round(((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100);
-      return { ...intern, approved: appCount, pending: penCount, rejected: rejCount, missing, pct };
-    }).sort((a, b) => a.pct - b.pct);
-
-    const behind = internList.filter(i => i.missing.length > 0);
-
-    // ── Intern progress table ─────────────────────────────────
-    const progressLabel = document.createElement('p');
-    progressLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
-    progressLabel.textContent = '📋 Intern Document Progress';
-    container.appendChild(progressLabel);
-
-    if (!internList.length) {
-      container.appendChild(UI.card({
-        title: '',
-        body: UI.empty('📭', 'No submissions yet', 'Documents submitted by your interns will appear here.'),
-      }));
-    } else {
-      const progressTbl = UI.table([
-        {
-          key: 'name', label: 'Intern',
-          render: (v, row) => {
-            const cell = document.createElement('div');
-            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
-            const av = UI.avatar(v);
-            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-            const info = document.createElement('div');
-            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
-            cell.append(av, info);
-            return cell;
-          },
-        },
-        {
-          key: 'approved', label: 'Accepted', align: 'center',
-          render: v => `<strong style="color:#10B981">${v}</strong>`,
-        },
-        {
-          key: 'pending', label: 'Pending', align: 'center',
-          render: v => `<span style="color:#F59E0B;font-weight:600">${v}</span>`,
-        },
-        {
-          key: 'rejected', label: 'Rejected', align: 'center',
-          render: v => `<span style="color:#EF4444;font-weight:600">${v}</span>`,
-        },
-        {
-          key: 'pct', label: 'Required Progress',
-          render: (v) => {
-            const color = v >= 75 ? '#10B981' : v >= 50 ? '#F59E0B' : '#EF4444';
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;align-items:center;gap:.5rem';
-            const track = document.createElement('div');
-            track.style.cssText = 'flex:1;height:6px;background:#FEE2E2;border-radius:10px;overflow:hidden;min-width:60px';
-            const fill = document.createElement('div');
-            fill.style.cssText = `height:100%;width:${v}%;background:${color};border-radius:10px`;
-            track.appendChild(fill);
-            wrap.innerHTML = `<span style="font-size:.78rem;font-weight:700;color:${color};width:34px;flex-shrink:0">${v}%</span>`;
-            wrap.appendChild(track);
-            return wrap;
-          },
-        },
-        {
-          key: 'missing', label: 'Missing Required',
-          render: v => {
-            if (!v.length) return `<span style="color:#10B981;font-size:.78rem;font-weight:600">✓ All submitted</span>`;
-            return `<span style="font-size:.76rem;color:#EF4444">${v.join(', ')}</span>`;
-          },
-        },
-      ], internList, { hoverable: true });
-
-      container.appendChild(UI.card({
-        title: '',
-        headerActions: UI.badge(internList.length + ' interns', { base:'#DBEAFE', text:'#1E40AF' }),
-        padding: false,
-        body: progressTbl,
-      }));
+  docs.forEach(d => {
+    if (!byIntern[d.internId]) {
+      byIntern[d.internId] = {
+        name: d.internName,
+        dept: d.dept || '',
+        docs: []
+      };
     }
 
+    byIntern[d.internId].docs.push(d);
+  });
 
+  const internList = Object.values(byIntern).map(intern => {
+    const submittedReqTypes = intern.docs
+      .filter(d => REQUIRED_TYPES.includes(d.type) && d.status !== 'rejected')
+      .map(d => d.type);
 
-    // ── Draw charts (after DOM is ready) ──────────────────────
-    setTimeout(() => {
-      // Destroy any previous chart instances
-      this._chartInstances.forEach(c => c.destroy());
-      this._chartInstances = [];
+    const missing = REQUIRED_TYPES.filter(t => !submittedReqTypes.includes(t));
+    const appCount = intern.docs.filter(d => d.status === 'approved').length;
+    const penCount = intern.docs.filter(d => d.status === 'pending').length;
+    const rejCount = intern.docs.filter(d => d.status === 'rejected').length;
 
-      // Donut
-      const donutCtx = document.getElementById('chart-cdoc-donut');
-      if (donutCtx) {
-        this._chartInstances.push(new Chart(donutCtx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Accepted', 'Pending', 'Rejected'],
-            datasets: [{
-              data: [approved, pending, rejected],
-              backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
-              borderWidth: 2,
-              borderColor: '#fff',
-              hoverOffset: 5,
-            }],
-          },
-          options: {
-            responsive: true,
-            cutout: '62%',
-            plugins: { legend: { display: false } },
-          },
-        }));
-      }
+    const pct = Math.round(
+      ((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100
+    );
 
-      // Stacked bar by type
-      const typeCounts = {};
-      ALL_TYPES.forEach(t => { typeCounts[t] = { approved: 0, pending: 0, rejected: 0 }; });
-      docs.forEach(d => { if (typeCounts[d.type]) typeCounts[d.type][d.status]++; });
+    return {
+      ...intern,
+      approved: appCount,
+      pending: penCount,
+      rejected: rejCount,
+      missing,
+      pct
+    };
+  }).sort((a, b) => a.pct - b.pct);
 
-      const barCtx = document.getElementById('chart-cdoc-bar');
-      if (barCtx) {
-        this._chartInstances.push(new Chart(barCtx, {
-          type: 'bar',
-          data: {
-            labels: ALL_TYPES.map(t => t.length > 12 ? t.slice(0, 11) + '…' : t),
-            datasets: [
-              { label: 'Accepted', data: ALL_TYPES.map(t => typeCounts[t].approved), backgroundColor: '#10B981', borderRadius: 4, stack: 'stack' },
-              { label: 'Pending',  data: ALL_TYPES.map(t => typeCounts[t].pending),  backgroundColor: '#F59E0B', borderRadius: 0, stack: 'stack' },
-              { label: 'Rejected', data: ALL_TYPES.map(t => typeCounts[t].rejected), backgroundColor: '#EF4444', borderRadius: 0, stack: 'stack' },
+  const behind = internList.filter(i => i.missing.length > 0);
+
+  // ── Intern progress table ─────────────────────────────────
+  const progressLabel = document.createElement('p');
+  progressLabel.style.cssText =
+    'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
+
+  progressLabel.textContent = '📋 Intern Document Progress';
+  container.appendChild(progressLabel);
+
+  if (!internList.length) {
+    container.appendChild(UI.card({
+      title: '',
+      body: UI.empty(
+        '📭',
+        'No submissions yet',
+        'Documents submitted by your interns will appear here.'
+      ),
+    }));
+  } else {
+    const progressTbl = UI.table([
+      {
+        key: 'name',
+        label: 'Intern',
+        render: (v, row) => {
+          const cell = document.createElement('div');
+          cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+
+          const av = UI.avatar(v);
+          av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+
+          const info = document.createElement('div');
+          info.innerHTML = `
+            <div style="font-weight:700;color:#1A0A00">${v}</div>
+            <div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>
+          `;
+
+          cell.append(av, info);
+          return cell;
+        },
+      },
+      {
+        key: 'approved',
+        label: 'Accepted',
+        align: 'center',
+        render: v => `<strong style="color:#10B981">${v}</strong>`,
+      },
+      {
+        key: 'pending',
+        label: 'Pending',
+        align: 'center',
+        render: v => `<span style="color:#F59E0B;font-weight:600">${v}</span>`,
+      },
+      {
+        key: 'rejected',
+        label: 'Rejected',
+        align: 'center',
+        render: v => `<span style="color:#EF4444;font-weight:600">${v}</span>`,
+      },
+      {
+        key: 'pct',
+        label: 'Required Progress',
+        render: v => {
+          const color = v >= 75
+            ? '#10B981'
+            : v >= 50
+              ? '#F59E0B'
+              : '#EF4444';
+
+          const wrap = document.createElement('div');
+          wrap.style.cssText =
+            'display:flex;align-items:center;gap:.5rem';
+
+          const track = document.createElement('div');
+          track.style.cssText =
+            'flex:1;height:6px;background:#FEE2E2;border-radius:10px;overflow:hidden;min-width:60px';
+
+          const fill = document.createElement('div');
+          fill.style.cssText =
+            `height:100%;width:${v}%;background:${color};border-radius:10px`;
+
+          track.appendChild(fill);
+
+          wrap.innerHTML = `
+            <span style="font-size:.78rem;font-weight:700;color:${color};width:34px;flex-shrink:0">
+              ${v}%
+            </span>
+          `;
+
+          wrap.appendChild(track);
+          return wrap;
+        },
+      },
+      {
+        key: 'missing',
+        label: 'Missing Required',
+        render: v => {
+          if (!v.length) {
+            return `<span style="color:#10B981;font-size:.78rem;font-weight:600">
+              ✓ All submitted
+            </span>`;
+          }
+
+          return `<span style="font-size:.76rem;color:#EF4444">
+            ${v.join(', ')}
+          </span>`;
+        },
+      },
+    ], internList, { hoverable: true });
+
+    container.appendChild(UI.card({
+      title: '',
+      headerActions: UI.badge(
+        internList.length + ' interns',
+        { base: '#DBEAFE', text: '#1E40AF' }
+      ),
+      padding: false,
+      body: progressTbl,
+    }));
+  }
+
+  // ── Behind schedule card ──────────────────────────────────
+  // This now appears BEFORE the charts row.
+  const behindLabel = document.createElement('p');
+  behindLabel.style.cssText =
+    'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
+
+  behindLabel.textContent = '⚠️ Behind on Required Documents';
+  container.appendChild(behindLabel);
+
+  if (!behind.length) {
+    container.appendChild(UI.card({
+      title: '',
+      body: UI.empty(
+        '🎉',
+        'All interns on track!',
+        'Every intern has submitted all required documents.'
+      ),
+    }));
+  } else {
+    // Sort worst first
+    const sortedBehind = [...behind].sort(
+      (a, b) => b.missing.length - a.missing.length
+    );
+
+    const behindTbl = UI.table([
+      {
+        key: 'name',
+        label: 'Intern',
+        render: (v, row) => {
+          const cell = document.createElement('div');
+          cell.style.cssText =
+            'display:flex;align-items:center;gap:.6rem';
+
+          const av = UI.avatar(v);
+          av.style.background =
+            'linear-gradient(135deg,#FF6B00,#EA580C)';
+
+          const info = document.createElement('div');
+          info.innerHTML = `
+            <div style="font-weight:700;color:#1A0A00">${v}</div>
+            <div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>
+          `;
+
+          cell.append(av, info);
+          return cell;
+        },
+      },
+      {
+        key: 'missing',
+        label: 'Missing Documents',
+        render: v => {
+          const wrap = document.createElement('div');
+          wrap.style.cssText =
+            'display:flex;flex-wrap:wrap;gap:.25rem';
+
+          v.forEach(t => {
+            const pill = document.createElement('span');
+            pill.className = 'cui-badge';
+            pill.style.cssText =
+              'background:#FEE2E2;color:#991B1B;font-size:.68rem';
+            pill.textContent = t;
+            wrap.appendChild(pill);
+          });
+
+          return wrap;
+        },
+      },
+      {
+        key: 'approved',
+        label: 'Accepted',
+        align: 'center',
+        render: v =>
+          UI.badge(v, {
+            base: '#D1FAE5',
+            text: '#065F46'
+          }),
+      },
+      {
+        key: 'pct',
+        label: 'Completion',
+        align: 'center',
+        render: v => {
+          const b = document.createElement('span');
+          b.className = 'cui-badge';
+
+          b.style.cssText =
+            `background:${v < 50 ? '#FEE2E2' : '#FEF3C7'};` +
+            `color:${v < 50 ? '#991B1B' : '#92400E'}`;
+
+          b.textContent = v + '%';
+          return b;
+        },
+      },
+    ], sortedBehind, { hoverable: true });
+
+    container.appendChild(UI.card({
+      title: '',
+      headerActions: UI.badge(
+        behind.length + ' intern' +
+        (behind.length !== 1 ? 's' : ''),
+        {
+          base: '#FEE2E2',
+          text: '#991B1B'
+        }
+      ),
+      padding: false,
+      body: behindTbl,
+    }));
+  }
+
+  // ── Charts row ─────────────────────────────────────────────
+  // Moved BELOW the Behind Schedule card.
+  const chartsRow = document.createElement('div');
+  chartsRow.className = 'pg-grid-2 mt-lg';
+  chartsRow.style.alignItems = 'start';
+
+  // Donut card
+  const donutBody = document.createElement('div');
+
+  const donutLegend = document.createElement('div');
+  donutLegend.style.cssText =
+    'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem;justify-content:center';
+
+  [
+    ['#10B981', 'Accepted', approved],
+    ['#F59E0B', 'Pending', pending],
+    ['#EF4444', 'Rejected', rejected],
+  ].forEach(([color, label, count]) => {
+    const item = document.createElement('div');
+
+    item.style.cssText =
+      'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
+
+    item.innerHTML =
+      `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>` +
+      `${label} (${count})`;
+
+    donutLegend.appendChild(item);
+  });
+
+  donutBody.appendChild(donutLegend);
+
+  const donutCanvas = document.createElement('canvas');
+  donutCanvas.id = 'chart-cdoc-donut';
+  donutCanvas.height = 200;
+
+  donutBody.appendChild(donutCanvas);
+
+  chartsRow.appendChild(
+    UI.card({
+      title: '🍩 Status Breakdown',
+      body: donutBody
+    })
+  );
+
+  // Bar card — submissions by type
+  const barBody = document.createElement('div');
+
+  const barLegend = document.createElement('div');
+  barLegend.style.cssText =
+    'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem';
+
+  [
+    ['#10B981', 'Accepted'],
+    ['#F59E0B', 'Pending'],
+    ['#EF4444', 'Rejected']
+  ].forEach(([color, label]) => {
+    const item = document.createElement('div');
+
+    item.style.cssText =
+      'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
+
+    item.innerHTML =
+      `<span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></span>` +
+      `${label}`;
+
+    barLegend.appendChild(item);
+  });
+
+  barBody.appendChild(barLegend);
+
+  const barCanvas = document.createElement('canvas');
+  barCanvas.id = 'chart-cdoc-bar';
+  barCanvas.height = 220;
+
+  barBody.appendChild(barCanvas);
+
+  chartsRow.appendChild(
+    UI.card({
+      title: '📂 Submissions by Document Type',
+      body: barBody
+    })
+  );
+
+  // Append charts AFTER the behind schedule card
+  container.appendChild(chartsRow);
+
+  // ── Draw charts (after DOM is ready) ──────────────────────
+  setTimeout(() => {
+    // Destroy any previous chart instances
+    this._chartInstances.forEach(c => c.destroy());
+    this._chartInstances = [];
+
+    // Donut
+    const donutCtx = document.getElementById('chart-cdoc-donut');
+
+    if (donutCtx) {
+      this._chartInstances.push(new Chart(donutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Accepted', 'Pending', 'Rejected'],
+          datasets: [{
+            data: [approved, pending, rejected],
+            backgroundColor: [
+              '#10B981',
+              '#F59E0B',
+              '#EF4444'
             ],
+            borderWidth: 2,
+            borderColor: '#fff',
+            hoverOffset: 5,
+          }],
+        },
+        options: {
+          responsive: true,
+          cutout: '62%',
+          plugins: {
+            legend: {
+              display: false
+            }
           },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: {
-                stacked: true,
-                grid: { display: false },
-                ticks: { font: { size: 9 }, maxRotation: 45, autoSkip: false },
+        },
+      }));
+    }
+
+    // Stacked bar by type
+    const typeCounts = {};
+
+    ALL_TYPES.forEach(t => {
+      typeCounts[t] = {
+        approved: 0,
+        pending: 0,
+        rejected: 0
+      };
+    });
+
+    docs.forEach(d => {
+      if (typeCounts[d.type]) {
+        typeCounts[d.type][d.status]++;
+      }
+    });
+
+    const barCtx = document.getElementById('chart-cdoc-bar');
+
+    if (barCtx) {
+      this._chartInstances.push(new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ALL_TYPES.map(t =>
+            t.length > 12
+              ? t.slice(0, 11) + '…'
+              : t
+          ),
+
+          datasets: [
+            {
+              label: 'Accepted',
+              data: ALL_TYPES.map(t => typeCounts[t].approved),
+              backgroundColor: '#10B981',
+              borderRadius: 4,
+              stack: 'stack'
+            },
+            {
+              label: 'Pending',
+              data: ALL_TYPES.map(t => typeCounts[t].pending),
+              backgroundColor: '#F59E0B',
+              borderRadius: 0,
+              stack: 'stack'
+            },
+            {
+              label: 'Rejected',
+              data: ALL_TYPES.map(t => typeCounts[t].rejected),
+              backgroundColor: '#EF4444',
+              borderRadius: 0,
+              stack: 'stack'
+            },
+          ],
+        },
+
+        options: {
+          responsive: true,
+
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+
+          scales: {
+            x: {
+              stacked: true,
+              grid: {
+                display: false
               },
-              y: {
-                stacked: true,
-                ticks: { font: { size: 11 }, stepSize: 1 },
-                grid: { color: '#FFF0E0' },
+              ticks: {
+                font: {
+                  size: 9
+                },
+                maxRotation: 45,
+                autoSkip: false
+              },
+            },
+
+            y: {
+              stacked: true,
+              ticks: {
+                font: {
+                  size: 11
+                },
+                stepSize: 1
+              },
+              grid: {
+                color: '#FFF0E0'
               },
             },
           },
-        }));
-      }
-    }, 50);
-  },
-
+        },
+      }));
+    }
+  }, 50);
+},
   // ── Review modal ───────────────────────────────────────────
   _openReviewModal(doc) {
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
