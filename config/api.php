@@ -238,5 +238,34 @@ switch ($action) {
             "error" => "Invalid action"
         ]);
         break;
+    case 'getSchoolYears':
+        // Returns all available school years + the current one
+        $years   = getSchoolYears();
+        $current = getCurrentSchoolYear();
+        // Make sure current year is always in the list
+        if (!in_array($current, $years, true)) {
+            array_unshift($years, $current);
+        }
+        echo json_encode([
+            'success'      => true,
+            'years'        => $years,
+            'current_year' => $current,
+        ]);
+        break;
+
+    case 'getInternsBySchoolYear':
+        if (empty($_SESSION['user']['id']) ||
+            !in_array($_SESSION['user']['role'], ['coordinator','admin'], true)) {
+            echo json_encode(['success' => false, 'error' => 'Unauthorized.']);
+            break;
+        }
+        $schoolYear = trim($data['school_year'] ?? '');
+        $interns    = getInternsBySchoolYear($schoolYear);
+        echo json_encode([
+            'success'     => true,
+            'interns'     => $interns,
+            'school_year' => $schoolYear ?: getCurrentSchoolYear(),
+        ]);
+        break;
 }
 ?>

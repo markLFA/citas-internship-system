@@ -2011,3 +2011,142 @@ function reviewInternDocument(int $docId, string $status, string $feedback, int 
         return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
     }
 }
+
+// ============================================================
+//  SCHOOL YEAR FUNCTIONS
+//  Append these to functions.php
+// ============================================================
+
+/**
+ * Calculate the current Philippine school year.
+ * School year starts June (month 6).
+ * June 2025 – May 2026  → "2025-2026"
+ *
+ * @param int|null $month  Override month for testing (1-12)
+ * @param int|null $year   Override year for testing
+ */
+function getCurrentSchoolYear(?int $month = null, ?int $year = null): string
+{
+    $month = $month ?? (int) date('n');
+    $year  = $year  ?? (int) date('Y');
+
+    if ($month >= 6) {
+        return $year . '-' . ($year + 1);
+    }
+    return ($year - 1) . '-' . $year;
+}
+
+/**
+ * Get all distinct school years that have internship records,
+ * sorted newest first.
+ * Returns array of strings: ["2025-2026", "2024-2025", ...]
+ */
+function getSchoolYears(): array
+{
+    $pdo = getDB();
+    try {
+        $stmt = $pdo->query("
+            SELECT DISTINCT school_year
+            FROM internships
+            WHERE school_year IS NOT NULL
+            ORDER BY school_year DESC
+        ");
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        error_log('getSchoolYears(): ' . $e->getMessage());
+        return [getCurrentSchoolYear()];
+    }
+}
+
+/**
+ * Get all active interns filtered by school year.
+ * Used by the coordinator Interns section.
+ *
+ * @param string $schoolYear  e.g. "2025-2026"  (empty = current year)
+ */
+function getInternsBySchoolYear(string $schoolYear = ''): array
+{
+    $pdo = getDB();
+
+    if (empty($schoolYear)) {
+        $schoolYear = getCurrentSchoolYear();
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.is_active,
+                ip.school,
+                ip.course,
+                ip.year_level,
+                ip.phone,
+                ip.required_hours,
+                ip.joined_date,
+                i.id            AS internship_id,
+                i.school_year,
+                i.position,
+                i.supervisor,
+                i.start_date,
+                i.end_date,
+                i.status        AS internship_status,
+                i.total_hours,
+                i.days_present,
+                i.reports_submitted,
+                c.name          AS company_name,
+                c.address       AS company_address,
+                c.phone         AS company_phone,
+                c.email         AS company_email
+            FROM users u
+            JOIN intern_profiles ip  ON ip.user_id  = u.id
+            JOIN internships     i   ON i.intern_id  = u.id
+            LEFT JOIN companies  c   ON c.id         = i.company_id
+            WHERE u.role     = 'intern'
+              AND u.is_active = 1
+              AND i.school_year = :school_year
+              AND i.id = (
+                  SELECT id FROM internships
+                  WHERE intern_id = u.id
+                  ORDER BY created_at DESC
+                  LIMIT 1
+              )
+            ORDER BY u.name ASC
+        ");
+        $stmt->execute([':school_year' => $schoolYear]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('getInternsBySchoolYear(): ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Auto-assign school_year when a new internship row is created.
+ * Call this from register.php / createInternship().
+ * Uses the internship start_date if provided, otherwise today.
+ *
+ * @param int         $internshipId  The newly inserted internship row ID
+ * @param string|null $startDate     YYYY-MM-DD or null
+ */
+function assignSchoolYear(int $internshipId, ?string $startDate = null): void
+{
+    $pdo = getDB();
+
+    if ($startDate) {
+        $month = (int) date('n', strtotime($startDate));
+        $year  = (int) date('Y', strtotime($startDate));
+    } else {
+        $month = (int) date('n');
+        $year  = (int) date('Y');
+    }
+
+    $schoolYear = getCurrentSchoolYear($month, $year);
+
+    $pdo->prepare("
+        UPDATE internships
+        SET school_year = ?
+        WHERE id = ?
+    ")->execute([$schoolYear, $internshipId]);
+}
