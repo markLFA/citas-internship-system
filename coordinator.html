@@ -2516,6 +2516,74 @@ const CoordinatorDocuments = {
       { value: rejected, label: 'Needs Resubmit',    color: '#EF4444' },
     ]));
 
+    // ── Behind schedule card ──────────────────────────────────
+    const behindLabel = document.createElement('p');
+    behindLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
+    behindLabel.textContent = `⚠️ Behind on Required Documents`;
+    container.appendChild(behindLabel);
+
+    if (!behind.length) {
+      container.appendChild(UI.card({
+        title: '',
+        body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.'),
+      }));
+    } else {
+      // Sort worst first
+      const sortedBehind = [...behind].sort((a, b) => b.missing.length - a.missing.length);
+
+      const behindTbl = UI.table([
+        {
+          key: 'name', label: 'Intern',
+          render: (v, row) => {
+            const cell = document.createElement('div');
+            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+            const av = UI.avatar(v);
+            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+            const info = document.createElement('div');
+            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
+            cell.append(av, info);
+            return cell;
+          },
+        },
+        {
+          key: 'missing', label: 'Missing Documents',
+          render: v => {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.25rem';
+            v.forEach(t => {
+              const pill = document.createElement('span');
+              pill.className = 'cui-badge';
+              pill.style.cssText = 'background:#FEE2E2;color:#991B1B;font-size:.68rem';
+              pill.textContent = t;
+              wrap.appendChild(pill);
+            });
+            return wrap;
+          },
+        },
+        {
+          key: 'approved', label: 'Accepted', align: 'center',
+          render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }),
+        },
+        {
+          key: 'pct', label: 'Completion', align: 'center',
+          render: v => {
+            const b = document.createElement('span');
+            b.className = 'cui-badge';
+            b.style.cssText = `background:${v < 50 ? '#FEE2E2' : '#FEF3C7'};color:${v < 50 ? '#991B1B' : '#92400E'}`;
+            b.textContent = v + '%';
+            return b;
+          },
+        },
+      ], sortedBehind, { hoverable: true });
+
+      container.appendChild(UI.card({
+        title: '',
+        headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base:'#FEE2E2', text:'#991B1B' }),
+        padding: false,
+        body: behindTbl,
+      }));
+    }
+    
     // ── Charts row ────────────────────────────────────────────
     const chartsRow = document.createElement('div');
     chartsRow.className = 'pg-grid-2 mt-lg';
@@ -2653,73 +2721,7 @@ const CoordinatorDocuments = {
       }));
     }
 
-    // ── Behind schedule card ──────────────────────────────────
-    const behindLabel = document.createElement('p');
-    behindLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
-    behindLabel.textContent = `⚠️ Behind on Required Documents`;
-    container.appendChild(behindLabel);
 
-    if (!behind.length) {
-      container.appendChild(UI.card({
-        title: '',
-        body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.'),
-      }));
-    } else {
-      // Sort worst first
-      const sortedBehind = [...behind].sort((a, b) => b.missing.length - a.missing.length);
-
-      const behindTbl = UI.table([
-        {
-          key: 'name', label: 'Intern',
-          render: (v, row) => {
-            const cell = document.createElement('div');
-            cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
-            const av = UI.avatar(v);
-            av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-            const info = document.createElement('div');
-            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
-            cell.append(av, info);
-            return cell;
-          },
-        },
-        {
-          key: 'missing', label: 'Missing Documents',
-          render: v => {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.25rem';
-            v.forEach(t => {
-              const pill = document.createElement('span');
-              pill.className = 'cui-badge';
-              pill.style.cssText = 'background:#FEE2E2;color:#991B1B;font-size:.68rem';
-              pill.textContent = t;
-              wrap.appendChild(pill);
-            });
-            return wrap;
-          },
-        },
-        {
-          key: 'approved', label: 'Accepted', align: 'center',
-          render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }),
-        },
-        {
-          key: 'pct', label: 'Completion', align: 'center',
-          render: v => {
-            const b = document.createElement('span');
-            b.className = 'cui-badge';
-            b.style.cssText = `background:${v < 50 ? '#FEE2E2' : '#FEF3C7'};color:${v < 50 ? '#991B1B' : '#92400E'}`;
-            b.textContent = v + '%';
-            return b;
-          },
-        },
-      ], sortedBehind, { hoverable: true });
-
-      container.appendChild(UI.card({
-        title: '',
-        headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base:'#FEE2E2', text:'#991B1B' }),
-        padding: false,
-        body: behindTbl,
-      }));
-    }
 
     // ── Draw charts (after DOM is ready) ──────────────────────
     setTimeout(() => {
