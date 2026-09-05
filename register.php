@@ -111,8 +111,7 @@ function create_intern_profile(int $userId, array $data): void {
     ]);
 }
 
-function create_internship(int $userId, int $companyId): int   // ← return int
-{
+function create_internship(int $userId, int $companyId): void {
     $db   = getDB();
     $stmt = $db->prepare(
         'INSERT INTO internships (intern_id, company_id, status)
@@ -123,9 +122,7 @@ function create_internship(int $userId, int $companyId): int   // ← return int
         ':company_id' => $companyId,
         ':status'     => 'active',
     ]);
-    return (int) $db->lastInsertId();   // ← return the ID
 }
- 
 
 function email_taken(string $email): bool {
     $db   = getDB();
@@ -161,22 +158,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db = getDB();
             $db->beginTransaction();
- 
+
             $userId = create_user($data);
- 
+
             if (map_role($data['role']) === 'intern') {
-                $companyId    = create_placeholder_company();
+                $companyId = create_placeholder_company();
                 create_intern_profile($userId, $data);
-                $internshipId = create_internship($userId, $companyId);  // ← must return the new ID
- 
-                // ── NEW: auto-assign school year ──────────────────
-                assignSchoolYear($internshipId);
-                // ─────────────────────────────────────────────────
+                create_internship($userId, $companyId);
             }
- 
+
             $db->commit();
-            // ... rest of your success handling
- 
+
+            $isIntern = map_role($data['role']) === 'intern';
+            
+            $_SESSION['flash_success'] = $isIntern
+                ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
+                : 'Account created successfully! Please wait for Admin approval.';
+
+            header('Location: index.php');
+            exit;
+
         } catch (PDOException $e) {
             $db->rollBack();
             error_log('Registration error: ' . $e->getMessage());
