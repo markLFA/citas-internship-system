@@ -591,79 +591,84 @@ function getInternReports(): array
     }
 }
 
-function setReportStatus($reportId, $status): void
+function setReportStatus(int $reportId, string $status, string $feedback = ''): void
 {
-    $status = strtolower($status);
-    $pdo = getDB();
+    // header() must be called before any output — move it to the top of the function
     header('Content-Type: application/json');
 
-    try {
+    $status = strtolower(trim($status));
+    $pdo    = getDB();
 
-        // Verify login
+    try {
+        // ── Auth check ────────────────────────────────────────
         if (empty($_SESSION['user']['id'])) {
             throw new Exception('You must be logged in.');
         }
 
+        $reviewerId = (int) $_SESSION['user']['id'];
 
-        // Validation
+        // ── Validate report ID ────────────────────────────────
         if ($reportId <= 0) {
             throw new Exception('Invalid report ID.');
         }
 
-        $allowedStatuses = [
-            'pending',
-            'approved',
-            'rejected'
-        ];
+        // ── Bug 1 fix: include all statuses the coordinator page uses ──
+        $allowedStatuses = ['pending', 'approved', 'reviewed', 'revision'];
 
         if (!in_array($status, $allowedStatuses, true)) {
-            throw new Exception('Invalid status.');
+            throw new Exception('Invalid status: "' . $status . '". Allowed: ' . implode(', ', $allowedStatuses));
         }
 
-        // Check if report exists
+        // ── Check report exists ───────────────────────────────
         $checkStmt = $pdo->prepare("
-            SELECT id
-            FROM weekly_reports
-            WHERE id = :id
-            LIMIT 1
+            SELECT id FROM weekly_reports WHERE id = :id LIMIT 1
         ");
+        $checkStmt->execute([':id' => $reportId]);
 
-        $checkStmt->execute([
-            ':id' => $reportId
-        ]);
-
-        $report = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$report) {
+        if (!$checkStmt->fetch(PDO::FETCH_ASSOC)) {
             throw new Exception('Report not found.');
         }
 
-        // Update status
+        // ── Bug 2 + 3 + 4 fix: correct columns ───────────────
+        //  - reviewed_at  instead of updated_at (which doesn't exist)
+        //  - reviewed_by  saves the coordinator's ID
+        //  - feedback     saves the coordinator's written comment
         $stmt = $pdo->prepare("
             UPDATE weekly_reports
             SET
-                status = :status,
-                updated_at = NOW()
+                status      = :status,
+                feedback    = :feedback,
+                reviewed_at = NOW(),
+                reviewed_by = :reviewer_id
             WHERE id = :id
         ");
 
         $stmt->execute([
-            ':status' => $status,
-            ':id'     => $reportId
+            ':status'      => $status,
+            ':feedback'    => trim($feedback) ?: null,
+            ':reviewer_id' => $reviewerId,
+            ':id'          => $reportId,
         ]);
+
+        if ($stmt->rowCount() === 0) {
+            throw new Exception('No rows updated — report may not exist.');
+        }
 
         echo json_encode([
             'success' => true,
-            'message' => 'Report status updated successfully.'
+            'message' => 'Report status updated successfully.',
+            'data'    => [
+                'report_id'   => $reportId,
+                'status'      => $status,
+                'reviewed_by' => $reviewerId,
+            ],
         ]);
 
     } catch (Throwable $e) {
-
         http_response_code(400);
-
         echo json_encode([
             'success' => false,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
         ]);
     }
 

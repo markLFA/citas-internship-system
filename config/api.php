@@ -219,9 +219,19 @@ switch ($action) {
         }
         break;
     case 'setReportStatus':
-        $status        = $data['status'] ?? 'approved';
-        $id      = $data['id'] ?? '';
-        echo json_encode(setReportStatus($id, $status));
+        $reportId = (int)   ($data['reportId'] ?? 0);
+        $status   =          $data['status']   ?? '';
+        $feedback =          $data['feedback'] ?? '';   // ← add this line
+
+        if (!$reportId || !$status) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Missing reportId or status.',
+            ]);
+            break;
+        }
+
+        setReportStatus($reportId, $status, $feedback);   // ← pass feedback
         break;
     default:
         echo json_encode([

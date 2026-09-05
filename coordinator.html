@@ -1838,15 +1838,29 @@ const Reports = {
         UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         Helpers.orangeBtn('Save Review', () => {
           const feedback = document.getElementById('review-feedback')?.value.trim() ?? '';
-          report.status   = selectedStatus;
-          report.feedback = feedback;
-          Helpers.api('setReportStatus', {id: report.id, status: report.status, feedback: report.feedback}).then (() => {
-            this.renderTable();
+          
+          fetch('config/api.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action:   'setReportStatus',
+              reportId: report.id,
+              status:   selectedStatus,
+              feedback: feedback,        // ← make sure this is included
+            }),
+          })
+          .then(r => r.json())
+          .then(res => {
+            if (!res.success) {
+              UI.toast('❌ ' + res.message, 'danger');
+              return;
+            }
+            report.status   = selectedStatus;
+            report.feedback = feedback;
+            Reports.renderTable();
             m.close();
             UI.toast('Review saved!', 'success');
-          })
-
-
+          });
         }),
       ],
     });
