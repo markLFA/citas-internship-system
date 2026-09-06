@@ -1724,369 +1724,446 @@ const InternDocuments = {
 
   // Document types required for internship completion
   _docTypes: [
-    { type: 'TOR', icon: '🎓', desc: 'Transcript of Records from your school registrar.', required: true },
-    { type: 'Certificate of Completion', icon: '🏅', desc: 'Certificate issued by your company upon completion.', required: true },
-    { type: 'Endorsement Letter', icon: '📨', desc: 'Official endorsement letter from your school or department.', required: true },
-    { type: 'Final Report', icon: '📋', desc: 'Comprehensive report summarizing your internship experience.', required: true },
-    { type: 'Waiver / MOA', icon: '📝', desc: 'Signed Memorandum of Agreement or liability waiver.', required: false },
-    { type: 'Medical Certificate', icon: '🩺', desc: 'Health clearance certificate (if required by company).', required: false },
-    { type: 'Other', icon: '📎', desc: 'Any additional document requested by your coordinator.', required: false },
+    { type:'TOR',                     icon:'🎓', desc:'Transcript of Records from your school registrar.',           required: true  },
+    { type:'Certificate of Completion', icon:'🏅', desc:'Certificate issued by your company upon completion.',        required: true  },
+    { type:'Endorsement Letter',        icon:'📨', desc:'Official endorsement letter from your school or department.',required: true  },
+    { type:'Final Report',              icon:'📋', desc:'Comprehensive report summarizing your internship experience.',required: true  },
+    { type:'Waiver / MOA',              icon:'📝', desc:'Signed Memorandum of Agreement or liability waiver.',        required: false },
+    { type:'Medical Certificate',       icon:'🩺', desc:'Health clearance certificate (if required by company).',     required: false },
+    { type:'Other',                     icon:'📎', desc:'Any additional document requested by your coordinator.',     required: false },
   ],
 
   // Live state cache array
   _submissions: [],
 
-  // Cached DOM references for the modal to avoid duplicate elements
-  _modalElements: null,
-
-  build() {
-    const sec = document.getElementById('sec-documents');
-    if (!sec) return;
-    sec.innerHTML = '';
-
-    sec.appendChild(Helpers.pageHeader(
-      'Documents',
-      'Submit required documents for your internship completion',
-    ));
-
-    // Async Fetch layer mapping live database contents
-    Helpers.api('getInternDocuments').then(data => {
-      this._submissions = data || [];
-
-      sec.appendChild(this._progressCard());
-      sec.appendChild(this._docTypeGrid());
-      sec.appendChild(this._submissionsCard());
-    }).catch(err => {
-      console.error(err);
-      UI.toast('Failed to load submitted document statuses.', 'danger');
-    });
+  // Reusable upload modal
+  _uploadModal: null,
+  _uploadModalEls: null,
+  _uploadModalState: {
+    dt: null,
+    existing: null,
+    isResubmit: false
   },
 
-  // Completion progress card
-  _progressCard() {
-    const required = this._docTypes.filter(d => d.required);
-    const submittedR = required.filter(d =>
-      this._submissions.some(s => s.type === d.type && s.status !== 'rejected')
-    ).length;
-    const approved = this._submissions.filter(s => s.status === 'approved').length;
-    const pending = this._submissions.filter(s => s.status === 'pending').length;
-    const rejected = this._submissions.filter(s => s.status === 'rejected').length;
-    const pct = required.length > 0 ? Math.round(submittedR / required.length * 100) : 0;
+  // ... keep the rest of your existing code ...
 
-    const body = document.createElement('div');
-
-    // Stat row
-    body.appendChild(UI.statRow([
-      { value: `${submittedR}/${required.length}`, label: 'Required Docs', color: '#EA580C' },
-      { value: approved, label: 'Accepted', color: '#10B981' },
-      { value: pending, label: 'Under Review', color: '#F59E0B' },
-      { value: rejected, label: 'Needs Resubmit', color: '#EF4444' },
-    ]));
-
-    // Progress bar
-    const lbl = document.createElement('p');
-    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.75rem 0 .4rem';
-    lbl.textContent = `Required document completion: ${pct}%`;
-    body.appendChild(lbl);
-    body.appendChild(UI.progress(pct, { color: { base: '#EA580C' }, label: true }));
-
-    // Info notice
-    if (rejected) {
-      const notice = document.createElement('div');
-      notice.style.cssText = 'margin-top:1rem;padding:.75rem 1rem;background:#FEE2E2;border:1px solid #FECACA;border-radius:10px;font-size:.82rem;color:#991B1B';
-      notice.innerHTML = `⚠️ <strong>${rejected} document${rejected !== 1 ? 's' : ''}</strong> need${rejected === 1 ? 's' : ''} to be resubmitted. Check the feedback below and upload a revised version.`;
-      body.appendChild(notice);
-    } else if (pct === 100) {
-      const notice = document.createElement('div');
-      notice.style.cssText = 'margin-top:1rem;padding:.75rem 1rem;background:#D1FAE5;border:1px solid #A7F3D0;border-radius:10px;font-size:.82rem;color:#065F46';
-      notice.innerHTML = '🎉 <strong>All required documents submitted!</strong> Your coordinator is reviewing them.';
-      body.appendChild(notice);
-    }
-
-    return UI.card({ title: '📊 Submission Progress', body });
-  },
-
-  // Grid of document type cards — click to open upload modal
-  _docTypeGrid() {
-    const section = document.createElement('div');
-    const label = document.createElement('div');
-    label.style.cssText = 'font-family:Sora,sans-serif;font-size:.85rem;font-weight:700;color:#1A0A00;margin-bottom:.75rem';
-    label.textContent = 'Document Checklist';
-    section.appendChild(label);
-
-    const grid = document.createElement('div');
-    grid.className = 'doc-type-grid';
-
-    this._docTypes.forEach(dt => {
-      const existing = this._submissions.find(s => s.type === dt.type);
-      const card = document.createElement('div');
-      card.className = 'doc-type-card' +
-        (existing && existing.status !== 'rejected' ? ' submitted' : '') +
-        (existing && existing.status === 'rejected' ? ' rejected' : '');
-
-      const requiredTag = dt.required
-        ? `<span class="doc-type-required">⭐ Required</span>`
-        : `<span style="font-size:.67rem;color:#9A6647;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Optional</span>`;
-
-      card.innerHTML = `
-        <div class="doc-type-icon">${dt.icon}</div>
-        <div class="doc-type-name">${dt.type}</div>
-        <div class="doc-type-desc">${dt.desc}</div>
-        ${requiredTag}`;
-
-      // Status pill at bottom if submitted
-      if (existing) {
-        const pill = document.createElement('div');
-        const pillMap = { pending: 'ds-pending', approved: 'ds-approved', rejected: 'ds-rejected' };
-        const pillLbl = { pending: '⏳ Under Review', approved: '✅ Accepted', rejected: '✗ Rejected' };
-        pill.className = 'cui-badge ' + (pillMap[existing.status] || 'ds-pending');
-        pill.style.cssText = 'margin-top:.25rem;align-self:flex-start';
-        pill.textContent = pillLbl[existing.status] || existing.status;
-        card.appendChild(pill);
-      }
-
-      card.addEventListener('click', () => this._openUploadModal(dt, existing));
-      grid.appendChild(card);
-    });
-
-    section.appendChild(grid);
-    return section;
-  },
-
-  // Initialize and return cached modal element hierarchy
-  _getOrCreateModalElements() {
-    if (this._modalElements) return this._modalElements;
-
-    const body = document.createElement('div');
-
-    // Document type info banner
-    const banner = document.createElement('div');
-    banner.style.cssText = 'display:flex;align-items:center;gap:.85rem;padding:1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:1.25rem';
-    const bannerIcon = document.createElement('span');
-    bannerIcon.style.cssText = 'font-size:2rem;flex-shrink:0';
-    const bannerText = document.createElement('div');
-    const bannerTitle = document.createElement('div');
-    bannerTitle.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem';
-    const bannerDesc = document.createElement('div');
-    bannerDesc.style.cssText = 'font-size:.78rem;color:#9A6647;margin-top:.15rem;line-height:1.5';
-    bannerText.append(bannerTitle, bannerDesc);
-    banner.append(bannerIcon, bannerText);
-
-    // Feedback container
-    const fbBox = document.createElement('div');
-    fbBox.style.cssText = 'padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E;margin-bottom:1.1rem;display:none;';
-
-    // File input label & drop zone
-    const fileLabel = document.createElement('div');
-    fileLabel.className = 'cui-label';
-
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.id = 'doc-upload-file';
-    fileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
-    fileInput.style.display = 'none';
-
-    const dropZone = document.createElement('div');
-    dropZone.className = 'cui-upload-zone';
-    dropZone.style.marginBottom = '.85rem';
-
-    const dropIcon = document.createElement('div');
-    dropIcon.className = 'cui-upload-icon';
-    dropIcon.textContent = '📁';
-
-    const dropLbl = document.createElement('div');
-    dropLbl.className = 'cui-upload-label';
-    dropLbl.id = 'doc-drop-label';
-
-    const dropHint = document.createElement('div');
-    dropHint.className = 'cui-upload-hint';
-    dropHint.textContent = 'PDF, DOC, DOCX, PNG, JPG — max 10 MB';
-
-    dropZone.append(fileInput, dropIcon, dropLbl, dropHint);
-
-    // Event listeners attached once on cached instances
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('cui-upload-zone-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('cui-upload-zone-over'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('cui-upload-zone-over');
-      fileInput.files = e.dataTransfer.files;
-      this._updateDropLabel(fileInput, dropLbl);
-    });
-    fileInput.addEventListener('change', () => this._updateDropLabel(fileInput, dropLbl));
-
-    // Notes textarea setup
-    const notesInput = UI.textarea({ id: 'doc-upload-notes', rows: 3 });
-    const formGroup = UI.formGroup('Notes (optional)', notesInput);
-
-    body.append(banner, fbBox, fileLabel, dropZone, formGroup);
-
-    this._modalElements = {
-      body,
-      bannerIcon,
-      bannerTitle,
-      bannerDesc,
-      fbBox,
-      fileLabel,
-      fileInput,
-      dropLbl,
-      notesInput
-    };
-
-    return this._modalElements;
-  },
 
   // Upload / resubmit modal
   _openUploadModal(dt, existing = null) {
+
     const isResubmit = existing && existing.status === 'rejected';
-    const els = this._getOrCreateModalElements();
 
-    // Reset inputs and state
-    els.fileInput.value = '';
-    els.dropLbl.innerHTML = '<strong>Click to browse</strong> or drag & drop';
-    els.dropLbl.style.color = '';
-    els.notesInput.value = '';
-    els.notesInput.placeholder = isResubmit ? 'Describe the changes you made…' : 'Any notes for your coordinator…';
+    // Store the current modal state
+    this._uploadModalState = {
+      dt,
+      existing,
+      isResubmit
+    };
 
-    // Populate dynamic values into reused elements
+    // =========================================================
+    // CREATE THE MODAL ONLY ONCE
+    // =========================================================
+    if (!this._uploadModal) {
+
+      // ---------- Body ----------
+      const body = document.createElement('div');
+
+      // Document type info banner
+      const banner = document.createElement('div');
+      banner.className = 'doc-upload-banner';
+      banner.style.cssText =
+        'display:flex;align-items:center;gap:.85rem;padding:1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:1.25rem';
+
+      const bannerIcon = document.createElement('span');
+      bannerIcon.className = 'doc-upload-banner-icon';
+      bannerIcon.style.cssText = 'font-size:2rem;flex-shrink:0';
+
+      const bannerContent = document.createElement('div');
+
+      const bannerTitle = document.createElement('div');
+      bannerTitle.className = 'doc-upload-banner-title';
+      bannerTitle.style.cssText =
+        'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem';
+
+      const bannerDesc = document.createElement('div');
+      bannerDesc.className = 'doc-upload-banner-desc';
+      bannerDesc.style.cssText =
+        'font-size:.78rem;color:#9A6647;margin-top:.15rem;line-height:1.5';
+
+      bannerContent.append(bannerTitle, bannerDesc);
+      banner.append(bannerIcon, bannerContent);
+      body.appendChild(banner);
+
+
+      // ---------- Coordinator feedback ----------
+      const feedbackBox = document.createElement('div');
+      feedbackBox.className = 'doc-upload-feedback';
+      feedbackBox.style.cssText =
+        'padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E;margin-bottom:1.1rem';
+
+      body.appendChild(feedbackBox);
+
+
+      // ---------- File label ----------
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'cui-label doc-upload-file-label';
+
+      body.appendChild(fileLabel);
+
+
+      // ---------- File input ----------
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+      fileInput.style.display = 'none';
+
+      // IMPORTANT:
+      // Do not use a fixed ID here.
+      // The element only needs to exist once.
+      body.appendChild(fileInput);
+
+
+      // ---------- Drop zone ----------
+      const dropZone = document.createElement('div');
+      dropZone.className = 'cui-upload-zone';
+      dropZone.style.marginBottom = '.85rem';
+
+      const dropIcon = document.createElement('div');
+      dropIcon.className = 'cui-upload-icon';
+      dropIcon.textContent = '📁';
+
+      const dropLbl = document.createElement('div');
+      dropLbl.className = 'cui-upload-label';
+      dropLbl.innerHTML =
+        '<strong>Click to browse</strong> or drag & drop';
+
+      const dropHint = document.createElement('div');
+      dropHint.className = 'cui-upload-hint';
+      dropHint.textContent =
+        'PDF, DOC, DOCX, PNG, JPG — max 10 MB';
+
+      dropZone.append(
+        dropIcon,
+        dropLbl,
+        dropHint
+      );
+
+      body.appendChild(dropZone);
+
+
+      // ---------- Notes ----------
+      const notes = UI.textarea({
+        placeholder: 'Any notes for your coordinator…',
+        rows: 3
+      });
+
+      const notesGroup = UI.formGroup(
+        'Notes (optional)',
+        notes
+      );
+
+      body.appendChild(notesGroup);
+
+
+      // =========================================================
+      // EVENT LISTENERS ARE ALSO CREATED ONLY ONCE
+      // =========================================================
+
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      dropZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropZone.classList.add('cui-upload-zone-over');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('cui-upload-zone-over');
+      });
+
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+
+        dropZone.classList.remove('cui-upload-zone-over');
+
+        if (e.dataTransfer.files?.length) {
+          fileInput.files = e.dataTransfer.files;
+          this._updateDropLabel(fileInput, dropLbl);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        this._updateDropLabel(fileInput, dropLbl);
+      });
+
+
+      // =========================================================
+      // CREATE MODAL ONLY ONCE
+      // =========================================================
+
+      const modal = UI.modal({
+        title: '📤 Submit Document',
+        body,
+
+        size: 'lg',
+
+        footer: [
+
+          UI.button('Cancel', {
+            variant: 'ghost',
+            size: 'sm',
+            onClick: () => modal.close()
+          }),
+
+          UI.button('📤 Submit Document', {
+            size: 'sm',
+            color: {
+              base:'#EA580C',
+              hover:'#C2410C',
+              text:'#fff'
+            },
+
+            // This handler is created once.
+            // It reads the CURRENT modal state whenever clicked.
+            onClick: () => this._submitUploadModal()
+          })
+        ]
+      });
+
+
+      // Save modal + all reusable elements
+      this._uploadModal = modal;
+
+      this._uploadModalEls = {
+        body,
+        banner,
+        bannerIcon,
+        bannerTitle,
+        bannerDesc,
+        feedbackBox,
+        fileLabel,
+        fileInput,
+        dropZone,
+        dropLbl,
+        notes
+      };
+    }
+
+
+    // =========================================================
+    // UPDATE THE EXISTING ELEMENTS
+    // =========================================================
+
+    const els = this._uploadModalEls;
+
+    // Update document information
     els.bannerIcon.textContent = dt.icon;
     els.bannerTitle.textContent = dt.type;
     els.bannerDesc.textContent = dt.desc;
-    els.fileLabel.textContent = isResubmit ? 'Upload Revised Document' : 'Attach Document File';
 
-    // Update feedback box
+
+    // Update modal title
+    this._uploadModal.setTitle?.(
+      isResubmit
+        ? `🔄 Resubmit: ${dt.type}`
+        : `📤 Submit: ${dt.type}`
+    );
+
+
+    // Update feedback
     if (isResubmit && existing.feedback) {
-      els.fbBox.innerHTML = `💬 <strong>Coordinator feedback:</strong> ${existing.feedback}`;
-      els.fbBox.style.display = 'block';
+
+      els.feedbackBox.style.display = 'block';
+
+      els.feedbackBox.innerHTML =
+        `💬 <strong>Coordinator feedback:</strong> ${existing.feedback}`;
+
     } else {
-      els.fbBox.style.display = 'none';
-      els.fbBox.innerHTML = '';
+
+      els.feedbackBox.style.display = 'none';
+      els.feedbackBox.innerHTML = '';
     }
 
-    const m = UI.modal({
-      title: isResubmit ? `🔄 Resubmit: ${dt.type}` : `📤 Submit: ${dt.type}`,
-      body: els.body,
-      size: 'lg',
-      footer: [
-        UI.button('Cancel', { variant: 'ghost', size: 'sm', onClick: () => m.close() }),
-        UI.button(isResubmit ? '🔄 Resubmit Document' : '📤 Submit Document', {
-          size: 'sm',
-          color: { base: '#EA580C', hover: '#C2410C', text: '#fff' },
-          onClick: () => {
-            if (!els.fileInput.files?.length) {
-              UI.toast('Please attach a file before submitting.', 'danger');
-              return;
-            }
 
-            // Build Form Data Instance
-            const formData = new FormData();
-            formData.append('action', 'uploadInternDocument');
-            formData.append('document_type', dt.type);
-            formData.append('notes', els.notesInput.value.trim());
-            formData.append('doc_file', els.fileInput.files[0]);
+    // Update file label
+    els.fileLabel.textContent =
+      isResubmit
+        ? 'Upload Revised Document'
+        : 'Attach Document File';
 
-            // Dynamic coordinator assignment pull from your global profile state
-            const assignedCoordinatorId = (typeof InternData !== 'undefined' && InternData?.profile?.coordinator_id) || '';
-            formData.append('coordinator_id', assignedCoordinatorId);
 
-            // Send payload to backend router
-            fetch('config/api.php', {
-              method: 'POST',
-              body: formData
-            })
-              .then(res => res.json())
-              .then(res => {
-                if (res.success) {
-                  m.close();
-                  UI.toast(res.message || 'Document uploaded successfully.', 'success');
-                  InternDocuments.build();
-                } else {
-                  UI.toast(res.message || 'Upload transmission failed.', 'danger');
-                }
-              })
-              .catch(err => {
-                console.error(err);
-                UI.toast('Connection timeout running multipart sync actions.', 'danger');
-              });
-          },
-        }),
-      ],
-    });
-    m.open();
+    // Reset file input
+    els.fileInput.value = '';
+
+    // Reset drop label
+    els.dropLbl.innerHTML =
+      '<strong>Click to browse</strong> or drag & drop';
+
+    els.dropLbl.style.color = '';
+
+
+    // Update notes placeholder
+    els.notes.placeholder =
+      isResubmit
+        ? 'Describe the changes you made…'
+        : 'Any notes for your coordinator…';
+
+    // Clear previous notes
+    els.notes.value = '';
+
+
+    // =========================================================
+    // UPDATE SUBMIT BUTTON TEXT
+    // =========================================================
+
+    // UI.modal may expose its footer buttons differently depending
+    // on your UI implementation. If setText exists, update it.
+    if (this._uploadModal._footerButtons?.[1]?.setText) {
+      this._uploadModal._footerButtons[1].setText(
+        isResubmit
+          ? '🔄 Resubmit Document'
+          : '📤 Submit Document'
+      );
+    }
+
+
+    // Finally open the SAME modal
+    this._uploadModal.open();
   },
 
+
+  // =========================================================
+  // SUBMIT CURRENT MODAL
+  // =========================================================
+
+  _submitUploadModal() {
+
+    const { dt } = this._uploadModalState;
+    const els = this._uploadModalEls;
+
+    if (!dt || !els) {
+      console.error('Upload modal is not initialized.');
+      return;
+    }
+
+
+    // Make sure a file was selected
+    if (!els.fileInput.files?.length) {
+
+      UI.toast(
+        'Please attach a file before submitting.',
+        'danger'
+      );
+
+      return;
+    }
+
+
+    // Build Form Data
+    const formData = new FormData();
+
+    formData.append(
+      'action',
+      'uploadInternDocument'
+    );
+
+    formData.append(
+      'document_type',
+      dt.type
+    );
+
+    formData.append(
+      'notes',
+      els.notes.value.trim()
+    );
+
+    formData.append(
+      'doc_file',
+      els.fileInput.files[0]
+    );
+
+
+    // Dynamic coordinator assignment
+    const assignedCoordinatorId =
+      InternData?.profile?.coordinator_id || '';
+
+    formData.append(
+      'coordinator_id',
+      assignedCoordinatorId
+    );
+
+
+    // Prevent duplicate submissions while request is running
+    if (this._uploadSubmitting) {
+      return;
+    }
+
+    this._uploadSubmitting = true;
+
+
+    fetch('config/api.php', {
+      method: 'POST',
+      body: formData
+    })
+
+    .then(res => res.json())
+
+    .then(res => {
+
+      if (res.success) {
+
+        this._uploadModal.close();
+
+        UI.toast(
+          res.message,
+          'success'
+        );
+
+        // Reload document data
+        this.build();
+
+      } else {
+
+        UI.toast(
+          res.message || 'Upload transmission failed.',
+          'danger'
+        );
+      }
+    })
+
+    .catch(err => {
+
+      console.error(err);
+
+      UI.toast(
+        'Connection timeout running multipart sync actions.',
+        'danger'
+      );
+    })
+
+    .finally(() => {
+
+      this._uploadSubmitting = false;
+    });
+  },
+
+
   _updateDropLabel(input, labelEl) {
+
     if (!input.files?.length) return;
-    labelEl.innerHTML = `<strong>📎 ${input.files[0].name}</strong>`;
+
+    labelEl.innerHTML =
+      `<strong>📎 ${input.files[0].name}</strong>`;
+
     labelEl.style.color = '#EA580C';
   },
 
-  // List of all past submissions
-  _submissionsCard() {
-    const slCls = { pending: 'ds-pending', approved: 'ds-approved', rejected: 'ds-rejected' };
-    const slLbl = { pending: '⏳ Under Review', approved: '✅ Accepted', rejected: '✗ Needs Resubmit' };
-    const icons = {
-      'TOR': '🎓', 'Certificate of Completion': '🏅', 'Endorsement Letter': '📨',
-      'Final Report': '📋', 'Waiver / MOA': '📝', 'Medical Certificate': '🩺', 'Other': '📎',
-    };
 
-    if (!this._submissions.length) {
-      return UI.card({
-        title: '📋 My Submissions',
-        body: UI.empty('📭', 'No submissions yet', 'Click a document type above to get started.'),
-      });
-    }
-
-    const body = document.createElement('div');
-    [...this._submissions].sort((a, b) => {
-      const order = { rejected: 0, pending: 1, approved: 2 };
-      return (order[a.status] ?? 1) - (order[b.status] ?? 1);
-    }).forEach(sub => {
-      const row = document.createElement('div');
-      row.className = 'doc-submission-row';
-
-      const icon = document.createElement('div');
-      icon.className = 'doc-sub-icon';
-      icon.textContent = icons[sub.type] || '📎';
-
-      const info = document.createElement('div');
-      info.className = 'doc-sub-info';
-      info.innerHTML = `
-        <div class="doc-sub-name">${sub.type}</div>
-        <div class="doc-sub-meta">
-          <a href="/uploads/documents/${sub.file_path}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem">📄 ${sub.file}</a>
-          <span style="margin:0 .35rem;opacity:.4">·</span>
-          Submitted ${sub.submitted}
-          ${sub.feedback ? `<div style="margin-top:.25rem;font-size:.74rem;color:#92400E;background:#FEF3C7;padding:.25rem .5rem;border-radius:6px;display:inline-block">💬 ${sub.feedback}</div>` : ''}
-        </div>`;
-
-      const badge = document.createElement('span');
-      badge.className = 'cui-badge ' + (slCls[sub.status] || 'ds-pending');
-      badge.textContent = slLbl[sub.status] || sub.status;
-
-      const actions = document.createElement('div');
-      actions.className = 'doc-sub-actions';
-      if (sub.status === 'rejected') {
-        const dt = this._docTypes.find(d => d.type === sub.type) || { type: sub.type, icon: '📎', desc: '', required: false };
-        actions.appendChild(UI.button('🔄 Resubmit', {
-          size: 'sm',
-          color: { base: '#EA580C', hover: '#C2410C', text: '#fff' },
-          onClick: () => this._openUploadModal(dt, sub),
-        }));
-      }
-
-      row.append(icon, info, badge, actions);
-      body.appendChild(row);
-    });
-
-    return UI.card({
-      title: '📋 My Submissions',
-      headerActions: UI.badge(this._submissions.length + ' submitted', { base: '#DBEAFE', text: '#1E40AF' }),
-      body,
-    });
-  },
+  // ... keep the rest of your existing code ...
 };
+
+
 // ─────────────────────────────────────────────────────────────
 // Generic API helper — used here and by Attendance / Reports
 // ─────────────────────────────────────────────────────────────
