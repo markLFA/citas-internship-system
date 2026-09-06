@@ -2423,264 +2423,102 @@ const CoordinatorDocuments = {
   },
 
   // ── Submissions list ───────────────────────────────────────
-_renderList() {
-  const wrap = document.getElementById('cdoc-list-wrap');
-  if (!wrap) return;
-  wrap.innerHTML = '';
+  _renderList() {
+    const wrap = document.getElementById('cdoc-list-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
 
-  const list = this._filtered();
+    const list = this._filtered();
 
-  if (!list.length) {
-    wrap.appendChild(UI.card({
-      title: 'Submitted Documents',
-      body: UI.empty(
-        '📭',
-        'No documents found',
-        'No submissions match the current filters.'
-      ),
-    }));
-    return;
-  }
-
-  const grouped = {};
-
-  list.forEach(d => {
-    if (!grouped[d.internId]) {
-      grouped[d.internId] = {
-        name: d.internName,
-        dept: d.dept || 'General',
-        docs: []
-      };
+    if (!list.length) {
+      wrap.appendChild(UI.card({
+        title: 'Submitted Documents',
+        body: UI.empty('📭', 'No documents found', 'No submissions match the current filters.'),
+      }));
+      return;
     }
 
-    grouped[d.internId].docs.push(d);
-  });
-
-  const slCls = {
-    pending: 'ds-pending',
-    approved: 'ds-approved',
-    rejected: 'ds-rejected'
-  };
-
-  const slLbl = {
-    pending: '⏳ Pending',
-    approved: '✅ Accepted',
-    rejected: '✗ Rejected'
-  };
-
-  Object.values(grouped).forEach(group => {
-
-    const pendingCount = group.docs.filter(
-      d => d.status === 'pending'
-    ).length;
-
-    const headerActions = document.createElement('div');
-    headerActions.style.cssText =
-      'display:flex;align-items:center;gap:.5rem';
-
-    if (pendingCount) {
-      headerActions.appendChild(
-        UI.badge(
-          pendingCount + ' pending',
-          {
-            base: '#FEF3C7',
-            text: '#92400E'
-          }
-        )
-      );
-    }
-
-    headerActions.appendChild(
-      UI.badge(
-        group.docs.length +
-        ' doc' +
-        (group.docs.length !== 1 ? 's' : ''),
-        {
-          base: '#DBEAFE',
-          text: '#1E40AF'
-        }
-      )
-    );
-
-    const body = document.createElement('div');
-
-    group.docs.forEach(doc => {
-
-      const row = document.createElement('div');
-      row.className = 'doc-row';
-
-      const icons = {
-        'TOR': '🎓',
-        'Certificate of Completion': '🏅',
-        'Endorsement Letter': '📨',
-        'Final Report': '📋',
-        'Waiver / MOA': '📝',
-        'Medical Certificate': '🩺',
-        'Other': '📎'
-      };
-
-      const iconEl = document.createElement('div');
-      iconEl.className = 'doc-row-icon';
-      iconEl.textContent = icons[doc.type] || '📎';
-
-      const info = document.createElement('div');
-      info.className = 'doc-row-info';
-
-      /*
-       * doc.file_path should now contain something like:
-       *
-       * documents/15/doc_abc123.pdf
-       *
-       * We send that path to view-document.php.
-       */
-      const fileViewerUrl =
-        `https://palegoldenrod-raven-703625.hostingersite.com/config/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-
-      info.innerHTML = `
-        <div class="doc-row-name">${doc.type}</div>
-
-        <div class="doc-row-meta">
-          <a
-            href="${fileViewerUrl}"
-            target="_blank"
-            rel="noopener noreferrer"
-            style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600"
-          >
-            📄 ${doc.file}
-          </a>
-
-          <span style="margin:0 .35rem;opacity:.4">·</span>
-
-          Submitted ${doc.submitted}
-
-          ${
-            doc.feedback
-              ? `
-                <span style="margin:0 .35rem;opacity:.4">·</span>
-                <span style="color:#6366F1;font-size:.74rem">
-                  💬 Has feedback
-                </span>
-              `
-              : ''
-          }
-        </div>
-      `;
-
-      const badge = document.createElement('span');
-      badge.className =
-        'cui-badge ' +
-        (slCls[doc.status] || 'ds-pending');
-
-      badge.textContent =
-        slLbl[doc.status] || doc.status;
-
-      const actions = document.createElement('div');
-      actions.className = 'doc-row-actions';
-
-      /*
-       * VIEW FILE
-       *
-       * Do NOT send the file through:
-       * config/uploads/
-       *
-       * The PHP endpoint handles:
-       * 1. Authentication
-       * 2. Permission checking
-       * 3. Supabase signed URL generation
-       * 4. Redirecting to the actual file
-       */
-      actions.appendChild(
-        Helpers.ghostBtn('👁 View', () => {
-          window.open(fileViewerUrl, '_blank');
-        })
-      );
-
-      if (doc.status === 'pending') {
-
-        actions.appendChild(
-          Helpers.approveBtn(
-            '✅ Accept',
-            () => this._quickAction(doc, 'approved')
-          )
-        );
-
-        actions.appendChild(
-          Helpers.rejectBtn(
-            '✗ Reject',
-            () => this._quickAction(doc, 'rejected')
-          )
-        );
-
-      } else {
-
-        actions.appendChild(
-          Helpers.ghostBtn(
-            '✏️ Review',
-            () => this._openReviewModal(doc)
-          )
-        );
-      }
-
-      row.append(
-        iconEl,
-        info,
-        badge,
-        actions
-      );
-
-      body.appendChild(row);
+    const grouped = {};
+    list.forEach(d => {
+      if (!grouped[d.internId]) grouped[d.internId] = { name: d.internName, dept: d.dept || 'General', docs: [] };
+      grouped[d.internId].docs.push(d);
     });
 
-    const internHeader = document.createElement('div');
+    const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
+    const slLbl = { pending:'⏳ Pending',  approved:'✅ Accepted',  rejected:'✗ Rejected' };
 
-    internHeader.style.cssText =
-      'display:flex;align-items:center;gap:.65rem;margin-bottom:.6rem';
+    Object.values(grouped).forEach(group => {
+      const pendingCount = group.docs.filter(d => d.status === 'pending').length;
 
-    internHeader.append(
-      Helpers.internAvatar(group.name),
+      const headerActions = document.createElement('div');
+      headerActions.style.cssText = 'display:flex;align-items:center;gap:.5rem';
+      if (pendingCount) headerActions.appendChild(UI.badge(pendingCount + ' pending', { base:'#FEF3C7', text:'#92400E' }));
+      headerActions.appendChild(UI.badge(group.docs.length + ' doc' + (group.docs.length !== 1 ? 's' : ''), { base:'#DBEAFE', text:'#1E40AF' }));
 
-      (() => {
+      const body = document.createElement('div');
+
+      group.docs.forEach(doc => {
+        const row = document.createElement('div');
+        row.className = 'doc-row';
+
+        const icons = {
+          'TOR':'🎓','Certificate of Completion':'🏅','Endorsement Letter':'📨',
+          'Final Report':'📋','Waiver / MOA':'📝','Medical Certificate':'🩺','Other':'📎',
+        };
+        const iconEl = document.createElement('div');
+        iconEl.className   = 'doc-row-icon';
+        iconEl.textContent = icons[doc.type] || '📎';
+
+        const info = document.createElement('div');
+        const docDownloadpath = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+        info.className = 'doc-row-info';
+        info.innerHTML = `
+          <div class="doc-row-name">${doc.type}</div>
+          <div class="doc-row-meta">
+            <a href="config/uploads/${docDownloadpath}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
+            <span style="margin:0 .35rem;opacity:.4">·</span>
+            Submitted ${doc.submitted}
+            ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1;font-size:.74rem">💬 Has feedback</span>` : ''}
+          </div>`;
+
+        const badge = document.createElement('span');
+        badge.className   = 'cui-badge ' + (slCls[doc.status] || 'ds-pending');
+        badge.textContent = slLbl[doc.status] || doc.status;
+
+        const actions = document.createElement('div');
+        actions.className = 'doc-row-actions';
+
+        actions.appendChild(Helpers.ghostBtn('👁 View', () => {
+          const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
+          window.open(previewUrl, '_blank');
+        }));
+
+        if (doc.status === 'pending') {
+          actions.appendChild(Helpers.approveBtn('✅ Accept', () => this._quickAction(doc, 'approved')));
+          actions.appendChild(Helpers.rejectBtn('✗ Reject',   () => this._quickAction(doc, 'rejected')));
+        } else {
+          actions.appendChild(Helpers.ghostBtn('✏️ Review', () => this._openReviewModal(doc)));
+        }
+
+        row.append(iconEl, info, badge, actions);
+        body.appendChild(row);
+      });
+
+      const internHeader = document.createElement('div');
+      internHeader.style.cssText = 'display:flex;align-items:center;gap:.65rem;margin-bottom:.6rem';
+      internHeader.append(Helpers.internAvatar(group.name), (() => {
         const d = document.createElement('div');
-
         d.innerHTML = `
-          <div
-            style="
-              font-family:Sora,sans-serif;
-              font-weight:700;
-              font-size:.9rem;
-              color:#1A0A00
-            "
-          >
-            ${group.name}
-          </div>
-
-          <div
-            style="
-              font-size:.74rem;
-              color:#9A6647
-            "
-          >
-            ${group.dept}
-          </div>
-        `;
-
+          <div style="font-family:Sora,sans-serif;font-weight:700;font-size:.9rem;color:#1A0A00">${group.name}</div>
+          <div style="font-size:.74rem;color:#9A6647">${group.dept}</div>`;
         return d;
-      })()
-    );
+      })());
+      body.prepend(internHeader);
 
-    body.prepend(internHeader);
-
-    wrap.appendChild(
-      UI.card({
-        title: '',
-        padding: true,
-        headerActions,
-        body
-      })
-    );
-  });
-},
-
+      wrap.appendChild(UI.card({ title: '', padding: true, headerActions, body }));
+    });
+  },
 
   // ── Analytics tab ──────────────────────────────────────────
 _buildAnalytics(container) {
