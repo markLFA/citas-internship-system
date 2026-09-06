@@ -1850,129 +1850,392 @@ const InternDocuments = {
   },
 
   // Upload / resubmit modal
-  _openUploadModal(dt, existing = null) {
-    const isResubmit = existing && existing.status === 'rejected';
-    const body       = document.createElement('div');
+_openUploadModal(dt, existing = null) {
+  const isResubmit = existing && existing.status === 'rejected';
+
+  // ============================================================
+  // CREATE THE MODAL ONLY ONCE
+  // ============================================================
+  if (!this._uploadModal) {
+
+    // ---------- Body ----------
+    const body = document.createElement('div');
 
     // Document type info banner
     const banner = document.createElement('div');
-    banner.style.cssText = 'display:flex;align-items:center;gap:.85rem;padding:1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:1.25rem';
-    banner.innerHTML = `
-      <span style="font-size:2rem;flex-shrink:0">${dt.icon}</span>
-      <div>
-        <div style="font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem">${dt.type}</div>
-        <div style="font-size:.78rem;color:#9A6647;margin-top:.15rem;line-height:1.5">${dt.desc}</div>
-      </div>`;
+    banner.className = 'doc-upload-banner';
+    banner.style.cssText =
+      'display:flex;align-items:center;gap:.85rem;padding:1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;margin-bottom:1.25rem';
+
+    const bannerIcon = document.createElement('span');
+    bannerIcon.className = 'doc-upload-banner-icon';
+    bannerIcon.style.cssText = 'font-size:2rem;flex-shrink:0';
+
+    const bannerContent = document.createElement('div');
+
+    const bannerTitle = document.createElement('div');
+    bannerTitle.className = 'doc-upload-banner-title';
+    bannerTitle.style.cssText =
+      'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem';
+
+    const bannerDesc = document.createElement('div');
+    bannerDesc.className = 'doc-upload-banner-desc';
+    bannerDesc.style.cssText =
+      'font-size:.78rem;color:#9A6647;margin-top:.15rem;line-height:1.5';
+
+    bannerContent.append(bannerTitle, bannerDesc);
+    banner.append(bannerIcon, bannerContent);
     body.appendChild(banner);
 
-    // Show coordinator feedback if resubmitting
-    if (isResubmit && existing.feedback) {
-      const fbBox = document.createElement('div');
-      fbBox.style.cssText = 'padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E;margin-bottom:1.1rem';
-      fbBox.innerHTML = `💬 <strong>Coordinator feedback:</strong> ${existing.feedback}`;
-      body.appendChild(fbBox);
-    }
 
-    // File upload zone
+    // ---------- Coordinator feedback ----------
+    const fbBox = document.createElement('div');
+    fbBox.className = 'doc-upload-feedback';
+    fbBox.style.cssText =
+      'padding:.85rem 1rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E;margin-bottom:1.1rem';
+
+    body.appendChild(fbBox);
+
+
+    // ---------- File label ----------
     const fileLabel = document.createElement('div');
-    fileLabel.className   = 'cui-label';
-    fileLabel.textContent = isResubmit ? 'Upload Revised Document' : 'Attach Document File';
+    fileLabel.className = 'cui-label doc-upload-file-label';
     body.appendChild(fileLabel);
 
+
+    // ---------- File input ----------
     const fileInput = document.createElement('input');
-    fileInput.type    = 'file';
-    fileInput.id      = 'doc-upload-file';
-    fileInput.accept  = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    fileInput.type = 'file';
+
+    // IMPORTANT:
+    // Give it a unique ID only once.
+    fileInput.id = 'doc-upload-file';
+
+    fileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
     fileInput.style.display = 'none';
 
+
+    // ---------- Drop zone ----------
     const dropZone = document.createElement('div');
     dropZone.className = 'cui-upload-zone';
     dropZone.style.marginBottom = '.85rem';
 
-    const dropIcon  = document.createElement('div');
-    dropIcon.className   = 'cui-upload-icon';
+    const dropIcon = document.createElement('div');
+    dropIcon.className = 'cui-upload-icon';
     dropIcon.textContent = '📁';
 
     const dropLbl = document.createElement('div');
     dropLbl.className = 'cui-upload-label';
-    dropLbl.id        = 'doc-drop-label';
-    dropLbl.innerHTML = '<strong>Click to browse</strong> or drag & drop';
 
     const dropHint = document.createElement('div');
-    dropHint.className   = 'cui-upload-hint';
-    dropHint.textContent = 'PDF, DOC, DOCX, PNG, JPG — max 10 MB';
+    dropHint.className = 'cui-upload-hint';
+    dropHint.textContent =
+      'PDF, DOC, DOCX, PNG, JPG — max 10 MB';
 
-    dropZone.append(fileInput, dropIcon, dropLbl, dropHint);
+    dropZone.append(
+      fileInput,
+      dropIcon,
+      dropLbl,
+      dropHint
+    );
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('cui-upload-zone-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('cui-upload-zone-over'));
+
+    // ============================================================
+    // EVENT LISTENERS
+    // These are attached ONLY ONCE.
+    // ============================================================
+
+    dropZone.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('cui-upload-zone-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('cui-upload-zone-over');
+    });
+
     dropZone.addEventListener('drop', e => {
       e.preventDefault();
+
       dropZone.classList.remove('cui-upload-zone-over');
-      fileInput.files = e.dataTransfer.files;
+
+      if (e.dataTransfer.files?.length) {
+        fileInput.files = e.dataTransfer.files;
+        this._updateDropLabel(fileInput, dropLbl);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
       this._updateDropLabel(fileInput, dropLbl);
     });
-    fileInput.addEventListener('change', () => this._updateDropLabel(fileInput, dropLbl));
+
     body.appendChild(dropZone);
 
-    // Notes field
-    body.appendChild(UI.formGroup('Notes (optional)',
-      UI.textarea({ id:'doc-upload-notes', placeholder: isResubmit ? 'Describe the changes you made…' : 'Any notes for your coordinator…', rows: 3 })
-    ));
+
+    // ---------- Notes ----------
+    const notes = UI.textarea({
+      id: 'doc-upload-notes',
+      placeholder: 'Any notes for your coordinator…',
+      rows: 3
+    });
+
+    body.appendChild(
+      UI.formGroup('Notes (optional)', notes)
+    );
+
+
+    // ============================================================
+    // CREATE MODAL ONCE
+    // ============================================================
 
     const m = UI.modal({
-      title: isResubmit ? `🔄 Resubmit: ${dt.type}` : `📤 Submit: ${dt.type}`,
+      title: 'Submit Document',
       body,
+
       size: 'lg',
+
       footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        UI.button(isResubmit ? '🔄 Resubmit Document' : '📤 Submit Document', {
+        UI.button('Cancel', {
+          variant: 'ghost',
           size: 'sm',
-          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-          // Locate this block inside InternDocuments._openUploadModal click handler:
+          onClick: () => m.close()
+        }),
+
+        UI.button('Submit Document', {
+          size: 'sm',
+
+          color: {
+            base: '#EA580C',
+            hover: '#C2410C',
+            text: '#fff'
+          },
+
           onClick: () => {
+
+            // Always use the SAME fileInput
             if (!fileInput.files?.length) {
-              UI.toast('Please attach a file before submitting.', 'danger');
+              UI.toast(
+                'Please attach a file before submitting.',
+                'danger'
+              );
               return;
             }
-            
-            // Build Form Data Instance
+
             const formData = new FormData();
-            formData.append('action', 'uploadInternDocument');
-            formData.append('document_type', dt.type);
-            formData.append('notes', document.getElementById('doc-upload-notes')?.value.trim() || '');
-            formData.append('doc_file', fileInput.files[0]);
 
-            // Dynamic coordinator assignment pull from your global profile state
-            const assignedCoordinatorId = InternData?.profile?.coordinator_id || '';
-            formData.append('coordinator_id', assignedCoordinatorId);
+            formData.append(
+              'action',
+              'uploadInternDocument'
+            );
 
-            // Send payload to backend router
+            // Use the current document type
+            formData.append(
+              'document_type',
+              this._uploadModalData.dt.type
+            );
+
+            formData.append(
+              'notes',
+              notes.value.trim()
+            );
+
+            formData.append(
+              'doc_file',
+              fileInput.files[0]
+            );
+
+            // Dynamic coordinator assignment
+            const assignedCoordinatorId =
+              InternData?.profile?.coordinator_id || '';
+
+            formData.append(
+              'coordinator_id',
+              assignedCoordinatorId
+            );
+
+
             fetch('config/api.php', {
               method: 'POST',
               body: formData
             })
+
             .then(res => res.json())
+
             .then(res => {
+
               if (res.success) {
+
                 m.close();
-                UI.toast(res.message, 'success');
-                this.build(); 
+
+                UI.toast(
+                  res.message,
+                  'success'
+                );
+
+                this.build();
+
               } else {
-                UI.toast(res.message || 'Upload transmission failed.', 'danger');
+
+                UI.toast(
+                  res.message ||
+                  'Upload transmission failed.',
+                  'danger'
+                );
               }
             })
+
             .catch(err => {
+
               console.error(err);
-              UI.toast('Connection timeout running multipart sync actions.', 'danger');
+
+              UI.toast(
+                'Connection timeout running multipart sync actions.',
+                'danger'
+              );
             });
-          },
-        }),
-      ],
+          }
+        })
+      ]
     });
-    m.open();
-  },
+
+
+    // ============================================================
+    // STORE EVERYTHING
+    // ============================================================
+
+    this._uploadModal = {
+      modal: m,
+      body,
+
+      banner,
+      bannerIcon,
+      bannerTitle,
+      bannerDesc,
+
+      fbBox,
+
+      fileLabel,
+
+      fileInput,
+      dropZone,
+      dropLbl,
+
+      notes
+    };
+  }
+
+
+  // ============================================================
+  // REUSE EXISTING ELEMENTS
+  // ============================================================
+
+  const ui = this._uploadModal;
+
+  // Store the current data being used by this modal
+  this._uploadModalData = {
+    dt,
+    existing
+  };
+
+
+  // ============================================================
+  // UPDATE DOCUMENT INFORMATION
+  // ============================================================
+
+  ui.bannerIcon.textContent = dt.icon;
+
+  ui.bannerTitle.textContent = dt.type;
+
+  ui.bannerDesc.textContent = dt.desc;
+
+
+  // ============================================================
+  // UPDATE RESUBMISSION STATE
+  // ============================================================
+
+  if (isResubmit && existing.feedback) {
+
+    ui.fbBox.innerHTML =
+      `💬 <strong>Coordinator feedback:</strong> ${existing.feedback}`;
+
+    ui.fbBox.style.display = '';
+
+  } else {
+
+    ui.fbBox.style.display = 'none';
+  }
+
+
+  // ============================================================
+  // UPDATE FILE LABEL
+  // ============================================================
+
+  ui.fileLabel.textContent =
+    isResubmit
+      ? 'Upload Revised Document'
+      : 'Attach Document File';
+
+
+  // ============================================================
+  // UPDATE NOTES
+  // ============================================================
+
+  ui.notes.placeholder =
+    isResubmit
+      ? 'Describe the changes you made…'
+      : 'Any notes for your coordinator…';
+
+
+  // Clear previous file selection
+  ui.fileInput.value = '';
+
+  // Reset drop label
+  ui.dropLbl.innerHTML =
+    '<strong>Click to browse</strong> or drag & drop';
+
+  // Reset drag-over state
+  ui.dropZone.classList.remove(
+    'cui-upload-zone-over'
+  );
+
+
+  // Clear previous notes
+  ui.notes.value = '';
+
+
+  // ============================================================
+  // UPDATE MODAL TITLE
+  // ============================================================
+
+  if (ui.modal.setTitle) {
+
+    ui.modal.setTitle(
+      isResubmit
+        ? `🔄 Resubmit: ${dt.type}`
+        : `📤 Submit: ${dt.type}`
+    );
+
+  } else if (ui.modal.title) {
+
+    // Fallback if your UI.modal implementation exposes title
+    // directly instead of using setTitle().
+    ui.modal.title =
+      isResubmit
+        ? `🔄 Resubmit: ${dt.type}`
+        : `📤 Submit: ${dt.type}`;
+  }
+
+
+  // ============================================================
+  // OPEN THE EXISTING MODAL
+  // ============================================================
+
+  ui.modal.open();
+},
 
   _updateDropLabel(input, labelEl) {
     if (!input.files?.length) return;
