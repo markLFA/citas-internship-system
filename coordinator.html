@@ -2470,7 +2470,7 @@ const CoordinatorDocuments = {
         iconEl.textContent = icons[doc.type] || '📎';
 
         const info = document.createElement('div');
-        const docDownloadpath = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+        const docDownloadpath = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
         info.className = 'doc-row-info';
         info.innerHTML = `
           <div class="doc-row-name">${doc.type}</div>
@@ -2489,7 +2489,7 @@ const CoordinatorDocuments = {
         actions.className = 'doc-row-actions';
 
         actions.appendChild(Helpers.ghostBtn('👁 View', () => {
-          const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+          const hostingerFileUrl = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
           const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
           window.open(previewUrl, '_blank');
         }));
@@ -3059,7 +3059,7 @@ _buildAnalytics(container) {
     hdr.append(iconCircle, hdrInfo, statusBadge);
     body.appendChild(hdr);
 
-    const hostingerFileUrl = `https://palegoldenrod-raven-703625.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+    const hostingerFileUrl = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
     const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
     const fileLink = document.createElement('a');
     fileLink.href   = previewUrl;
@@ -3147,7 +3147,7 @@ _buildAnalytics(container) {
 // ─────────────────────────────────────────────────────────────
 Helpers.api ("getSessionUser").then(data => {
   if (!data.success) {
-    window.location.href = 'https://palegoldenrod-raven-703625.hostingersite.com'; 
+    window.location.href = 'https://floralwhite-clam-553261.hostingersite.com'; 
     return;
   } else {
     COORDINATOR = data.user;
