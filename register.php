@@ -111,7 +111,7 @@ function create_intern_profile(int $userId, array $data): void {
     ]);
 }
 
-function create_internship(int $userId, int $companyId): void {
+function create_internship(int $userId, int $companyId): int {
     $db   = getDB();
     $stmt = $db->prepare(
         'INSERT INTO internships (intern_id, company_id, status)
@@ -122,6 +122,7 @@ function create_internship(int $userId, int $companyId): void {
         ':company_id' => $companyId,
         ':status'     => 'active',
     ]);
+    return (int) $db->lastInsertId();
 }
 
 function email_taken(string $email): bool {
@@ -162,9 +163,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = create_user($data);
 
             if (map_role($data['role']) === 'intern') {
-                $companyId = create_placeholder_company();
+                $companyId    = create_placeholder_company();
                 create_intern_profile($userId, $data);
-                create_internship($userId, $companyId);
+                $internshipId = create_internship($userId, $companyId);
+                assignSchoolYear($internshipId);  // auto-tag with current school year
             }
 
             $db->commit();
