@@ -175,3 +175,38 @@ function deleteFromSupabase(
         $httpCode < 300
     );
 }
+
+function testSupabaseConnection(): array
+{
+    $url = rtrim(SUPABASE_URL, '/') . '/storage/v1/bucket';
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . SUPABASE_SERVICE_ROLE_KEY,
+            'apikey: ' . SUPABASE_SERVICE_ROLE_KEY
+        ],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2
+    ]);
+
+    $response = curl_exec($ch);
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    $curlErrno = curl_errno($ch);
+
+    curl_close($ch);
+
+    return [
+        'curl_success' => $response !== false,
+        'curl_errno' => $curlErrno,
+        'curl_error' => $curlError,
+        'http_code' => $httpCode,
+        'response' => $response
+    ];
+}
