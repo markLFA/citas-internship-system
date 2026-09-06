@@ -19,6 +19,7 @@ function uploadToSupabase(
     string $storagePath,
     string $mimeType
 ): array {
+
     if (!file_exists($localFile)) {
         return [
             'success' => false,
@@ -41,6 +42,11 @@ function uploadToSupabase(
         SUPABASE_BUCKET .
         '/' .
         $storagePath;
+
+    error_log("Supabase upload URL: " . $uploadUrl);
+    error_log("Supabase storage path: " . $storagePath);
+    error_log("Supabase MIME type: " . $mimeType);
+    error_log("Supabase file size: " . strlen($fileContents));
 
     $ch = curl_init($uploadUrl);
 
@@ -66,7 +72,6 @@ function uploadToSupabase(
         CURLOPT_TIMEOUT => 120,
         CURLOPT_CONNECTTIMEOUT => 30,
 
-        // Temporary debugging options
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2
     ]);
@@ -79,7 +84,9 @@ function uploadToSupabase(
 
     curl_close($ch);
 
-    // IMPORTANT: distinguish connection errors from Supabase errors
+    /*
+     * Actual cURL/network failure
+     */
     if ($response === false) {
 
         error_log(
@@ -91,32 +98,42 @@ function uploadToSupabase(
 
         return [
             'success' => false,
-            'message' => 'Supabase connection error #' .
-                         $curlErrno .
-                         ': ' .
-                         $curlError
+            'message' =>
+                'Supabase connection error #' .
+                $curlErrno .
+                ': ' .
+                $curlError
         ];
     }
 
-    // Supabase responded, so the connection worked
+    /*
+     * Supabase responded, but rejected the upload
+     */
     if ($httpCode < 200 || $httpCode >= 300) {
 
         error_log(
-            "Supabase upload failed. HTTP " .
-            $httpCode .
-            " Response: " .
-            $response
+            "Supabase upload failed." .
+            " HTTP: " . $httpCode .
+            " Response: " . $response
         );
 
         return [
             'success' => false,
             'message' =>
-                'Supabase rejected the upload. HTTP ' .
+                'Supabase upload failed. HTTP ' .
                 $httpCode .
                 ': ' .
                 $response
         ];
     }
+
+    /*
+     * Upload succeeded
+     */
+    error_log(
+        "Supabase upload successful. Path: " .
+        $storagePath
+    );
 
     return [
         'success' => true,
