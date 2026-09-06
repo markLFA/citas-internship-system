@@ -1,47 +1,53 @@
 <?php
 
+session_start();
+
 require_once __DIR__ . '/supabase.php';
 require_once __DIR__ . '/db.php';
 
-if (empty($_GET['file'])) {
+// 1. Authenticate user
+if (empty($_SESSION['user']['id'])) {
+    http_response_code(401);
+    exit('Unauthorized.');
+}
+
+$userId = $_SESSION['user']['id'];
+$requestedFile = $_GET['file'] ?? '';
+
+if (empty($requestedFile)) {
     http_response_code(400);
     exit('File not specified.');
 }
 
-// Prevent directory traversal
-$filePath = str_replace('\\', '/', $_GET['file']);
-$filePath = ltrim($filePath, '/');
+// 2. Sanitize file path
+$filePath = ltrim(str_replace('\\', '/', $requestedFile), '/');
 
 if (strpos($filePath, '..') !== false) {
     http_response_code(400);
     exit('Invalid file path.');
 }
 
-// Make sure the user is logged in
-session_start();
+// 3. Authorize user access against database
+$stmt = $pdo->prepare('SELECT id FROM documents WHERE file_path = :path AND user_id = :user_id LIMIT 1');
+$stmt->execute([
+    'path' => $filePath,
+    'user_id' => $userId
+]);
 
-if (empty($_SESSION['user']['id'])) {
-    http_response_code(401);
-    exit('Unauthorized.');
+$document = $stmt->fetch();
+
+if (!$document) {
+    http_response_code(403);
+    exit('Forbidden: You do not have access to this file.');
 }
 
-/*
- * TODO:
- * Check here whether the logged-in user is actually allowed
- * to access this particular file.
- *
- * For example, check your documents table and verify that
- * the document belongs to this intern/coordinator/etc.
- */
-
-// Generate a signed URL
-$signedUrl = createSupabaseSignedUrl($filePath, 300); // 5 minutes
+// 4. Generate signed URL and redirect
+$signedUrl = createSupabaseSignedUrl($filePath, 300); // 5-minute expiry
 
 if (!$signedUrl) {
     http_response_code(500);
     exit('Unable to generate file access URL.');
 }
 
-// Redirect the browser to the temporary Supabase URL
 header('Location: ' . $signedUrl);
 exit;
