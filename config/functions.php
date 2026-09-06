@@ -1515,6 +1515,7 @@ function getInternDocuments(int $internId): array
  * @return array A response array indicating transaction status.
  */
 
+ /*
 function uploadInternDocument(int $internId, string $type, array $fileMeta, string $notes, ?int $coordinatorId): array
 {
     $pdo = getDB();
@@ -1622,7 +1623,571 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
         return ['success' => false, 'message' => 'A backend application storage failure occurred.'];
     }
 }
+*/
+function uploadInternDocument (int $internId, string $type, array $fileMeta, string $notes, ?int $coordinatorId): array
+{
+    $pdo = getDB();
 
+    /*
+     * =========================================================
+     * SUPABASE CONFIGURATION
+     * =========================================================
+     *
+     * Replace these with your actual Supabase credentials.
+     *
+     * IMPORTANT:
+     * Keep the service role key on the PHP server only.
+     */
+    $supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
+    $supabaseKey = 'YOUR_SERVICE_ROLE_KEY';
+    $supabaseBucket = 'intern-files';
+
+
+    /*
+     * =========================================================
+     * 1. INITIAL UPLOAD VALIDATION
+     * =========================================================
+     */
+
+    if (!isset($fileMeta['error']) || $fileMeta['error'] !== UPLOAD_ERR_OK) {
+
+        $errorMessages = [
+            UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the server upload limit configuration.',
+            UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the HTML form directive limit.',
+            UPLOAD_ERR_PARTIAL    => 'The file was only partially uploaded.',
+            UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk permissions.',
+        ];
+
+        $errMsg = $errorMessages[$fileMeta['error']]
+            ?? 'Unknown upload error occurred.';
+
+        return [
+            'success' => false,
+            'message' => $errMsg
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 2. FILE TYPE VALIDATION
+     * =========================================================
+     */
+
+    $allowedExts = [
+        'pdf',
+        'doc',
+        'docx',
+        'png',
+        'jpg',
+        'jpeg'
+    ];
+
+    $originalFileName = $fileMeta['name'] ?? '';
+
+    $info = pathinfo($originalFileName);
+
+    $ext = strtolower(
+        $info['extension'] ?? ''
+    );
+
+    if (!in_array($ext, $allowedExts, true)) {
+
+        return [
+            'success' => false,
+            'message' =>
+                'Invalid file type. Extensions allowed: ' .
+                implode(', ', $allowedExts)
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 3. FILE SIZE VALIDATION
+     * =========================================================
+     */
+
+    if (($fileMeta['size'] ?? 0) > 10 * 1024 * 1024) {
+
+        return [
+            'success' => false,
+            'message' =>
+                'File exceeds maximum 10 megabyte boundary limit.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 4. GENERATE UNIQUE FILE NAME
+     * =========================================================
+     *
+     * Example:
+     *
+     * doc_68bc123abc456.pdf
+     */
+
+    try {
+
+        $uniqueName =
+            'doc_' .
+            bin2hex(random_bytes(16)) .
+            '.' .
+            $ext;
+
+    } catch (Exception $e) {
+
+        error_log(
+            'Failed to generate unique filename: ' .
+            $e->getMessage()
+        );
+
+        return [
+            'success' => false,
+            'message' =>
+                'Failed to generate a secure filename.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 5. SUPABASE STORAGE PATH
+     * =========================================================
+     *
+     * Files will be stored like:
+     *
+     * intern-files/
+     * └── documents/
+     *     └── 25/
+     *         └── doc_abc123.pdf
+     *
+     * where 25 is the intern ID.
+     */
+
+    $storagePath =
+        'documents/' .
+        $internId .
+        '/' .
+        $uniqueName;
+
+
+    /*
+     * =========================================================
+     * 6. READ TEMPORARY UPLOADED FILE
+     * =========================================================
+     */
+
+    $fileContents = file_get_contents(
+        $fileMeta['tmp_name']
+    );
+
+    if ($fileContents === false) {
+
+        return [
+            'success' => false,
+            'message' =>
+                'Unable to read the uploaded file.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 7. DETERMINE MIME TYPE
+     * =========================================================
+     */
+
+    $mimeType =
+        $fileMeta['type']
+        ?? 'application/octet-stream';
+
+
+    /*
+     * =========================================================
+     * 8. UPLOAD TO SUPABASE STORAGE
+     * =========================================================
+     */
+
+    $uploadUrl =
+        rtrim($supabaseUrl, '/') .
+        '/storage/v1/object/' .
+        $supabaseBucket .
+        '/' .
+        $storagePath;
+
+
+    $ch = curl_init($uploadUrl);
+
+    curl_setopt_array($ch, [
+
+        CURLOPT_POST => true,
+
+        CURLOPT_POSTFIELDS => $fileContents,
+
+        CURLOPT_RETURNTRANSFER => true,
+
+        CURLOPT_HTTPHEADER => [
+
+            'Authorization: Bearer ' .
+                $supabaseKey,
+
+            'apikey: ' .
+                $supabaseKey,
+
+            'Content-Type: ' .
+                $mimeType,
+
+            'x-upsert: false'
+        ],
+
+        CURLOPT_TIMEOUT => 120
+    ]);
+
+
+    $supabaseResponse = curl_exec($ch);
+
+    $httpCode = curl_getinfo(
+        $ch,
+        CURLINFO_HTTP_CODE
+    );
+
+    $curlError = curl_error($ch);
+
+    curl_close($ch);
+
+
+    /*
+     * =========================================================
+     * 9. CHECK SUPABASE UPLOAD RESULT
+     * =========================================================
+     */
+
+    if ($supabaseResponse === false || !empty($curlError)) {
+
+        error_log(
+            'Supabase CURL error: ' .
+            $curlError
+        );
+
+        return [
+            'success' => false,
+            'message' =>
+                'Unable to connect to Supabase Storage.'
+        ];
+    }
+
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+
+        error_log(
+            'Supabase upload failed. HTTP ' .
+            $httpCode .
+            ' Response: ' .
+            $supabaseResponse
+        );
+
+        return [
+            'success' => false,
+            'message' =>
+                'Supabase failed to store the uploaded file.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 10. CHECK IF THIS DOCUMENT TYPE ALREADY EXISTS
+     * =========================================================
+     */
+
+    try {
+
+        $checkSql = "
+            SELECT id, file_path
+            FROM intern_documents
+            WHERE intern_id = :intern_id
+              AND document_type = :type
+            LIMIT 1
+        ";
+
+        $checkStmt = $pdo->prepare($checkSql);
+
+        $checkStmt->execute([
+            ':intern_id' => $internId,
+            ':type'      => $type
+        ]);
+
+        $existingRow =
+            $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+
+        /*
+         * =====================================================
+         * EXISTING DOCUMENT
+         * =====================================================
+         */
+
+        if ($existingRow) {
+
+            /*
+             * Delete the old file from Supabase.
+             */
+
+            if (!empty($existingRow['file_path'])) {
+
+                $oldFilePath =
+                    $existingRow['file_path'];
+
+                $deleteUrl =
+                    rtrim($supabaseUrl, '/') .
+                    '/storage/v1/object/' .
+                    $supabaseBucket .
+                    '/' .
+                    $oldFilePath;
+
+
+                $deleteCh = curl_init(
+                    $deleteUrl
+                );
+
+                curl_setopt_array($deleteCh, [
+
+                    CURLOPT_CUSTOMREQUEST => 'DELETE',
+
+                    CURLOPT_RETURNTRANSFER => true,
+
+                    CURLOPT_HTTPHEADER => [
+
+                        'Authorization: Bearer ' .
+                            $supabaseKey,
+
+                        'apikey: ' .
+                            $supabaseKey
+                    ],
+
+                    CURLOPT_TIMEOUT => 30
+                ]);
+
+
+                $deleteResponse =
+                    curl_exec($deleteCh);
+
+                $deleteHttpCode =
+                    curl_getinfo(
+                        $deleteCh,
+                        CURLINFO_HTTP_CODE
+                    );
+
+                curl_close($deleteCh);
+
+
+                /*
+                 * Don't prevent the new upload if the old
+                 * file could not be deleted.
+                 */
+
+                if (
+                    $deleteResponse === false ||
+                    $deleteHttpCode < 200 ||
+                    $deleteHttpCode >= 300
+                ) {
+
+                    error_log(
+                        'Warning: Could not delete old Supabase file: ' .
+                        $oldFilePath .
+                        ' HTTP: ' .
+                        $deleteHttpCode
+                    );
+                }
+            }
+
+
+            /*
+             * Update existing database record.
+             */
+
+            $sql = "
+                UPDATE intern_documents
+                SET
+                    file_path = :file_path,
+                    file_name = :file_name,
+                    notes = :notes,
+                    status = 'pending',
+                    feedback = NULL,
+                    coordinator_id = :coordinator_id,
+                    reviewed_at = NULL
+                WHERE id = :id
+            ";
+
+            $stmt = $pdo->prepare($sql);
+
+            $stmt->execute([
+
+                ':file_path' =>
+                    $storagePath,
+
+                ':file_name' =>
+                    $originalFileName,
+
+                ':notes' =>
+                    empty($notes)
+                        ? null
+                        : $notes,
+
+                ':coordinator_id' =>
+                    $coordinatorId,
+
+                ':id' =>
+                    $existingRow['id']
+            ]);
+        }
+
+
+        /*
+         * =====================================================
+         * NEW DOCUMENT
+         * =====================================================
+         */
+
+        else {
+
+            $sql = "
+                INSERT INTO intern_documents
+                (
+                    intern_id,
+                    document_type,
+                    file_path,
+                    file_name,
+                    notes,
+                    status,
+                    coordinator_id
+                )
+                VALUES
+                (
+                    :intern_id,
+                    :type,
+                    :file_path,
+                    :file_name,
+                    :notes,
+                    'pending',
+                    :coordinator_id
+                )
+            ";
+
+            $stmt = $pdo->prepare($sql);
+
+            $stmt->execute([
+
+                ':intern_id' =>
+                    $internId,
+
+                ':type' =>
+                    $type,
+
+                ':file_path' =>
+                    $storagePath,
+
+                ':file_name' =>
+                    $originalFileName,
+
+                ':notes' =>
+                    empty($notes)
+                        ? null
+                        : $notes,
+
+                ':coordinator_id' =>
+                    $coordinatorId
+            ]);
+        }
+
+
+        /*
+         * =====================================================
+         * SUCCESS
+         * =====================================================
+         */
+
+        return [
+
+            'success' => true,
+
+            'message' =>
+                'Document submitted successfully.',
+
+            /*
+             * This is what gets stored in your database.
+             *
+             * Example:
+             * documents/25/doc_abc123.pdf
+             */
+
+            'file_path' =>
+                $storagePath
+        ];
+
+
+    } catch (PDOException $e) {
+
+        /*
+         * =====================================================
+         * DATABASE FAILED AFTER SUPABASE UPLOAD
+         * =====================================================
+         *
+         * Delete the newly uploaded Supabase file so you
+         * don't have an orphaned file.
+         */
+
+        $deleteUrl =
+            rtrim($supabaseUrl, '/') .
+            '/storage/v1/object/' .
+            $supabaseBucket .
+            '/' .
+            $storagePath;
+
+
+        $deleteCh = curl_init(
+            $deleteUrl
+        );
+
+        curl_setopt_array($deleteCh, [
+
+            CURLOPT_CUSTOMREQUEST => 'DELETE',
+
+            CURLOPT_RETURNTRANSFER => true,
+
+            CURLOPT_HTTPHEADER => [
+
+                'Authorization: Bearer ' .
+                    $supabaseKey,
+
+                'apikey: ' .
+                    $supabaseKey
+            ],
+
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        curl_exec($deleteCh);
+
+        curl_close($deleteCh);
+
+
+        error_log(
+            'Database error in uploadInternDocument: ' .
+            $e->getMessage()
+        );
+
+        return [
+            'success' => false,
+            'message' =>
+                'A backend application storage failure occurred.'
+        ];
+    }
+}
 
 function uploadInternDocument1(
 int $internId,
