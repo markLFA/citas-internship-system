@@ -2488,11 +2488,22 @@ const CoordinatorDocuments = {
         const actions = document.createElement('div');
         actions.className = 'doc-row-actions';
 
-        actions.appendChild(Helpers.ghostBtn('👁 View', () => {
-          const hostingerFileUrl = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(hostingerFileUrl)}`;
+      actions.appendChild(Helpers.ghostBtn('👁 View', () => {
+        // 1. Direct public path to the file
+        const directFileUrl = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${doc.file_path}`;
+        
+        // 2. Check file type (Office Docs vs PDFs/Images)
+        const isOfficeDoc = /\.(docx?|xlsx?|pptx?)$/i.test(doc.file_path);
+
+        if (isOfficeDoc) {
+          // Office files need Microsoft Office Viewer
+          const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directFileUrl)}`;
           window.open(previewUrl, '_blank');
-        }));
+        } else {
+          // PDFs, images, and text files can open directly in a browser tab
+          window.open(directFileUrl, '_blank');
+        }
+      }));
 
         if (doc.status === 'pending') {
           actions.appendChild(Helpers.approveBtn('✅ Accept', () => this._quickAction(doc, 'approved')));
