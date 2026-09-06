@@ -2470,7 +2470,8 @@ const CoordinatorDocuments = {
         iconEl.textContent = icons[doc.type] || '📎';
 
         const info = document.createElement('div');
-        const docDownloadpath = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+        //const docDownloadpath = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+        const docDownloadpath = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${doc.file_path}`;
         info.className = 'doc-row-info';
         info.innerHTML = `
           <div class="doc-row-name">${doc.type}</div>
