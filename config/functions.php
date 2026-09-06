@@ -1,5 +1,6 @@
 <?php
 require 'db.php';
+require_once __DIR__ . '/supabase.php';
 function getSessionUser() {
     if (isset($_SESSION['user'])) {
         return [
