@@ -227,3 +227,60 @@ function testSupabaseConnection(): array
         'response' => $response
     ];
 }
+
+function createSupabaseSignedUrl(string $storagePath, int $expiresIn = 300): ?string
+{
+    $url =
+        rtrim(SUPABASE_URL, '/') .
+        '/storage/v1/object/sign/' .
+        SUPABASE_BUCKET .
+        '/' .
+        $storagePath;
+
+    $payload = json_encode([
+        'expiresIn' => $expiresIn
+    ]);
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . SUPABASE_SERVICE_ROLE_KEY,
+            'apikey: ' . SUPABASE_SERVICE_ROLE_KEY,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 30
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+
+    curl_close($ch);
+
+    if ($response === false || $curlError) {
+        error_log('Supabase signed URL error: ' . $curlError);
+        return null;
+    }
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+        error_log(
+            'Supabase signed URL failed. HTTP ' .
+            $httpCode .
+            ' Response: ' .
+            $response
+        );
+        return null;
+    }
+
+    $result = json_decode($response, true);
+
+    if (empty($result['signedURL'])) {
+        return null;
+    }
+
+    return rtrim(SUPABASE_URL, '/') . $result['signedURL'];
+}
