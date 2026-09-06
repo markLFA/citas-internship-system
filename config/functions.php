@@ -1625,24 +1625,15 @@ function uploadInternDocument(int $internId, string $type, array $fileMeta, stri
     }
 }
 */
-function uploadInternDocument (int $internId, string $type, array $fileMeta, string $notes, ?int $coordinatorId): array
+function uploadInternDocument(
+    int $internId,
+    string $type,
+    array $fileMeta,
+    string $notes,
+    ?int $coordinatorId
+): array
 {
     $pdo = getDB();
-
-    /*
-     * =========================================================
-     * SUPABASE CONFIGURATION
-     * =========================================================
-     *
-     * Replace these with your actual Supabase credentials.
-     *
-     * IMPORTANT:
-     * Keep the service role key on the PHP server only.
-     */
-    $supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-    $supabaseKey = 'YOUR_SERVICE_ROLE_KEY';
-    $supabaseBucket = 'intern-files';
-
 
     /*
      * =========================================================
@@ -1650,18 +1641,32 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
      * =========================================================
      */
 
-    if (!isset($fileMeta['error']) || $fileMeta['error'] !== UPLOAD_ERR_OK) {
-
+    if (
+        !isset($fileMeta['error']) ||
+        $fileMeta['error'] !== UPLOAD_ERR_OK
+    ) {
         $errorMessages = [
-            UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the server upload limit configuration.',
-            UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the HTML form directive limit.',
-            UPLOAD_ERR_PARTIAL    => 'The file was only partially uploaded.',
-            UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk permissions.',
+            UPLOAD_ERR_INI_SIZE   =>
+                'The uploaded file exceeds the server upload limit configuration.',
+
+            UPLOAD_ERR_FORM_SIZE  =>
+                'The uploaded file exceeds the HTML form directive limit.',
+
+            UPLOAD_ERR_PARTIAL    =>
+                'The file was only partially uploaded.',
+
+            UPLOAD_ERR_NO_FILE    =>
+                'No file was uploaded.',
+
+            UPLOAD_ERR_NO_TMP_DIR =>
+                'Missing a temporary folder on the server.',
+
+            UPLOAD_ERR_CANT_WRITE =>
+                'Failed to write the uploaded file.'
         ];
 
-        $errMsg = $errorMessages[$fileMeta['error']]
+        $errMsg =
+            $errorMessages[$fileMeta['error']]
             ?? 'Unknown upload error occurred.';
 
         return [
@@ -1695,7 +1700,6 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
     );
 
     if (!in_array($ext, $allowedExts, true)) {
-
         return [
             'success' => false,
             'message' =>
@@ -1712,7 +1716,6 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
      */
 
     if (($fileMeta['size'] ?? 0) > 10 * 1024 * 1024) {
-
         return [
             'success' => false,
             'message' =>
@@ -1723,12 +1726,59 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
 
     /*
      * =========================================================
-     * 4. GENERATE UNIQUE FILE NAME
+     * 4. VERIFY TEMPORARY FILE
+     * =========================================================
+     */
+
+    $temporaryFile = $fileMeta['tmp_name'] ?? '';
+
+    if (
+        empty($temporaryFile) ||
+        !is_uploaded_file($temporaryFile)
+    ) {
+        return [
+            'success' => false,
+            'message' =>
+                'The uploaded temporary file could not be verified.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 5. DETERMINE MIME TYPE
      * =========================================================
      *
-     * Example:
-     *
-     * doc_68bc123abc456.pdf
+     * Use the actual file contents rather than trusting the
+     * MIME type supplied by the browser.
+     */
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+    if ($finfo === false) {
+        return [
+            'success' => false,
+            'message' =>
+                'Unable to determine the uploaded file type.'
+        ];
+    }
+
+    $mimeType = finfo_file(
+        $finfo,
+        $temporaryFile
+    );
+
+    finfo_close($finfo);
+
+    if (!$mimeType) {
+        $mimeType = 'application/octet-stream';
+    }
+
+
+    /*
+     * =========================================================
+     * 6. GENERATE UNIQUE FILE NAME
+     * =========================================================
      */
 
     try {
@@ -1756,17 +1806,12 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
 
     /*
      * =========================================================
-     * 5. SUPABASE STORAGE PATH
+     * 7. SUPABASE STORAGE PATH
      * =========================================================
      *
-     * Files will be stored like:
+     * Example:
      *
-     * intern-files/
-     * └── documents/
-     *     └── 25/
-     *         └── doc_abc123.pdf
-     *
-     * where 25 is the intern ID.
+     * documents/25/doc_a83f92....pdf
      */
 
     $storagePath =
@@ -1778,130 +1823,7 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
 
     /*
      * =========================================================
-     * 6. READ TEMPORARY UPLOADED FILE
-     * =========================================================
-     */
-
-    $fileContents = file_get_contents(
-        $fileMeta['tmp_name']
-    );
-
-    if ($fileContents === false) {
-
-        return [
-            'success' => false,
-            'message' =>
-                'Unable to read the uploaded file.'
-        ];
-    }
-
-
-    /*
-     * =========================================================
-     * 7. DETERMINE MIME TYPE
-     * =========================================================
-     */
-
-    $mimeType =
-        $fileMeta['type']
-        ?? 'application/octet-stream';
-
-
-    /*
-     * =========================================================
-     * 8. UPLOAD TO SUPABASE STORAGE
-     * =========================================================
-     */
-
-    $uploadUrl =
-        rtrim($supabaseUrl, '/') .
-        '/storage/v1/object/' .
-        $supabaseBucket .
-        '/' .
-        $storagePath;
-
-
-    $ch = curl_init($uploadUrl);
-
-    curl_setopt_array($ch, [
-
-        CURLOPT_POST => true,
-
-        CURLOPT_POSTFIELDS => $fileContents,
-
-        CURLOPT_RETURNTRANSFER => true,
-
-        CURLOPT_HTTPHEADER => [
-
-            'Authorization: Bearer ' .
-                $supabaseKey,
-
-            'apikey: ' .
-                $supabaseKey,
-
-            'Content-Type: ' .
-                $mimeType,
-
-            'x-upsert: false'
-        ],
-
-        CURLOPT_TIMEOUT => 120
-    ]);
-
-
-    $supabaseResponse = curl_exec($ch);
-
-    $httpCode = curl_getinfo(
-        $ch,
-        CURLINFO_HTTP_CODE
-    );
-
-    $curlError = curl_error($ch);
-
-    curl_close($ch);
-
-
-    /*
-     * =========================================================
-     * 9. CHECK SUPABASE UPLOAD RESULT
-     * =========================================================
-     */
-
-    if ($supabaseResponse === false || !empty($curlError)) {
-
-        error_log(
-            'Supabase CURL error: ' .
-            $curlError
-        );
-
-        return [
-            'success' => false,
-            'message' =>
-                'Unable to connect to Supabase Storage.'
-        ];
-    }
-
-
-    if ($httpCode < 200 || $httpCode >= 300) {
-
-        error_log(
-            'Supabase upload failed. HTTP ' .
-            $httpCode .
-            ' Response: ' .
-            $supabaseResponse
-        );
-
-        return [
-            'success' => false,
-            'message' =>
-                'Supabase failed to store the uploaded file.'
-        ];
-    }
-
-
-    /*
-     * =========================================================
-     * 10. CHECK IF THIS DOCUMENT TYPE ALREADY EXISTS
+     * 8. CHECK EXISTING DOCUMENT
      * =========================================================
      */
 
@@ -1925,91 +1847,55 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
         $existingRow =
             $checkStmt->fetch(PDO::FETCH_ASSOC);
 
+    } catch (PDOException $e) {
 
-        /*
-         * =====================================================
-         * EXISTING DOCUMENT
-         * =====================================================
-         */
+        error_log(
+            'Database error checking existing document: ' .
+            $e->getMessage()
+        );
+
+        return [
+            'success' => false,
+            'message' =>
+                'Unable to check existing document record.'
+        ];
+    }
+
+
+    /*
+     * =========================================================
+     * 9. UPLOAD NEW FILE TO SUPABASE
+     * =========================================================
+     *
+     * This uses supabase.php.
+     */
+
+    $uploadResult = uploadToSupabase(
+        $temporaryFile,
+        $storagePath,
+        $mimeType
+    );
+
+    if (!$uploadResult['success']) {
+
+        error_log(
+            'Supabase document upload failed: ' .
+            ($uploadResult['message'] ?? 'Unknown error')
+        );
+
+        return $uploadResult;
+    }
+
+
+    /*
+     * =========================================================
+     * 10. UPDATE / INSERT DATABASE RECORD
+     * =========================================================
+     */
+
+    try {
 
         if ($existingRow) {
-
-            /*
-             * Delete the old file from Supabase.
-             */
-
-            if (!empty($existingRow['file_path'])) {
-
-                $oldFilePath =
-                    $existingRow['file_path'];
-
-                $deleteUrl =
-                    rtrim($supabaseUrl, '/') .
-                    '/storage/v1/object/' .
-                    $supabaseBucket .
-                    '/' .
-                    $oldFilePath;
-
-
-                $deleteCh = curl_init(
-                    $deleteUrl
-                );
-
-                curl_setopt_array($deleteCh, [
-
-                    CURLOPT_CUSTOMREQUEST => 'DELETE',
-
-                    CURLOPT_RETURNTRANSFER => true,
-
-                    CURLOPT_HTTPHEADER => [
-
-                        'Authorization: Bearer ' .
-                            $supabaseKey,
-
-                        'apikey: ' .
-                            $supabaseKey
-                    ],
-
-                    CURLOPT_TIMEOUT => 30
-                ]);
-
-
-                $deleteResponse =
-                    curl_exec($deleteCh);
-
-                $deleteHttpCode =
-                    curl_getinfo(
-                        $deleteCh,
-                        CURLINFO_HTTP_CODE
-                    );
-
-                curl_close($deleteCh);
-
-
-                /*
-                 * Don't prevent the new upload if the old
-                 * file could not be deleted.
-                 */
-
-                if (
-                    $deleteResponse === false ||
-                    $deleteHttpCode < 200 ||
-                    $deleteHttpCode >= 300
-                ) {
-
-                    error_log(
-                        'Warning: Could not delete old Supabase file: ' .
-                        $oldFilePath .
-                        ' HTTP: ' .
-                        $deleteHttpCode
-                    );
-                }
-            }
-
-
-            /*
-             * Update existing database record.
-             */
 
             $sql = "
                 UPDATE intern_documents
@@ -2027,7 +1913,6 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
             $stmt = $pdo->prepare($sql);
 
             $stmt->execute([
-
                 ':file_path' =>
                     $storagePath,
 
@@ -2045,16 +1930,8 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
                 ':id' =>
                     $existingRow['id']
             ]);
-        }
 
-
-        /*
-         * =====================================================
-         * NEW DOCUMENT
-         * =====================================================
-         */
-
-        else {
+        } else {
 
             $sql = "
                 INSERT INTO intern_documents
@@ -2082,7 +1959,6 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
             $stmt = $pdo->prepare($sql);
 
             $stmt->execute([
-
                 ':intern_id' =>
                     $internId,
 
@@ -2108,74 +1984,59 @@ function uploadInternDocument (int $internId, string $type, array $fileMeta, str
 
         /*
          * =====================================================
-         * SUCCESS
+         * 11. DELETE OLD FILE
+         * =====================================================
+         *
+         * Only do this AFTER the database has successfully
+         * been updated.
+         */
+
+        if (
+            $existingRow &&
+            !empty($existingRow['file_path']) &&
+            $existingRow['file_path'] !== $storagePath
+        ) {
+
+            $deleteSuccess =
+                deleteFromSupabase(
+                    $existingRow['file_path']
+                );
+
+            if (!$deleteSuccess) {
+
+                error_log(
+                    'Warning: New document saved, but old ' .
+                    'Supabase file could not be deleted: ' .
+                    $existingRow['file_path']
+                );
+            }
+        }
+
+
+        /*
+         * =====================================================
+         * 12. SUCCESS
          * =====================================================
          */
 
         return [
-
             'success' => true,
-
             'message' =>
                 'Document submitted successfully.',
-
-            /*
-             * This is what gets stored in your database.
-             *
-             * Example:
-             * documents/25/doc_abc123.pdf
-             */
-
             'file_path' =>
                 $storagePath
         ];
 
-
     } catch (PDOException $e) {
 
         /*
-         * =====================================================
-         * DATABASE FAILED AFTER SUPABASE UPLOAD
-         * =====================================================
+         * Database failed AFTER the new Supabase upload.
          *
-         * Delete the newly uploaded Supabase file so you
-         * don't have an orphaned file.
+         * Remove the newly uploaded file so it doesn't
+         * become an orphaned Supabase object.
          */
 
-        $deleteUrl =
-            rtrim($supabaseUrl, '/') .
-            '/storage/v1/object/' .
-            $supabaseBucket .
-            '/' .
-            $storagePath;
-
-
-        $deleteCh = curl_init(
-            $deleteUrl
-        );
-
-        curl_setopt_array($deleteCh, [
-
-            CURLOPT_CUSTOMREQUEST => 'DELETE',
-
-            CURLOPT_RETURNTRANSFER => true,
-
-            CURLOPT_HTTPHEADER => [
-
-                'Authorization: Bearer ' .
-                    $supabaseKey,
-
-                'apikey: ' .
-                    $supabaseKey
-            ],
-
-            CURLOPT_TIMEOUT => 30
-        ]);
-
-        curl_exec($deleteCh);
-
-        curl_close($deleteCh);
-
+        deleteFromSupabase($storagePath);
 
         error_log(
             'Database error in uploadInternDocument: ' .
