@@ -453,7 +453,7 @@ const Dashboard = {
     approvalCardContainer.id = 'pending-approvals-card-container';
     row.appendChild( approvalCardContainer );
     this.pendingApprovalsCard(approvalCardContainer);
-    row.appendChild( this.recentReportsCard()        );
+    this.recentReportsCard(row);
     row.appendChild( this.analyticsPreviewCard()    );
     return row;
   },
@@ -506,38 +506,48 @@ const Dashboard = {
   },
 
   // Quick view of 3 most recent reports on dashboard
-  recentReportsCard() {
-    const pending = REPORTS.filter(r => r.status === 'pending');
-    const recent  = REPORTS.slice(0, 3);
-    const body    = document.createElement('div');
-    const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
-    const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+  recentReportsCard(row) {
+    Helpers.api('getCoordinatorReports').then(data => {
+      
+      // Use the database-driven intern_name returned by your query
+      REPORTS = data.map(r => ({
+        ...r,
+        internName: r.intern_name || `Intern #${r.intern_id}`, 
+        dept: r.dept || 'N/A' // Fallback if department tracking is added later
+      }));
+      const pending = REPORTS.filter(r => r.status === 'pending');
+      const recent  = REPORTS.slice(0, 3);
+      const body    = document.createElement('div');
+      const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
+      const tl = { pending:'⏳ Pending', approved:'✅ Approved', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
 
-    if (!REPORTS.length) {
-      body.appendChild(UI.empty('📭', 'No reports yet', ''));
-    } else {
-      recent.forEach(r => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.6rem 0;border-bottom:1px solid #FFF0E0';
-        const left = document.createElement('div');
-        left.style.flex = '1';
-        left.innerHTML = `
-          <div style="font-weight:700;font-size:.82rem;color:#1A0A00">${r.internName}</div>
-          <div style="font-size:.73rem;color:#9A6647">${r.week}</div>`;
-        const badge = document.createElement('span');
-        badge.className   = 'cui-badge ' + sl[r.status];
-        badge.textContent = tl[r.status];
-        item.append(left, badge);
-        body.appendChild(item);
-      });
-    }
+      if (!REPORTS.length) {
+        body.appendChild(UI.empty('📭', 'No reports yet', ''));
+      } else {
+        recent.forEach(r => {
+          const item = document.createElement('div');
+          item.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.6rem 0;border-bottom:1px solid #FFF0E0';
+          const left = document.createElement('div');
+          left.style.flex = '1';
+          left.innerHTML = `
+            <div style="font-weight:700;font-size:.82rem;color:#1A0A00">${r.internName}</div>
+            <div style="font-size:.73rem;color:#9A6647">${r.week}</div>`;
+          const badge = document.createElement('span');
+          badge.className   = 'cui-badge ' + sl[r.status];
+          badge.textContent = tl[r.status];
+          item.append(left, badge);
+          body.appendChild(item);
+        });
+      }
 
-    return UI.card({
-      title: '📄 Weekly Reports',
-      headerActions: UI.badge(pending.length + ' pending', { base:'#FEF3C7', text:'#92400E' }),
-      body,
-      footer: REPORTS.length ? [Helpers.ghostBtn('View all →', () => navigate('reports'))] : [],
+      row.appendChild( UI.card({
+        title: '📄 Weekly Reports',
+        headerActions: UI.badge(pending.length + ' pending', { base:'#FEF3C7', text:'#92400E' }),
+        body,
+        footer: REPORTS.length ? [Helpers.ghostBtn('View all →', () => navigate('reports'))] : [],
+      }));
     });
+
   },
 
   // Analytics snapshot card on dashboard
