@@ -2469,19 +2469,18 @@ const CoordinatorDocuments = {
         iconEl.className   = 'doc-row-icon';
         iconEl.textContent = icons[doc.type] || '📎';
 
-        const info = document.createElement('div');
-        //const docDownloadpath = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
-        const docDownloadpath = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${doc.file_path}`;
-        info.className = 'doc-row-info';
-        info.innerHTML = `
-          <div class="doc-row-name">${doc.type}</div>
-          <div class="doc-row-meta">
-            <a href="config/uploads/${docDownloadpath}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
-            <span style="margin:0 .35rem;opacity:.4">·</span>
-            Submitted ${doc.submitted}
-            ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1;font-size:.74rem">💬 Has feedback</span>` : ''}
-          </div>`;
-
+      const info = document.createElement('div');
+      //const docDownloadpath = `https://floralwhite-clam-553261.hostingersite.com/view-document.php?file=${encodeURIComponent(doc.file_path)}`;
+      const docDownloadpath = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${doc.file_path}`;
+      info.className = 'doc-row-info';
+      info.innerHTML = `
+        <div class="doc-row-name">${doc.type}</div>
+        <div class="doc-row-meta">
+          <a href="${docDownloadpath}" target="_blank" style="color:#EA580C;text-decoration:none;font-size:.74rem;font-weight:600">📄 ${doc.file}</a>
+          <span style="margin:0 .35rem;opacity:.4">·</span>
+          Submitted ${doc.submitted}
+          ${doc.feedback ? `<span style="margin:0 .35rem;opacity:.4">·</span><span style="color:#6366F1;font-size:.74rem">💬 Has feedback</span>` : ''}
+        </div>`;
         const badge = document.createElement('span');
         badge.className   = 'cui-badge ' + (slCls[doc.status] || 'ds-pending');
         badge.textContent = slLbl[doc.status] || doc.status;
