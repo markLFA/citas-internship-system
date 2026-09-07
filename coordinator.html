@@ -927,6 +927,7 @@ const Interns = {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ action:'getInternsBySchoolYear', school_year: year }),
       });
+      console.log('school-year :', year);
       const data = await res.json();
       INTERNS_LIST = Array.isArray(data.interns) ? data.interns : [];
     } catch (_) {
