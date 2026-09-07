@@ -2642,7 +2642,6 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
             LEFT JOIN companies  c   ON c.id         = i.company_id
             WHERE u.role     = 'intern'
               AND u.is_active = 1
-              AND i.school_year = :school_year
               AND i.id = (
                   SELECT id FROM internships
                   WHERE intern_id = u.id
