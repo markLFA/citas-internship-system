@@ -2603,8 +2603,7 @@ function getSchoolYears(): array
  */
 function getInternsBySchoolYear(string $schoolYear = ''): array
 {
-function getCoordinatorInternDatas() {
-    if (!isset($_SESSION['user']['id'])) {
+       if (!isset($_SESSION['user']['id'])) {
         return [];
     }
 
@@ -2679,12 +2678,12 @@ function getCoordinatorInternDatas() {
                 ON c.id = i.company_id
 
             WHERE i.intern_id = ?
-            AND i.school_year = :school_year
+            AND i.school_year = ?
 
             ORDER BY i.created_at DESC
         ");
 
-        $stmt->execute([$internId, ':school_year' => $schoolYear]);
+        $stmt->execute([$internId, $schoolYear]);
 
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -2739,7 +2738,6 @@ function getCoordinatorInternDatas() {
     }
 
     return $internDatas;
-}
     /*
     $pdo = getDB();
 
@@ -2788,7 +2786,7 @@ function getCoordinatorInternDatas() {
               )
             ORDER BY u.name ASC
         ");
-        //$stmt->execute([':school_year' => $schoolYear]);
+        $stmt->execute([':school_year' => $schoolYear]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log('getInternsBySchoolYear(): ' . $e->getMessage());
