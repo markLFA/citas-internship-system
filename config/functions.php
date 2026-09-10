@@ -2603,7 +2603,7 @@ function getSchoolYears(): array
  */
 function getInternsBySchoolYear(string $schoolYear = ''): array
 {
-       if (!isset($_SESSION['user']['id'])) {
+    if (!isset($_SESSION['user']['id'])) {
         return [];
     }
 
@@ -2679,7 +2679,6 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
 
             WHERE i.intern_id = ?
             AND i.school_year = ?
-
             ORDER BY i.created_at DESC
         ");
 
@@ -2733,20 +2732,7 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
                 "joined_date" => $intern["joined_date"]
             ],
 
-            "internships" => $internships,
-            "internship1" => [
-                "id" => $internships[0]["id"],
-                "position" => $internships[0]["position"],
-                "supervisor" => $internships[0]["supervisor"],
-                "supervisor_phone" => $internships[0]["supervisor_phone"],
-                "start_date" => $internships[0]["start_date"],
-                "end_date" => $internships[0]["end_date"],
-                "status" => $internships[0]["status"],
-                "created_at" => $internships[0]["created_at"],
-                "total_hours" => $internships[0]["total_hours"],
-                "days_present" => $internships[0]["days_present"],
-                "reports_submitted" => $internships[0]["reports_submitted"]
-            ]
+            "internships" => $internships
         ];
     }
 
@@ -2755,7 +2741,7 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
     $pdo = getDB();
 
     if (empty($schoolYear)) {
-        $schoolYear = getCurrentSchoolYear();
+        $schoolYear = getCurrentSchoolYear( );
     }
 
     try {
@@ -2791,6 +2777,7 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
             LEFT JOIN companies  c   ON c.id         = i.company_id
             WHERE u.role     = 'intern'
               AND u.is_active = 1
+              AND i.school_year = :school_year
               AND i.id = (
                   SELECT id FROM internships
                   WHERE intern_id = u.id
