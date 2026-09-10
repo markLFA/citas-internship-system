@@ -2733,7 +2733,20 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
                 "joined_date" => $intern["joined_date"]
             ],
 
-            "internships" => $internships
+            "internships" => $internships,
+            "internship1" => [
+                "id" => $internships[0]["id"],
+                "position" => $internships[0]["position"],
+                "supervisor" => $internships[0]["supervisor"],
+                "supervisor_phone" => $internships[0]["supervisor_phone"],
+                "start_date" => $internships[0]["start_date"],
+                "end_date" => $internships[0]["end_date"],
+                "status" => $internships[0]["status"],
+                "created_at" => $internships[0]["created_at"],
+                "total_hours" => $internships[0]["total_hours"],
+                "days_present" => $internships[0]["days_present"],
+                "reports_submitted" => $internships[0]["reports_submitted"],
+            ]
         ];
     }
 
