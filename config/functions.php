@@ -2745,7 +2745,7 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
                 "created_at" => $internships[0]["created_at"],
                 "total_hours" => $internships[0]["total_hours"],
                 "days_present" => $internships[0]["days_present"],
-                "reports_submitted" => $internships[0]["reports_submitted"],
+                "reports_submitted" => $internships[0]["reports_submitted"]
             ]
         ];
     }
