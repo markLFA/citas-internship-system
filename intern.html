@@ -1040,6 +1040,43 @@ const Attendance = {
   build() {
     const sec = document.getElementById('sec-attendance');
     sec.appendChild(Helpers.pageHeader('Attendance', 'Track your daily time in and out'));
+    const disclaimer = document.createElement('div');
+    disclaimer.style.cssText = [
+      'display:flex',
+      'align-items:flex-start',
+      'gap:.75rem',
+      'padding:.9rem 1.1rem',
+      'background:#FFFBEB',
+      'border:1.5px solid #FDE68A',
+      'border-radius:12px',
+      'margin-bottom:1.25rem',
+      'font-size:.82rem',
+      'color:#92400E',
+      'line-height:1.6',
+    ].join(';');
+    
+    disclaimer.innerHTML = `
+      <span style="font-size:1.25rem;flex-shrink:0;margin-top:.05rem">⚠️</span>
+      <div>
+        <strong style="font-family:Sora,sans-serif;font-size:.84rem;display:block;margin-bottom:.2rem">
+          Attendance Disclaimer
+        </strong>
+        The time in and time out recorded here are for
+        <strong>reference and monitoring purposes only</strong>
+        and may not exactly match your official
+        <strong>Daily Time Record (DTR)</strong>
+        submitted to your host company. Internet delays, browser
+        issues, or manual edits may cause discrepancies.
+        <br>
+        <span style="margin-top:.3rem;display:block">
+          Your official attendance is based on the DTR signed and verified
+          by your company supervisor — not on this system alone.
+          Always ensure your DTR is properly accomplished and submitted.
+        </span>
+      </div>
+    `;
+    
+    sec.appendChild(disclaimer);
 
     const grid = document.createElement('div');
     grid.className = 'pg-grid-2';
