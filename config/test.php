@@ -11,7 +11,7 @@ if (isset($_GET['test_supabase'])) {
     exit;
 }
 $schoolYear = '2026-2027';
-$interns    = getInternsBySchoolYear($schoolYear);
+$interns    = getCoordinatorInternDatas($schoolYear);
 echo json_encode([
     'success' => true,
     'interns' => $interns
