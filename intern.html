@@ -1350,125 +1350,210 @@ const Attendance = {
     }));
   },
 
-  // ── Edit time log modal ───────────────────────────────────
-  openEditModal(log) {
-    const body = document.createElement('div');
+openEditModal(log) {
+  const body = document.createElement('div');
 
-    // Date label (read-only)
-    const dateLbl = document.createElement('div');
-    dateLbl.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:.7rem 1rem;font-weight:700;color:#1A0A00;margin-bottom:1.1rem;font-size:.9rem';
-    dateLbl.textContent   = '📅 ' + new Date(log.log_date + 'T00:00:00')
-      .toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
-    body.appendChild(dateLbl);
+  // Date input
+  const dateInput = UI.input({
+    type: 'date',
+    id: 'att-edit-date',
+    value: log.log_date || '',
+  });
 
-    // Extract HH:MM from a datetime string (e.g. "2026-04-23 08:02:00" → "08:02")
-    const toHHMM = dt => dt ? String(dt).substring(11, 16) : '';
+  body.appendChild(
+    UI.formGroup(
+      'Date',
+      dateInput,
+      'Change the date of this attendance log.'
+    )
+  );
 
-    const timeInInput  = UI.input({ type:'time', id:'att-edit-time-in',  value: toHHMM(log.time_in)  });
-    const timeOutInput = UI.input({ type:'time', id:'att-edit-time-out', value: toHHMM(log.time_out) });
-    const notesInput   = UI.textarea({
-      id:          'att-edit-notes',
-      value:       log.notes || '',
-      rows:        2,
-      placeholder: 'Optional note about this day',
+  // Extract HH:MM from a datetime string
+  // e.g. "2026-04-23 08:02:00" → "08:02"
+  const toHHMM = dt => dt ? String(dt).substring(11, 16) : '';
+
+  const timeInInput = UI.input({
+    type: 'time',
+    id: 'att-edit-time-in',
+    value: toHHMM(log.time_in)
+  });
+
+  const timeOutInput = UI.input({
+    type: 'time',
+    id: 'att-edit-time-out',
+    value: toHHMM(log.time_out)
+  });
+
+  const notesInput = UI.textarea({
+    id: 'att-edit-notes',
+    value: log.notes || '',
+    rows: 2,
+    placeholder: 'Optional note about this day',
+  });
+
+  const row = document.createElement('div');
+  row.className = 'cui-form-row';
+
+  row.appendChild(
+    UI.formGroup('Time In', timeInInput)
+  );
+
+  row.appendChild(
+    UI.formGroup(
+      'Time Out',
+      timeOutInput,
+      'Leave blank if still in progress.'
+    )
+  );
+
+  body.appendChild(row);
+
+  body.appendChild(
+    UI.formGroup('Notes (optional)', notesInput)
+  );
+
+  // Warning if log has no time_out yet
+  if (!log.time_out) {
+    const warn = document.createElement('div');
+
+    warn.style.cssText =
+      'margin-top:.75rem;padding:.7rem 1rem;' +
+      'background:#FFFBEB;border:1px solid #FDE68A;' +
+      'border-radius:10px;font-size:.82rem;color:#92400E';
+
+    warn.innerHTML =
+      '⚠️ This log is still <strong>in progress</strong>. ' +
+      'Leave Time Out blank to keep it open.';
+
+    body.appendChild(warn);
+  }
+
+  const m = UI.modal({
+    title: '✏️ Edit Attendance Log',
+    body,
+    size: 'lg',
+    footer: [
+      UI.button('Cancel', {
+        variant: 'ghost',
+        size: 'sm',
+        onClick: () => m.close()
+      }),
+
+      UI.button('Save Changes', {
+        size: 'sm',
+        color: {
+          base: '#EA580C',
+          hover: '#C2410C',
+          text: '#fff'
+        },
+        onClick: () => Attendance.saveEdit(m, log.id),
+      }),
+    ],
+  });
+
+  m.open();
+},
+
+// ── Save edited log entry ─────────────────────────────────
+async saveEdit(modal, logId) {
+  const date    = document.getElementById('att-edit-date')?.value;
+  const timeIn  = document.getElementById('att-edit-time-in')?.value;
+  const timeOut = document.getElementById('att-edit-time-out')?.value || null;
+  const notes   = document.getElementById('att-edit-notes')?.value || '';
+
+  if (!date) {
+    UI.toast('Date is required.', 'danger');
+    return;
+  }
+
+  if (!timeIn) {
+    UI.toast('Time In is required.', 'danger');
+    return;
+  }
+
+  try {
+    const res = await this.callApi('updateTimeLog', {
+      log_id:   logId,
+      log_date: date,
+      time_in:  timeIn,
+      time_out: timeOut,
+      notes,
     });
 
-    const row = document.createElement('div');
-    row.className = 'cui-form-row';
-    row.appendChild(UI.formGroup('Time In',  timeInInput));
-    row.appendChild(UI.formGroup('Time Out', timeOutInput, 'Leave blank if still in progress.'));
-    body.appendChild(row);
-    body.appendChild(UI.formGroup('Notes (optional)', notesInput));
-
-    // Warning if log has no time_out yet (still in progress)
-    if (!log.time_out) {
-      const warn = document.createElement('div');
-      warn.style.cssText = 'margin-top:.75rem;padding:.7rem 1rem;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:.82rem;color:#92400E';
-      warn.innerHTML = '⚠️ This log is still <strong>in progress</strong>. Leave Time Out blank to keep it open.';
-      body.appendChild(warn);
+    if (!res.success) {
+      UI.toast('❌ ' + (res.error ?? 'Update failed.'), 'danger');
+      return;
     }
 
-    const m = UI.modal({
-      title: '✏️ Edit Attendance Log',
-      body,
-      size: 'lg',
-      footer: [
-        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        UI.button('Save Changes', {
-          size: 'sm',
-          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-          onClick: () => Attendance.saveEdit(m, log.id),
-        }),
-      ],
-    });
-    m.open();
-  },
+    // Sync InternData totals so hours card reflects new values
+    if (res.internship && InternData.internships?.[0]) {
+      InternData.internships[0].total_hours =
+        res.internship.total_hours;
 
-  // ── Save edited log entry ─────────────────────────────────
-  async saveEdit(modal, logId) {
-    const timeIn  = document.getElementById('att-edit-time-in')?.value;
-    const timeOut = document.getElementById('att-edit-time-out')?.value || null;
-    const notes   = document.getElementById('att-edit-notes')?.value   || '';
+      InternData.internships[0].days_present =
+        res.internship.days_present;
+    }
 
-    if (!timeIn) { UI.toast('Time In is required.', 'danger'); return; }
+    // Update local log cache
+    const idx = this.logs.findIndex(l => l.id === logId);
 
-    try {
-      const res = await this.callApi('updateTimeLog', {
-        log_id:   logId,
-        time_in:  timeIn,
-        time_out: timeOut,
+    if (idx !== -1) {
+      this.logs[idx] = {
+        ...this.logs[idx],
+        log_date:    res.log_date,
+        time_in:     res.time_in,
+        time_out:    res.time_out,
+        total_hours: res.total_hours,
         notes,
-      });
+      };
+    }
 
-      if (!res.success) {
-        UI.toast('❌ ' + (res.error ?? 'Update failed.'), 'danger');
-        return;
-      }
+    // Keep global ATTENDANCE_LOG in sync
+    ATTENDANCE_LOG = [...this.logs];
 
-      // Sync InternData totals so hours card reflects new values
-      if (res.internship && InternData.internships?.[0]) {
-        InternData.internships[0].total_hours  = res.internship.total_hours;
-        InternData.internships[0].days_present = res.internship.days_present;
-      }
+    // If this was today's log, resync the clock state
+    if (logId === this._todayLogId) {
+      timeInStamp = new Date(res.time_in);
+      clockState = res.time_out ? 'done' : 'in';
 
-      // Update local log cache
-      const idx = this.logs.findIndex(l => l.id === logId);
-      if (idx !== -1) {
-        this.logs[idx] = {
-          ...this.logs[idx],
-          time_in:     res.time_in,
-          time_out:    res.time_out,
-          total_hours: res.total_hours,
-          notes,
-        };
-      }
+      this.renderClockState();
 
-      // Keep global ATTENDANCE_LOG in sync so dashboard cards reflect changes
-      ATTENDANCE_LOG = [...this.logs];
+      if (clockState === 'done') {
+        const summary = document.getElementById('clock-summary');
 
-      // If this was today's log, resync the clock state
-      if (logId === this._todayLogId) {
-        timeInStamp = new Date(res.time_in);
-        clockState  = res.time_out ? 'done' : 'in';
-        this.renderClockState();
-        if (clockState === 'done') {
-          const summary = document.getElementById('clock-summary');
-          if (summary) {
-            summary.style.display = 'block';
-            summary.innerHTML = this.summaryHtml(res.time_in, res.time_out, res.total_hours);
-          }
+        if (summary) {
+          summary.style.display = 'block';
+
+          summary.innerHTML = this.summaryHtml(
+            res.time_in,
+            res.time_out,
+            res.total_hours
+          );
         }
       }
-
-      Helpers.refreshCard('att-hours-slot', () => this.hoursCard());
-      this.renderLogCard();
-      modal.close();
-      UI.toast('✅ Attendance log updated.', 'success');
-
-    } catch (_) {
-      UI.toast('❌ Network error. Please try again.', 'danger');
     }
-  },
+
+    Helpers.refreshCard(
+      'att-hours-slot',
+      () => this.hoursCard()
+    );
+
+    this.renderLogCard();
+
+    modal.close();
+
+    UI.toast(
+      '✅ Attendance log updated.',
+      'success'
+    );
+
+  } catch (_) {
+    UI.toast(
+      '❌ Network error. Please try again.',
+      'danger'
+    );
+  }
+},
 
   // ── Format the today-summary line ─────────────────────────
   summaryHtml(timeIn, timeOut, hours) {

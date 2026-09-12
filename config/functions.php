@@ -1393,40 +1393,146 @@ function getAttendanceLogs(): array
  */
 function updateTimeLog(array $data): array
 {
-    if (empty($_SESSION['user']['id'])) return ['success'=>false,'error'=>'Not logged in.'];
+    if (empty($_SESSION['user']['id'])) {
+        return ['success' => false, 'error' => 'Not logged in.'];
+    }
+
     $pdo    = getDB();
     $userId = (int)$_SESSION['user']['id'];
     $logId  = (int)($data['log_id'] ?? 0);
- 
-    if (!$logId) return ['success'=>false,'error'=>'Missing log_id.'];
- 
+
+    if (!$logId) {
+        return ['success' => false, 'error' => 'Missing log_id.'];
+    }
+
     // Validate that this log belongs to the intern
-    $stmt = $pdo->prepare("SELECT id, log_date FROM time_logs WHERE id=? AND intern_id=?");
+    $stmt = $pdo->prepare("
+        SELECT id, log_date
+        FROM time_logs
+        WHERE id=? AND intern_id=?
+    ");
+
     $stmt->execute([$logId, $userId]);
     $log = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$log) return ['success'=>false,'error'=>'Log not found.'];
- 
-    $date    = $log['log_date'];                       // keep existing date
-    $timeIn  = $date . ' ' . ($data['time_in']  ?? '08:00') . ':00';
-    $timeOut = !empty($data['time_out'])
-             ? $date . ' ' . $data['time_out'] . ':00'
-             : null;
- 
-    // time_out must be after time_in
-    if ($timeOut && strtotime($timeOut) <= strtotime($timeIn)) {
-        return ['success'=>false,'error'=>'Time out must be after time in.'];
+
+    if (!$log) {
+        return ['success' => false, 'error' => 'Log not found.'];
     }
- 
+
+    // ─────────────────────────────────────────────
+    // Validate date
+    // ─────────────────────────────────────────────
+    $date = trim($data['log_date'] ?? '');
+
+    $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+
+    if (!$dateObj || $dateObj->format('Y-m-d') !== $date) {
+        return [
+            'success' => false,
+            'error'   => 'Invalid attendance date.'
+        ];
+    }
+
+    // ─────────────────────────────────────────────
+    // Prevent duplicate attendance logs
+    // for the same intern and date
+    // ─────────────────────────────────────────────
+    $stmt = $pdo->prepare("
+        SELECT id
+        FROM time_logs
+        WHERE intern_id = ?
+          AND log_date = ?
+          AND id != ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        $userId,
+        $date,
+        $logId
+    ]);
+
+    if ($stmt->fetch()) {
+        return [
+            'success' => false,
+            'error'   => 'An attendance log already exists for this date.'
+        ];
+    }
+
+    // ─────────────────────────────────────────────
+    // Validate Time In
+    // ─────────────────────────────────────────────
+    $timeInValue = trim($data['time_in'] ?? '');
+
+    if (!$timeInValue) {
+        return [
+            'success' => false,
+            'error'   => 'Time In is required.'
+        ];
+    }
+
+    // Make sure time is HH:MM
+    $timeInObj = DateTime::createFromFormat('H:i', $timeInValue);
+
+    if (!$timeInObj || $timeInObj->format('H:i') !== $timeInValue) {
+        return [
+            'success' => false,
+            'error'   => 'Invalid Time In.'
+        ];
+    }
+
+    $timeIn = $date . ' ' . $timeInValue . ':00';
+
+    // ─────────────────────────────────────────────
+    // Validate Time Out
+    // ─────────────────────────────────────────────
+    $timeOut = null;
+
+    if (!empty($data['time_out'])) {
+        $timeOutValue = trim($data['time_out']);
+
+        $timeOutObj = DateTime::createFromFormat('H:i', $timeOutValue);
+
+        if (!$timeOutObj || $timeOutObj->format('H:i') !== $timeOutValue) {
+            return [
+                'success' => false,
+                'error'   => 'Invalid Time Out.'
+            ];
+        }
+
+        $timeOut = $date . ' ' . $timeOutValue . ':00';
+    }
+
+    // Time Out must be after Time In
+    if ($timeOut && strtotime($timeOut) <= strtotime($timeIn)) {
+        return [
+            'success' => false,
+            'error'   => 'Time out must be after time in.'
+        ];
+    }
+
+    // ─────────────────────────────────────────────
+    // Calculate total hours
+    // ─────────────────────────────────────────────
     $totalHours = $timeOut
-        ? round((strtotime($timeOut) - strtotime($timeIn)) / 3600, 2)
+        ? round(
+            (strtotime($timeOut) - strtotime($timeIn)) / 3600,
+            2
+        )
         : null;
- 
+
     try {
         $pdo->prepare("
             UPDATE time_logs
-            SET time_in=?, time_out=?, total_hours=?, notes=?
+            SET
+                log_date=?,
+                time_in=?,
+                time_out=?,
+                total_hours=?,
+                notes=?
             WHERE id=? AND intern_id=?
         ")->execute([
+            $date,
             $timeIn,
             $timeOut,
             $totalHours,
@@ -1434,29 +1540,43 @@ function updateTimeLog(array $data): array
             $logId,
             $userId,
         ]);
- 
+
+        // Recalculate internship totals
         recalcInternshipHours($userId, $pdo);
- 
-        // Return updated internship totals so the frontend can refresh
+
+        // Return updated internship totals
         $stmt = $pdo->prepare("
-            SELECT total_hours, days_present FROM internships WHERE intern_id=? LIMIT 1
+            SELECT total_hours, days_present
+            FROM internships
+            WHERE intern_id=?
+            LIMIT 1
         ");
+
         $stmt->execute([$userId]);
         $internship = $stmt->fetch(PDO::FETCH_ASSOC);
- 
+
         return [
             'success'     => true,
             'log_id'      => $logId,
+            'log_date'    => $date,
             'time_in'     => $timeIn,
             'time_out'    => $timeOut,
             'total_hours' => $totalHours,
+            'notes'       => trim($data['notes'] ?? ''),
             'internship'  => $internship,
         ];
+
     } catch (PDOException $e) {
-        error_log('updateTimeLog(): '.$e->getMessage());
-        return ['success'=>false,'error'=>'Database error.'];
+        error_log('updateTimeLog(): ' . $e->getMessage());
+
+        return [
+            'success' => false,
+            'error'   => 'Database error.'
+        ];
     }
 }
+
+
  
 /**
  * Recompute total_hours and days_present in the internships table.
