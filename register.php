@@ -396,31 +396,27 @@ $coordinators = getCoordinators();
       <div id="intern-fields">
         <div class="section-label">Internship Details</div>
 
-        <div class="field-row">
-          <div class="field">
-            <label for="course">Course</label>
-            <select id="course" name="course">
-              <option value="" disabled <?= empty(post('course')) ? 'selected' : '' ?>>Select your course...</option>
-              <option value="BSIT" <?= post('course') === 'BSIT' ? 'selected' : '' ?>>BSIT</option>
-              <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
-              <option value="BSA"  <?= post('course') === 'BSA'  ? 'selected' : '' ?>>BSA</option>
-              <option value="BSBA" <?= post('course') === 'BSBA' ? 'selected' : '' ?>>BSBA</option>
-              <option value="BEED" <?= post('course') === 'BEED' ? 'selected' : '' ?>>BEED</option>
-              <option value="BSED" <?= post('course') === 'BSED' ? 'selected' : '' ?>>BSED</option>
-            </select>
-          </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="course">Course</label>
+        <select id="course" name="course">
+          <option value="" disabled <?= empty(post('course')) ? '' : '' ?>>Select your course...</option>
+          <option value="BSIT" <?= (empty(post('course')) || post('course') === 'BSIT') ? 'selected' : '' ?>>BSIT</option>
+          <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
+        </select>
+      </div>
 
-          <div class="field">
-            <label for="year_level">Year Level</label>
-            <select id="year_level" name="year_level">
-              <option value="" disabled <?= empty(post('year_level')) ? 'selected' : '' ?>>Select year level...</option>
-              <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
-              <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
-              <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
-              <option value="4th Year" <?= post('year_level') === '4th Year' ? 'selected' : '' ?>>4th Year</option>
-            </select>
-          </div>
-        </div>
+      <div class="field">
+        <label for="year_level">Year Level</label>
+        <select id="year_level" name="year_level">
+          <option value="" disabled <?= empty(post('year_level')) ? '' : '' ?>>Select year level...</option>
+          <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
+          <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
+          <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
+          <option value="4th Year" <?= (empty(post('year_level')) || post('year_level') === '4th Year') ? 'selected' : '' ?>>4th Year</option>
+        </select>
+      </div>
+    </div>
 
         <div class="field">
           <label for="coordinator_id">Coordinator</label>
