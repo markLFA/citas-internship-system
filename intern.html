@@ -1241,16 +1241,21 @@ async savePersonal(modal) {
 
   // ── Save internship/company info only ─────────────────────
   async saveInternship(modal) {
+    const companyNameField      = document.getElementById('profile-internship-company');
+    const positionField         = document.getElementById('profile-internship-position');
+    const addressField          = document.getElementById('profile-internship-address');
+    const supervisorField       = document.getElementById('profile-internship-supervisor');
+    const supervisorPhoneField  = document.getElementById('profile-internship-supervisor-phone');
+    const startDateField        = document.getElementById('profile-internship-start');
+    const endDateField          = document.getElementById('profile-internship-end');
 
-    if (this.isReviewed) {
-      UI.toast(
-        '⛔ Internship info is locked by coordinator.',
-        'danger'
-      );
-      return;
-    }
-
-    const f = this._internshipFields;
+    const companyName     = companyNameField?.value?.trim() || '';
+    const position        = positionField?.value?.trim() || '';
+    const address         = addressField?.value?.trim() || '';
+    const supervisor      = supervisorField?.value?.trim() || '';
+    const supervisorPhone = supervisorPhoneField?.value?.trim() || '';
+    const startDate       = startDateField?.value || null;
+    const endDate         = endDateField?.value || null;
 
     const payload = {
       action: 'updateInternProfile',
@@ -1266,20 +1271,27 @@ async savePersonal(modal) {
       },
 
       internship: {
-        position: f.position.value.trim(),
-        supervisor: f.supervisor.value.trim(),
-        supervisor_phone: f.supervisorPhone.value.trim(),
-        start_date: f.startDate.value || null,
-        end_date: f.endDate.value || null
+        position,
+        supervisor,
+        supervisor_phone: supervisorPhone,
+        start_date: startDate,
+        end_date: endDate
       },
 
+      // IMPORTANT:
+      // Company phone and email belong here, not inside internship.
       company: {
-        name: f.companyName.value.trim(),
-        address: f.address.value.trim(),
+        name: companyName,
+        address,
+
+        // Get these from the existing company data for now.
+        // If you have editable fields for them, read those fields instead.
         phone: this.company.phone || '',
         email: this.company.email || ''
       }
     };
+
+    console.log('Internship save payload:', payload);
 
     await this.saveProfileChanges(modal, payload);
   },
