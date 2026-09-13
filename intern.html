@@ -408,21 +408,30 @@ const Dashboard = {
   announcementsCard() {
     const body = document.createElement('div');
 
-    [...ANNOUNCEMENTS]
-      .sort((a, b) => b.pinned - a.pinned)
-      .forEach(a => body.appendChild(Helpers.annItem(a)));
+    if (!ANNOUNCEMENTS.length) {
+      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
+    } else {
+      [...ANNOUNCEMENTS]
+        .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
+        .forEach(a => body.appendChild(Helpers.annItem(a)));
+    }
 
+    const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
     return UI.card({
       title: '📢 Announcements',
-      body
+      headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
+      body,
     });
   },
 
-  progressInsightsCard() {
-    const pct        = Math.round(this.internship.total_hours / InternData.profile.required_hours * 100);
-    const remaining  = InternData.profile.required_hours - this.internship.total_hours;
-    const daysIn     = this.internship.days_present;
-    const avgPerDay  = daysIn > 0 ? (InternData.internships[0].total_hours / daysIn) : 8;
+progressInsightsCard() {
+    // Reference the primary internship object directly from InternData
+    const internship = InternData.internships[0];
+    
+    const pct        = Math.round(internship.total_hours / InternData.profile.required_hours * 100);
+    const remaining  = InternData.profile.required_hours - internship.total_hours;
+    const daysIn     = internship.days_present;
+    const avgPerDay  = daysIn > 0 ? (internship.total_hours / daysIn) : 8;
     const daysNeeded = Math.ceil(remaining / avgPerDay);
 
     // Projected finish date from today
@@ -433,28 +442,33 @@ const Dashboard = {
       const day = projDate.getDay();
       if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
     }
-    const projStr = projDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const projStr = projDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // On pace check: expected ~70% by week 14 of 20-week internship
-    const expectedPct = 70;
+    // Dynamic expected weekly reports calculation based on duration weeks
+    const startDate = new Date(internship.start_date);
+    const endDate   = new Date(internship.end_date);
+    const totalWeeks = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24 * 7)));
+
+    // Dynamic pace metric evaluation
+    const expectedPct = this.getExpectedPercentage();
     const onPace      = pct >= expectedPct;
 
     const body = document.createElement('div');
 
     // On-pace badge
     const paceBadge = document.createElement('div');
-    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace?'#D1FAE5':'#FEE2E2'};color:${onPace?'#065F46':'#991B1B'}`;
+    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace ? '#D1FAE5' : '#FEE2E2'};color:${onPace ? '#065F46' : '#991B1B'}`;
     paceBadge.innerHTML = onPace
       ? '✅ You are on schedule'
       : `⚠️ ${expectedPct - pct}% behind the expected pace`;
     body.appendChild(paceBadge);
 
-    // Key insights
+    // Key insights matrix rows
     [
       ['📅', 'Projected finish',    projStr],
       ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
       ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
-      ['📄', 'Reports submitted',   INTERN.reportsSubmitted + ' of ~14 expected'],
+      ['📄', 'Reports submitted',   `${internship.reports_submitted} of ~${totalWeeks} expected`],
     ].forEach(([icon, label, value]) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
@@ -465,7 +479,7 @@ const Dashboard = {
       body.appendChild(row);
     });
 
-    // Mini hours trend chart
+    // Mini hours trend chart mounting point
     const chartLabel = document.createElement('p');
     chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
     chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
@@ -479,13 +493,41 @@ const Dashboard = {
     return UI.card({ title: '📈 My Progress Insights', body });
   },
 
-  // Mini sparkline-style chart for intern's recent daily hours
+  getExpectedPercentage() {
+    const internship = InternData.internships[0];
+    const currentDate = new Date();
+    const startDate   = new Date(internship.start_date);
+    const endDate     = new Date(internship.end_date);
+    
+    const totalDuration   = (endDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    const elapsedDuration = (currentDate - startDate) / (1000 * 60 * 60 * 24); // in days
+    
+    // Bounds check protection to isolate layout context against anomalies
+    const rawPercentage = Math.round((elapsedDuration / totalDuration) * 100);
+    return Math.max(0, Math.min(100, rawPercentage));
+  },
+    // Mini sparkline — uses attendance logs loaded from API at boot
   drawHoursTrendChart() {
     const ctx = document.getElementById('chart-intern-trend');
     if (!ctx || typeof Chart === 'undefined') return;
 
-    const labels = ATTENDANCE_LOG.slice().reverse().map(l => l.date.split(',')[0]);
-    const hours  = ATTENDANCE_LOG.slice().reverse().map(l => l.hours);
+    // Take last 6 completed days (have time_out), oldest first
+    const recent = ATTENDANCE_LOG
+      .filter(l => l.total_hours != null)
+      .slice(0, 6)
+      .reverse();
+
+    if (!recent.length) return; // nothing to chart yet
+
+    const labels = recent.map(l =>
+      new Date(l.log_date + 'T00:00:00')
+        .toLocaleDateString('en-US', { month:'short', day:'numeric' })
+    );
+    const hours = recent.map(l => parseFloat(l.total_hours));
+
+    // Auto-scale Y axis based on actual data
+    const minH = Math.max(0, Math.floor(Math.min(...hours)) - 1);
+    const maxH = Math.ceil(Math.max(...hours)) + 1;
 
     new Chart(ctx, {
       type: 'line',
@@ -504,12 +546,12 @@ const Dashboard = {
       },
       options: {
         responsive: true,
-        plugins:    { legend: { display: false }, tooltip: {
-          callbacks: { label: c => ` ${c.parsed.y}h` },
+        plugins: { legend: { display:false }, tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.y}h` },
         }},
         scales: {
           y: {
-            min:   7, max: 10,
+            min: minH, max: maxH,
             ticks: { callback: v => v+'h', font:{ size:10 } },
             grid:  { color: '#FFF0E0' },
           },
@@ -545,21 +587,40 @@ const Dashboard = {
   },
 
   recentAttendanceCard() {
+    // Map API format { log_date, time_in, time_out, total_hours }
+    // to display format { date, timeIn, timeOut, hours }
+    const fmt = dt => dt
+      ? new Date(dt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+      : '—';
+
+    const rows = ATTENDANCE_LOG.slice(0, 4).map(l => ({
+      date:    new Date(l.log_date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+      timeIn:  fmt(l.time_in),
+      timeOut: l.time_out ? fmt(l.time_out) : '—',
+      hours:   l.total_hours != null ? parseFloat(l.total_hours).toFixed(2) : '—',
+    }));
+
+    const emptyBody = UI.empty('📭', 'No attendance yet', 'Use Time In on the Attendance page.');
+
     return UI.card({
       title: '🕐 Recent Attendance',
-      padding: false,
+      padding: rows.length ? false : true,
       headerActions: UI.button('View all', {
         variant: 'ghost', size: 'sm',
         color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
         onClick: () => navigate('attendance'),
       }),
-      body: UI.table([
-        { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
-        { key:'timeIn',  label:'In'   },
-        { key:'timeOut', label:'Out'  },
-        { key:'hours',   label:'Hrs', align:'center',
-          render: v => `<span style="color:#EA580C;font-weight:700">${v}h</span>` },
-      ], ATTENDANCE_LOG.slice(0, 4), { hoverable: true }),
+      body: rows.length
+        ? UI.table([
+            { key:'date',    label:'Date',  render: v => `<strong>${v}</strong>` },
+            { key:'timeIn',  label:'In'   },
+            { key:'timeOut', label:'Out'  },
+            { key:'hours',   label:'Hrs', align:'center',
+              render: v => v !== '—'
+                ? `<span style="color:#EA580C;font-weight:700">${v}h</span>`
+                : '<span style="color:#9A6647">—</span>' },
+          ], rows, { hoverable: true })
+        : emptyBody,
     });
   },
 };
