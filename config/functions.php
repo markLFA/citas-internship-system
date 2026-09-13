@@ -103,6 +103,7 @@ function getAllInternData() {
     $stmt = $pdo->prepare("
         SELECT 
             i.id,
+            i.is_profile_reviewed, 
             i.position,
             i.supervisor,
             i.supervisor_phone,
@@ -135,6 +136,7 @@ function getAllInternData() {
     foreach ($rows as $row) {
         $internships[] = [
             "id" => $row["id"],
+            "is_profile_reviewed" => $row["is_profile_reviewed"],   
             "position" => $row["position"],
             "supervisor" => $row["supervisor"],
             "supervisor_phone" => $row["supervisor_phone"],
@@ -228,6 +230,54 @@ function getPendingInterns(): array
         return [];
     }
 }
+/**
+ * Coordinator marks an intern's profile as reviewed/verified.
+ * Once set to 1, the intern can no longer edit internship info.
+ *
+ * @param int  $internId   The user ID of the intern
+ * @param bool $reviewed   true = lock, false = unlock
+ */
+function setProfileReviewed(int $internId, bool $reviewed): array
+{
+    if (empty($_SESSION['user']['id'])) {
+        return ['success' => false, 'error' => 'Not logged in.'];
+    }
+ 
+    $role = $_SESSION['user']['role'] ?? '';
+    if (!in_array($role, ['coordinator', 'admin'], true)) {
+        return ['success' => false, 'error' => 'Unauthorized.'];
+    }
+ 
+    $pdo = getDB();
+ 
+    try {
+        // Update the most recent internship row for this intern
+        $stmt = $pdo->prepare("
+            UPDATE internships
+            SET is_profile_reviewed = ?
+            WHERE intern_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        ");
+        $stmt->execute([(int)$reviewed, $internId]);
+ 
+        if ($stmt->rowCount() === 0) {
+            return ['success' => false, 'error' => 'Internship record not found.'];
+        }
+ 
+        return [
+            'success'    => true,
+            'reviewed'   => $reviewed,
+            'message'    => $reviewed
+                ? 'Profile marked as verified. The intern can no longer edit internship info.'
+                : 'Profile unlocked. The intern can now edit internship info again.',
+        ];
+    } catch (PDOException $e) {
+        error_log('setProfileReviewed(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}
+ 
 function approvePendingIntern($internId) {
     $pdo = getDB();
 

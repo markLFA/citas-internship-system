@@ -48,6 +48,18 @@ switch ($action) {
     case 'updateInternProfile':
         updateInternProfile($data);
         break;
+    case 'setProfileReviewed':
+        $internId = (int)  ($data['internId']  ?? 0);
+        $reviewed = (bool) ($data['reviewed']  ?? false);
+ 
+        if (!$internId) {
+            echo json_encode(['success' => false, 'error' => 'Missing internId.']);
+            break;
+        }
+ 
+        echo json_encode(setProfileReviewed($internId, $reviewed));
+        break;
+ 
     case 'submitWeeklyReport':
         submitWeeklyReport();
         break;
