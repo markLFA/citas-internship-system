@@ -1175,38 +1175,69 @@ const Profile = {
   },
 
   // ── Save personal info only ───────────────────────────────
-  async savePersonal(modal) {
-    const payload = {
-      action: 'updateInternProfile',
+async savePersonal(modal) {
 
-      user: {
-        name: document.getElementById('p-nameField')?.value.trim()
-      },
+  const f = this._personalFields;
 
-      profile: {
-        phone: document.getElementById('p-phoneField')?.value.trim(),
-        course: document.getElementById('p-courseField')?.value,
-        year_level: document.getElementById('p-yearLevelField')?.value
-      },
+  const name =
+    f.name?.querySelector('input')?.value?.trim() ??
+    f.name?.value?.trim() ??
+    '';
 
-      internship: {
-        position: this.internship.position || '',
-        supervisor: this.internship.supervisor || '',
-        supervisor_phone: this.internship.supervisor_phone || '',
-        start_date: this.internship.start_date || null,
-        end_date: this.internship.end_date || null
-      },
+  const phone =
+    f.phone?.querySelector('input')?.value?.trim() ??
+    f.phone?.value?.trim() ??
+    '';
 
-      company: {
-        name: this.company.name || '',
-        address: this.company.address || '',
-        phone: this.company.phone || '',
-        email: this.company.email || ''
-      }
-    };
+  const course =
+    f.course?.value ??
+    f.course?.querySelector('select')?.value ??
+    '';
 
-    await this.saveProfileChanges(modal, payload);
-  },
+  const yearLevel =
+    f.yearLevel?.value ??
+    f.yearLevel?.querySelector('select')?.value ??
+    '';
+
+  console.log('Profile save data:', {
+    name,
+    phone,
+    course,
+    yearLevel
+  });
+
+  const payload = {
+    action: 'updateInternProfile',
+
+    user: {
+      name
+    },
+
+    profile: {
+      phone,
+      course,
+      year_level: yearLevel
+    },
+
+    internship: {
+      position: this.internship.position || '',
+      supervisor: this.internship.supervisor || '',
+      supervisor_phone: this.internship.supervisor_phone || '',
+      start_date: this.internship.start_date || null,
+      end_date: this.internship.end_date || null
+    },
+
+    company: {
+      name: this.company.name || '',
+      address: this.company.address || '',
+      phone: this.company.phone || '',
+      email: this.company.email || ''
+    }
+  };
+
+  await this.saveProfileChanges(modal, payload);
+},
+
 
   // ── Save internship/company info only ─────────────────────
   async saveInternship(modal) {
