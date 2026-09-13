@@ -406,92 +406,100 @@ const Dashboard = {
 
 
   announcementsCard() {
-    const body = document.createElement('div');
+      const body = document.createElement('div');
 
-    if (!ANNOUNCEMENTS.length) {
-      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
-    } else {
-      [...ANNOUNCEMENTS]
-        .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
-        .forEach(a => body.appendChild(Helpers.annItem(a)));
-    }
+      // Scrollable container — caps height at ~3 cards, scrolls beyond that
+      body.style.cssText = 'max-height:340px;overflow-y:auto;padding-right:.25rem';
 
-    const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
-    return UI.card({
-      title: '📢 Announcements',
-      headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
-      body,
-    });
-  },
+      // Custom scrollbar to match the orange theme
+      body.setAttribute('style',
+        'max-height:340px;overflow-y:auto;padding-right:.25rem;' +
+        'scrollbar-width:thin;scrollbar-color:#FED7AA transparent'
+      );
 
-progressInsightsCard() {
-    // Reference the primary internship object directly from InternData
-    const internship = InternData.internships[0];
-    
-    const pct        = Math.round(internship.total_hours / InternData.profile.required_hours * 100);
-    const remaining  = InternData.profile.required_hours - internship.total_hours;
-    const daysIn     = internship.days_present;
-    const avgPerDay  = daysIn > 0 ? (internship.total_hours / daysIn) : 8;
-    const daysNeeded = Math.ceil(remaining / avgPerDay);
+      if (!ANNOUNCEMENTS.length) {
+        body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
+      } else {
+        [...ANNOUNCEMENTS]
+          .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
+          .forEach(a => body.appendChild(Helpers.annItem(a)));
+      }
 
-    // Projected finish date from today
-    const projDate = new Date();
-    let workDaysAdded = 0;
-    while (workDaysAdded < daysNeeded) {
-      projDate.setDate(projDate.getDate() + 1);
-      const day = projDate.getDay();
-      if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
-    }
-    const projStr = projDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
+      return UI.card({
+        title: '📢 Announcements',
+        headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
+        body,
+      });
+    },
+  progressInsightsCard() {
+      // Reference the primary internship object directly from InternData
+      const internship = InternData.internships[0];
+      
+      const pct        = Math.round(internship.total_hours / InternData.profile.required_hours * 100);
+      const remaining  = InternData.profile.required_hours - internship.total_hours;
+      const daysIn     = internship.days_present;
+      const avgPerDay  = daysIn > 0 ? (internship.total_hours / daysIn) : 8;
+      const daysNeeded = Math.ceil(remaining / avgPerDay);
 
-    // Dynamic expected weekly reports calculation based on duration weeks
-    const startDate = new Date(internship.start_date);
-    const endDate   = new Date(internship.end_date);
-    const totalWeeks = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24 * 7)));
+      // Projected finish date from today
+      const projDate = new Date();
+      let workDaysAdded = 0;
+      while (workDaysAdded < daysNeeded) {
+        projDate.setDate(projDate.getDate() + 1);
+        const day = projDate.getDay();
+        if (day !== 0 && day !== 6) workDaysAdded++; // skip weekends
+      }
+      const projStr = projDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // Dynamic pace metric evaluation
-    const expectedPct = this.getExpectedPercentage();
-    const onPace      = pct >= expectedPct;
+      // Dynamic expected weekly reports calculation based on duration weeks
+      const startDate = new Date(internship.start_date);
+      const endDate   = new Date(internship.end_date);
+      const totalWeeks = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24 * 7)));
 
-    const body = document.createElement('div');
+      // Dynamic pace metric evaluation
+      const expectedPct = this.getExpectedPercentage();
+      const onPace      = pct >= expectedPct;
 
-    // On-pace badge
-    const paceBadge = document.createElement('div');
-    paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace ? '#D1FAE5' : '#FEE2E2'};color:${onPace ? '#065F46' : '#991B1B'}`;
-    paceBadge.innerHTML = onPace
-      ? '✅ You are on schedule'
-      : `⚠️ ${expectedPct - pct}% behind the expected pace`;
-    body.appendChild(paceBadge);
+      const body = document.createElement('div');
 
-    // Key insights matrix rows
-    [
-      ['📅', 'Projected finish',    projStr],
-      ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
-      ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
-      ['📄', 'Reports submitted',   `${internship.reports_submitted} of ~${totalWeeks} expected`],
-    ].forEach(([icon, label, value]) => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
-      row.innerHTML = `
-        <span style="opacity:.55;flex-shrink:0;margin-top:.1rem">${icon}</span>
-        <span style="color:#9A6647;min-width:130px;flex-shrink:0">${label}</span>
-        <span style="font-weight:600;color:#1A0A00">${value}</span>`;
-      body.appendChild(row);
-    });
+      // On-pace badge
+      const paceBadge = document.createElement('div');
+      paceBadge.style.cssText = `display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-bottom:1rem;background:${onPace ? '#D1FAE5' : '#FEE2E2'};color:${onPace ? '#065F46' : '#991B1B'}`;
+      paceBadge.innerHTML = onPace
+        ? '✅ You are on schedule'
+        : `⚠️ ${expectedPct - pct}% behind the expected pace`;
+      body.appendChild(paceBadge);
 
-    // Mini hours trend chart mounting point
-    const chartLabel = document.createElement('p');
-    chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
-    chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
-    body.appendChild(chartLabel);
+      // Key insights matrix rows
+      [
+        ['📅', 'Projected finish',    projStr],
+        ['⚡', 'Avg hours / day',     avgPerDay.toFixed(1) + 'h'],
+        ['📆', 'Work days remaining', daysNeeded + ' days at current pace'],
+        ['📄', 'Reports submitted',   `${internship.reports_submitted} of ~${totalWeeks} expected`],
+      ].forEach(([icon, label, value]) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid #FFF0E0;font-size:.82rem';
+        row.innerHTML = `
+          <span style="opacity:.55;flex-shrink:0;margin-top:.1rem">${icon}</span>
+          <span style="color:#9A6647;min-width:130px;flex-shrink:0">${label}</span>
+          <span style="font-weight:600;color:#1A0A00">${value}</span>`;
+        body.appendChild(row);
+      });
 
-    const canvas = document.createElement('canvas');
-    canvas.id     = 'chart-intern-trend';
-    canvas.height = 80;
-    body.appendChild(canvas);
+      // Mini hours trend chart mounting point
+      const chartLabel = document.createElement('p');
+      chartLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#9A6647;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .4rem';
+      chartLabel.textContent   = 'Your Daily Hours (Last 6 Days)';
+      body.appendChild(chartLabel);
 
-    return UI.card({ title: '📈 My Progress Insights', body });
-  },
+      const canvas = document.createElement('canvas');
+      canvas.id     = 'chart-intern-trend';
+      canvas.height = 80;
+      body.appendChild(canvas);
+
+      return UI.card({ title: '📈 My Progress Insights', body });
+    },
 
   getExpectedPercentage() {
     const internship = InternData.internships[0];
