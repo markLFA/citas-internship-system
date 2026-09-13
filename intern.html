@@ -919,23 +919,33 @@ const Profile = {
   async savePersonal(modal) {
     const payload = {
       action: 'updateInternProfile',
-      user:   { name: document.getElementById('p-nameField')?.value.trim() },
+
+      user: {
+        name: document.getElementById('p-nameField')?.value.trim()
+      },
+
       profile: {
-        phone:      document.getElementById('p-phoneField')?.value.trim(),
-        course:     document.getElementById('p-courseField')?.value,
-        year_level: document.getElementById('p-yearLevelField')?.value,
+        phone: document.getElementById('p-phoneField')?.value.trim(),
+        course: document.getElementById('p-courseField')?.value,
+        year_level: document.getElementById('p-yearLevelField')?.value
       },
-      // Send current internship data unchanged so backend doesn't blank it
+
       internship: {
-        company_name:     this.company.name            || '',
-        position:         this.internship.position     || '',
-        address:          this.company.address         || '',
-        supervisor:       this.internship.supervisor   || '',
+        position: this.internship.position || '',
+        supervisor: this.internship.supervisor || '',
         supervisor_phone: this.internship.supervisor_phone || '',
-        start_date:       this.internship.start_date   || null,
-        end_date:         this.internship.end_date     || null,
+        start_date: this.internship.start_date || null,
+        end_date: this.internship.end_date || null
       },
+
+      company: {
+        name: this.company.name || '',
+        address: this.company.address || '',
+        phone: this.company.phone || '',
+        email: this.company.email || ''
+      }
     };
+
     await this.saveProfileChanges(modal, payload);
   },
 
@@ -945,25 +955,50 @@ const Profile = {
       UI.toast('⛔ Internship info is locked by coordinator.', 'danger');
       return;
     }
+
     const payload = {
       action: 'updateInternProfile',
-      // Send current user/profile data unchanged
-      user:    { name: InternData.user.name },
+
+      user: {
+        name: InternData.user.name
+      },
+
       profile: {
-        phone:      InternData.profile.phone      || '',
-        course:     InternData.profile.course     || '',
-        year_level: InternData.profile.year_level || '',
+        phone: InternData.profile.phone || '',
+        course: InternData.profile.course || '',
+        year_level: InternData.profile.year_level || ''
       },
+
       internship: {
-        company_name:     document.getElementById('i-companyNameField')?.value.trim(),
-        position:         document.getElementById('i-positionField')?.value.trim(),
-        address:          document.getElementById('i-addressField')?.value.trim(),
-        supervisor:       document.getElementById('i-supervisorField')?.value.trim(),
-        supervisor_phone: document.getElementById('i-supervisorPhoneField')?.value.trim(),
-        start_date:       document.getElementById('i-startDateField')?.value  || null,
-        end_date:         document.getElementById('i-endDateField')?.value    || null,
+        position:
+          document.getElementById('i-positionField')?.value.trim() || '',
+
+        supervisor:
+          document.getElementById('i-supervisorField')?.value.trim() || '',
+
+        supervisor_phone:
+          document.getElementById('i-supervisorPhoneField')?.value.trim() || '',
+
+        start_date:
+          document.getElementById('i-startDateField')?.value || null,
+
+        end_date:
+          document.getElementById('i-endDateField')?.value || null
       },
+
+      company: {
+        name:
+          document.getElementById('i-companyNameField')?.value.trim() || '',
+
+        address:
+          document.getElementById('i-addressField')?.value.trim() || '',
+
+        phone: this.company.phone || '',
+
+        email: this.company.email || ''
+      }
     };
+
     await this.saveProfileChanges(modal, payload);
   },
 
