@@ -1286,12 +1286,12 @@ async savePersonal(modal) {
 
         // Get these from the existing company data for now.
         // If you have editable fields for them, read those fields instead.
-        phone: this.company.phone || '',
+        phone: supervisorPhone || '',
         email: this.company.email || ''
       }
     };
-
-    console.log('Internship save payload:', payload);
+    console.log('Profile save payload:', payload);
+    //console.log('Internship save payload:', payload);
 
     await this.saveProfileChanges(modal, payload);
   },
