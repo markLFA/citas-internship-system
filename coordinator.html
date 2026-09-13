@@ -2739,7 +2739,7 @@ const Reports = {
       REPORTS = data.map(r => ({
         ...r,
         internName: r.intern_name || `Intern #${r.intern_id}`, 
-        dept: r.dept || 'N/A' // Fallback if department tracking is added later
+        dept: r.dept || '' // Fallback if department tracking is added later
       }));
 
       sec.appendChild( this.statusTabs()     );
