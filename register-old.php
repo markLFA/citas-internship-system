@@ -1,6 +1,7 @@
+
 <?php
 // ============================================================
-//  register.php — Intern self-registration
+//  register.php — Intern / Coordinator self-registration
 // ============================================================
 
 require_once __DIR__ . '/config/db.php';
@@ -20,6 +21,14 @@ function post(string $key): string {
     return trim($_POST[$key] ?? '');
 }
 
+function map_role(string $formRole): string {
+    return match($formRole) {
+        'intern'      => 'intern',
+        'coordinator' => 'coordinator',
+        default       => 'intern',
+    };
+}
+
 function validate(array $data): array {
     $errors = [];
 
@@ -31,6 +40,9 @@ function validate(array $data): array {
     elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))
         $errors[] = 'Please enter a valid email address.';
 
+    if (empty($data['role']))
+        $errors[] = 'Please select a role.';
+
     if (empty($data['password']))
         $errors[] = 'Password is required.';
     elseif (strlen($data['password']) < 6)
@@ -38,8 +50,13 @@ function validate(array $data): array {
     elseif ($data['password'] !== $data['confirm_password'])
         $errors[] = 'Passwords do not match.';
 
-    if (empty($data['course']))
-        $errors[] = 'Course / Department is required.';
+    if ($data['role'] === 'intern') {
+        if (empty($data['course']))
+            $errors[] = 'Course / Department is required for interns.';
+
+        if (empty($data['coordinator_id']))
+            $errors[] = 'Coordinator is required for interns.';
+    }
 
     if (empty($data['terms'])) {
         $errors[] = 'You must read and agree to the Terms and Services to register.';
@@ -49,8 +66,8 @@ function validate(array $data): array {
 }
 
 function create_user(array $data): int {
-    $db     = getDB();
-    $role   = 'intern';
+    $db   = getDB();
+    $role = map_role($data['role']);
     $active = 0;
     $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
 
@@ -91,7 +108,7 @@ function create_intern_profile(int $userId, array $data): void {
         ':course'        => $data['course']     ?: null,
         ':year_level'    => $data['year_level'] ?: null,
         ':phone'         => $data['phone']      ?: null,
-        ':coordinator_id'=> 23,
+        ':coordinator_id'=> $data['coordinator_id'] ?: null,
         ':required_hours'=> 500,
     ]);
 }
@@ -117,16 +134,18 @@ function email_taken(string $email): bool {
     return (bool)$stmt->fetch();
 }
 
-$errors = [];
+$errors  = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $data = [
         'name'             => post('name'),
         'email'            => post('email'),
+        'role'             => post('role'),
         'course'           => post('course'),
         'year_level'       => post('year_level'),
         'phone'            => post('phone'),
+        'coordinator_id'   => post('coordinator_id'),
         'password'         => $_POST['password']         ?? '',
         'confirm_password' => $_POST['confirm_password'] ?? '',
         'terms'            => post('terms'),
@@ -143,15 +162,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db = getDB();
             $db->beginTransaction();
 
-            $userId       = create_user($data);
-            $companyId    = create_placeholder_company();
-            create_intern_profile($userId, $data);
-            $internshipId = create_internship($userId, $companyId);
-            assignSchoolYear($internshipId);  // auto-tag with current school year
+            $userId = create_user($data);
+
+            if (map_role($data['role']) === 'intern') {
+                $companyId    = create_placeholder_company();
+                create_intern_profile($userId, $data);
+                $internshipId = create_internship($userId, $companyId);
+                assignSchoolYear($internshipId);  // auto-tag with current school year
+            }
 
             $db->commit();
 
-            $_SESSION['flash_success'] = 'Account created! Please wait for your coordinator to approve your account before logging in.';
+            $isIntern = map_role($data['role']) === 'intern';
+            
+            $_SESSION['flash_success'] = $isIntern
+                ? 'Account created! Please wait for your coordinator to approve your account before logging in.'
+                : 'Account created successfully! Please wait for Admin approval.';
 
             header('Location: index.php');
             exit;
@@ -163,6 +189,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+function getCoordinators(): array
+{
+    $pdo = getDB();
+    $sql = "SELECT id, name, email FROM users WHERE role = :role ORDER BY name ASC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':role' => 'coordinator']);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+$coordinators = getCoordinators();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -228,6 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     .section-label:first-child { margin-top:0; }
 
+    #intern-fields { display:none; }
+
     .field { margin-bottom:.95rem; }
     label  { display:block;font-size:.79rem;font-weight:600;color:var(--text-mid);margin-bottom:.35rem; }
     .hint  { font-size:.72rem;color:var(--text-muted);margin-top:.3rem; }
@@ -243,6 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .toggle-pass:hover { opacity: 0.8; }
     .toggle-pass svg { width: 18px; height: 18px; fill: #6B3A1F; }
 
+    /* FIX: Standardized generalized input wrappers to eliminate layout breakages */
     .inp-wrap input, select {
       display:block; width:100%; padding:.68rem .85rem .68rem 2.4rem;
       font-size:.875rem; font-family:'DM Sans',sans-serif; color:var(--text-dark); background:var(--pale);
@@ -251,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     .inp-wrap input { padding-right: 2.5rem; }
     select { padding-left:.85rem; }
-    input::placeholder { color:#C4845A;opacity:.7; }
+    input::placeholder { color:#C4845A;opacity:#.7; }
     input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
     input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
@@ -280,10 +319,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .page-foot p { font-size:.73rem;color:rgba(255,255,255,.5);line-height:1.9; }
     .page-foot strong { color:rgba(255,255,255,.75); }
 
-    .role-info { background:var(--pale); border:1px solid #FED7AA; border-radius:8px; padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid); margin-bottom:.75rem; }
+    .role-info { background:var(--pale); border:1px solid #FED7AA; border-radius:8px; padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid); margin-top:.5rem; display:none; }
   </style>
 </head>
 <body>
+
+<!--
+<div class="banner">
+  <div class="banner-dot"></div>
+  <p>
+    <strong>Academic Project — </strong>CITAS is a <strong>Capstone Project</strong> by Samar College BSIT students. For academic use only.
+  </p>
+</div>
+  -->
 
 <div class="card">
 
@@ -295,8 +343,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="logo-sub">Internship Monitoring System</div>
       </div>
     </div>
-    <h1>Create Student Account</h1>
-    <p>Fill in your details to register as a student intern</p>
+    <h1>Create your account</h1>
+    <p>Fill in your details to get started</p>
   </div>
 
   <div class="card-body">
@@ -312,8 +360,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="" novalidate>
-
-      <div class="role-info">⏳ Intern accounts require coordinator approval before you can log in.</div>
 
       <div class="section-label">Personal Information</div>
 
@@ -334,41 +380,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="hint">Use your official school email if applicable.</div>
       </div>
 
-      <div class="section-label">Internship Details</div>
+      <div class="section-label">Account Setup</div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="course">Course</label>
-          <select id="course" name="course" required>
-            <option value="" disabled <?= empty(post('course')) ? '' : '' ?>>Select your course...</option>
-            <option value="BSIT" <?= (empty(post('course')) || post('course') === 'BSIT') ? 'selected' : '' ?>>BSIT</option>
-            <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
-          </select>
-        </div>
+      <div class="field">
+        <label for="role">I am registering as…</label>
+        <select id="role" name="role" required>
+          <option value="" disabled <?= empty(post('role')) ? 'selected' : '' ?>>Select your role…</option>
+          <option value="intern"      <?= post('role')==='intern'      ? 'selected' : '' ?>>🎒 Student Intern</option>
+          <option value="coordinator" <?= post('role')==='coordinator' ? 'selected' : '' ?>>🗂 Internship Coordinator</option>
+        </select>
 
-        <div class="field">
-          <label for="year_level">Year Level</label>
-          <select id="year_level" name="year_level" required>
-            <option value="" disabled <?= empty(post('year_level')) ? '' : '' ?>>Select year level...</option>
-            <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
-            <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
-            <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
-            <option value="4th Year" <?= (empty(post('year_level')) || post('year_level') === '4th Year') ? 'selected' : '' ?>>4th Year</option>
-          </select>
-        </div>
+        <div class="role-info" id="info-intern">⏳ Intern accounts require coordinator approval before you can log in.</div>
+        <div class="role-info" id="info-coordinator">⏳ Coordinator accounts will be activated after Admin approval.</div>
+      </div>
+
+      <div id="intern-fields">
+        <div class="section-label">Internship Details</div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="course">Course</label>
+        <select id="course" name="course">
+          <option value="" disabled <?= empty(post('course')) ? '' : '' ?>>Select your course...</option>
+          <option value="BSIT" <?= (empty(post('course')) || post('course') === 'BSIT') ? 'selected' : '' ?>>BSIT</option>
+          <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
+        </select>
       </div>
 
       <div class="field">
-        <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
-        <div class="inp-wrap">
-          <span class="inp-icon">📱</span>
-          <input type="tel" id="phone" name="phone" placeholder="+63 9xx xxx xxxx" value="<?= h(post('phone')) ?>">
-        </div>
+        <label for="year_level">Year Level</label>
+        <select id="year_level" name="year_level">
+          <option value="" disabled <?= empty(post('year_level')) ? '' : '' ?>>Select year level...</option>
+          <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
+          <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
+          <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
+          <option value="4th Year" <?= (empty(post('year_level')) || post('year_level') === '4th Year') ? 'selected' : '' ?>>4th Year</option>
+        </select>
       </div>
+    </div>
 
-      <p style="font-size:.75rem;color:#9A6647;margin-bottom:.5rem">
-        💡 Company and supervisor details can be filled in later from your profile page.
-      </p>
+        <div class="field">
+          <label for="coordinator_id">Coordinator</label>
+          <select id="coordinator_id" name="coordinator_id">
+            <option value="" disabled <?= empty(post('coordinator_id')) ? 'selected' : '' ?>>Select coordinator...</option>
+            <?php foreach ($coordinators as $coordinator): ?>
+              <option value="<?= $coordinator['id'] ?>" <?= post('coordinator_id') == $coordinator['id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($coordinator['name']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
+          <div class="inp-wrap">
+            <span class="inp-icon">📱</span>
+            <input type="tel" id="phone" name="phone" placeholder="+63 9xx xxx xxxx" value="<?= h(post('phone')) ?>">
+          </div>
+        </div>
+
+        <p style="font-size:.75rem;color:#9A6647;margin-bottom:.5rem">
+          💡 Company and supervisor details can be filled in later from your profile page.
+        </p>
+      </div>
 
       <div class="section-label">Password</div>
 
@@ -423,6 +497,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
+const roleSelect   = document.getElementById('role');
+const internFields = document.getElementById('intern-fields');
+const infoIntern   = document.getElementById('info-intern');
+const infoCoord    = document.getElementById('info-coordinator');
+const courseInput  = document.getElementById('course');
+const yearInput    = document.getElementById('year_level');
+const coordinatorInput    = document.getElementById('coordinator_id');
+
+function updateRoleUI() {
+  const role = roleSelect.value;
+  internFields.style.display = role === 'intern' ? 'block' : 'none';
+  infoIntern.style.display   = role === 'intern' ? 'block' : 'none';
+  infoCoord.style.display    = role === 'coordinator' ? 'block' : 'none';
+
+  courseInput.required = role === 'intern';
+  yearInput.required   = role === 'intern';
+  coordinatorInput.required = role === 'intern';
+}
+
+roleSelect.addEventListener('change', updateRoleUI);
+updateRoleUI();
+
 document.querySelectorAll('.toggle-pass').forEach(btn => {
   btn.addEventListener('click', function() {
     const targetId = this.getAttribute('data-target');
