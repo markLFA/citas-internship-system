@@ -523,7 +523,7 @@ const Dashboard = {
       REPORTS = data.map(r => ({
         ...r,
         internName: r.intern_name || `Intern #${r.intern_id}`, 
-        dept: r.dept || 'N/A' // Fallback if department tracking is added later
+        dept: r.dept || ' ' // Fallback if department tracking is added later
       }));
       const pending = REPORTS.filter(r => r.status === 'pending');
       const recent  = REPORTS.slice(0, 3);
@@ -2739,7 +2739,7 @@ const Reports = {
       REPORTS = data.map(r => ({
         ...r,
         internName: r.intern_name || `Intern #${r.intern_id}`, 
-        dept: r.dept || '' // Fallback if department tracking is added later
+        dept: r.dept || ' ' // Fallback if department tracking is added later
       }));
 
       sec.appendChild( this.statusTabs()     );
