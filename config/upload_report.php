@@ -1,4 +1,681 @@
+
 <?php
+// ============================================================
+// upload_report.php — Weekly report multi-file upload
+//
+// POST multipart/form-data
+//
+// Fields:
+//   week_label       string   required
+//   week_start       date     required  (YYYY-MM-DD)
+//   description      string   optional
+//   coordinator_id   int      optional
+//   files[]          file[]   required
+//
+// Files are stored in Supabase Storage:
+//
+//   intern-files/
+//       reports/
+//           {internId}/
+//               rpt_xxxxx.pdf
+// ============================================================
+
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
+error_reporting(E_ALL);
+
+session_start();
+
+header('Content-Type: application/json');
+
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/supabase.php';
+
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+define('MAX_BYTES', 10485760);
+
+define('ALLOWED_EXTS', [
+    'pdf',
+    'doc',
+    'docx',
+    'png',
+    'jpg',
+    'jpeg'
+]);
+
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
+if (empty($_SESSION['user']['id'])) {
+
+    http_response_code(403);
+
+    echo json_encode([
+        'error' => 'Not logged in.'
+    ]);
+
+    exit;
+}
+
+if (
+    empty($_SESSION['user']['role']) ||
+    $_SESSION['user']['role'] !== 'intern'
+) {
+
+    http_response_code(403);
+
+    echo json_encode([
+        'error' => 'Only interns can submit reports.'
+    ]);
+
+    exit;
+}
+
+$userId = (int) $_SESSION['user']['id'];
+
+
+// ============================================================
+// METHOD CHECK
+// ============================================================
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+
+    http_response_code(405);
+
+    echo json_encode([
+        'error' => 'Method not allowed.'
+    ]);
+
+    exit;
+}
+
+
+// ============================================================
+// FORM FIELDS
+// ============================================================
+
+$weekLabel = trim(
+    $_POST['week_label'] ?? ''
+);
+
+$weekStart = trim(
+    $_POST['week_start'] ?? ''
+);
+
+$description = trim(
+    $_POST['description'] ?? ''
+);
+
+$coordinatorId =
+    isset($_POST['coordinator_id'])
+        ? (int) $_POST['coordinator_id']
+        : null;
+
+
+// ============================================================
+// FIND COORDINATOR IF NOT PROVIDED
+// ============================================================
+
+if (empty($coordinatorId)) {
+
+    try {
+
+        $db = getDB();
+
+        $profileStmt = $db->prepare("
+            SELECT coordinator_id
+            FROM intern_profiles
+            WHERE user_id = ?
+            LIMIT 1
+        ");
+
+        $profileStmt->execute([
+            $userId
+        ]);
+
+        $profileRow = $profileStmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+        if (
+            $profileRow &&
+            !empty($profileRow['coordinator_id'])
+        ) {
+            $coordinatorId =
+                (int) $profileRow['coordinator_id'];
+        }
+
+    } catch (Throwable $t) {
+
+        error_log(
+            'upload_report coordinator lookup error: ' .
+            $t->getMessage()
+        );
+    }
+}
+
+
+// ============================================================
+// FORM VALIDATION
+// ============================================================
+
+if ($weekLabel === '') {
+
+    echo json_encode([
+        'error' => 'Week label is required.'
+    ]);
+
+    exit;
+}
+
+
+$dateObj = DateTime::createFromFormat(
+    'Y-m-d',
+    $weekStart
+);
+
+if (
+    !$dateObj ||
+    $dateObj->format('Y-m-d') !== $weekStart
+) {
+
+    echo json_encode([
+        'error' => 'Invalid week start date.'
+    ]);
+
+    exit;
+}
+
+
+// ============================================================
+// FILE VALIDATION
+// ============================================================
+
+if (
+    empty($_FILES['files']) ||
+    empty($_FILES['files']['name'][0])
+) {
+
+    echo json_encode([
+        'error' => 'Please attach at least one file.'
+    ]);
+
+    exit;
+}
+
+
+$fileCount =
+    count($_FILES['files']['name']);
+
+$validated = [];
+
+
+// ============================================================
+// VALIDATE EVERY FILE FIRST
+// ============================================================
+
+for ($i = 0; $i < $fileCount; $i++) {
+
+    $name =
+        $_FILES['files']['name'][$i] ?? '';
+
+    $tmp =
+        $_FILES['files']['tmp_name'][$i] ?? '';
+
+    $size =
+        (int) ($_FILES['files']['size'][$i] ?? 0);
+
+    $err =
+        (int) ($_FILES['files']['error'][$i] ?? UPLOAD_ERR_NO_FILE);
+
+
+    // --------------------------------------------------------
+    // Upload error
+    // --------------------------------------------------------
+
+    if ($err !== UPLOAD_ERR_OK) {
+
+        $msgs = [
+
+            UPLOAD_ERR_INI_SIZE =>
+                'exceeds server upload limit.',
+
+            UPLOAD_ERR_FORM_SIZE =>
+                'exceeds form size limit.',
+
+            UPLOAD_ERR_PARTIAL =>
+                'was only partially uploaded.',
+
+            UPLOAD_ERR_NO_FILE =>
+                'was not uploaded.',
+
+            UPLOAD_ERR_NO_TMP_DIR =>
+                'server temporary folder is missing.',
+
+            UPLOAD_ERR_CANT_WRITE =>
+                'could not be written to disk.'
+        ];
+
+        $msg =
+            $msgs[$err]
+            ?? 'upload error (' . $err . ').';
+
+
+        echo json_encode([
+            'error' =>
+                '"' . $name . '" ' . $msg
+        ]);
+
+        exit;
+    }
+
+
+    // --------------------------------------------------------
+    // Verify temporary upload
+    // --------------------------------------------------------
+
+    if (
+        empty($tmp) ||
+        !is_uploaded_file($tmp)
+    ) {
+
+        echo json_encode([
+            'error' =>
+                '"' . $name .
+                '" could not be verified as an uploaded file.'
+        ]);
+
+        exit;
+    }
+
+
+    // --------------------------------------------------------
+    // File size
+    // --------------------------------------------------------
+
+    if ($size > MAX_BYTES) {
+
+        echo json_encode([
+            'error' =>
+                '"' . $name .
+                '" exceeds the 10 MB limit.'
+        ]);
+
+        exit;
+    }
+
+
+    // --------------------------------------------------------
+    // Extension
+    // --------------------------------------------------------
+
+    $ext = strtolower(
+        pathinfo(
+            $name,
+            PATHINFO_EXTENSION
+        )
+    );
+
+
+    if (
+        !in_array(
+            $ext,
+            ALLOWED_EXTS,
+            true
+        )
+    ) {
+
+        echo json_encode([
+            'error' =>
+                'File type "' .
+                $ext .
+                '" is not allowed.'
+        ]);
+
+        exit;
+    }
+
+
+    // --------------------------------------------------------
+    // Determine actual MIME type
+    // --------------------------------------------------------
+
+    $mime =
+        'application/octet-stream';
+
+
+    if (function_exists('finfo_open')) {
+
+        $fi = finfo_open(
+            FILEINFO_MIME_TYPE
+        );
+
+        if ($fi !== false) {
+
+            $detectedMime =
+                finfo_file(
+                    $fi,
+                    $tmp
+                );
+
+            finfo_close($fi);
+
+            if ($detectedMime) {
+                $mime = $detectedMime;
+            }
+        }
+
+    } elseif (
+        !empty($_FILES['files']['type'][$i])
+    ) {
+
+        $mime =
+            $_FILES['files']['type'][$i];
+    }
+
+
+    // --------------------------------------------------------
+    // Generate unique Supabase filename
+    // --------------------------------------------------------
+
+    try {
+
+        $stored =
+            'rpt_' .
+            bin2hex(
+                random_bytes(16)
+            ) .
+            '.' .
+            $ext;
+
+    } catch (Throwable $e) {
+
+        echo json_encode([
+            'error' =>
+                'Failed to generate secure filename.'
+        ]);
+
+        exit;
+    }
+
+
+    $validated[] = [
+
+        'original' =>
+            $name,
+
+        'tmp' =>
+            $tmp,
+
+        'size' =>
+            $size,
+
+        'mime' =>
+            $mime,
+
+        'stored' =>
+            $stored
+    ];
+}
+
+
+// ============================================================
+// DATABASE CONNECTION
+// ============================================================
+
+$pdo = getDB();
+
+
+// ============================================================
+// TRANSACTION
+// ============================================================
+//
+// Supabase is external to MySQL, so we keep track of every
+// uploaded Supabase file. If MySQL fails later, we delete
+// those files from Supabase.
+// ============================================================
+
+$uploadedSupabaseFiles = [];
+
+
+try {
+
+    $pdo->beginTransaction();
+
+
+    // ========================================================
+    // INSERT WEEKLY REPORT
+    // ========================================================
+
+    $stmt = $pdo->prepare("
+        INSERT INTO weekly_reports
+            (
+                intern_id,
+                week_label,
+                week_start,
+                description,
+                status,
+                coordinator_id
+            )
+        VALUES
+            (?, ?, ?, ?, 'pending', ?)
+    ");
+
+
+    $stmt->execute([
+
+        $userId,
+
+        $weekLabel,
+
+        $weekStart,
+
+        $description !== ''
+            ? $description
+            : null,
+
+        $coordinatorId
+    ]);
+
+
+    $reportId =
+        (int) $pdo->lastInsertId();
+
+
+    $savedFiles = [];
+
+
+    // ========================================================
+    // UPLOAD EACH FILE TO SUPABASE
+    // ========================================================
+
+    foreach ($validated as $file) {
+
+
+        /*
+         * Storage path:
+         *
+         * reports/{internId}/{filename}
+         *
+         * Example:
+         *
+         * reports/15/rpt_a83f92....pdf
+         */
+
+        $storagePath =
+            'reports/' .
+            $userId .
+            '/' .
+            $file['stored'];
+
+
+        // ----------------------------------------------------
+        // Upload to Supabase using helper
+        // ----------------------------------------------------
+
+        $uploadResult =
+            uploadToSupabase(
+                $file['tmp'],
+                $storagePath,
+                $file['mime']
+            );
+
+
+        if (
+            empty($uploadResult['success'])
+        ) {
+
+            throw new RuntimeException(
+                $uploadResult['message']
+                ?? 'Failed to upload file to Supabase.'
+            );
+        }
+
+
+        // Keep track so we can clean it up if DB fails
+
+        $uploadedSupabaseFiles[] =
+            $storagePath;
+
+
+        // ----------------------------------------------------
+        // Save Supabase path to database
+        // ----------------------------------------------------
+
+        $stmt = $pdo->prepare("
+            INSERT INTO weekly_report_files
+                (
+                    report_id,
+                    file_path,
+                    file_name,
+                    file_size,
+                    mime_type
+                )
+            VALUES
+                (?, ?, ?, ?, ?)
+        ");
+
+
+        $stmt->execute([
+
+            $reportId,
+
+            $storagePath,
+
+            $file['original'],
+
+            $file['size'],
+
+            $file['mime']
+        ]);
+
+
+        $savedFiles[] = [
+
+            'file_name' =>
+                $file['original'],
+
+            'file_size' =>
+                $file['size']
+        ];
+    }
+
+
+    // ========================================================
+    // COMMIT DATABASE
+    // ========================================================
+
+    $pdo->commit();
+
+
+    // ========================================================
+    // SUCCESS
+    // ========================================================
+
+    echo json_encode([
+
+        'success' =>
+            true,
+
+        'report_id' =>
+            $reportId,
+
+        'week' =>
+            $weekLabel,
+
+        'files' =>
+            $savedFiles,
+
+        'message' =>
+            'Report submitted successfully.'
+    ]);
+
+
+} catch (Throwable $e) {
+
+
+    // ========================================================
+    // ROLLBACK DATABASE
+    // ========================================================
+
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+
+    // ========================================================
+    // DELETE FILES ALREADY UPLOADED TO SUPABASE
+    // ========================================================
+
+    foreach (
+        $uploadedSupabaseFiles
+        as $storagePath
+    ) {
+
+        if (
+            !deleteFromSupabase(
+                $storagePath
+            )
+        ) {
+
+            error_log(
+                'Could not clean up Supabase file: ' .
+                $storagePath
+            );
+        }
+    }
+
+
+    // ========================================================
+    // LOG ERROR
+    // ========================================================
+
+    error_log(
+        'upload_report.php: ' .
+        $e->getMessage()
+    );
+
+
+    // ========================================================
+    // RETURN ERROR
+    // ========================================================
+
+    echo json_encode([
+
+        'error' =>
+            'Submission failed: ' .
+            $e->getMessage()
+    ]);
+}
+
+/*
 // ============================================================
 //  upload_report.php — Weekly report multi-file upload
 //
@@ -223,3 +900,4 @@ try {
     error_log('upload_report.php: ' . $e->getMessage());
     echo json_encode(['error' => 'Submission failed: ' . $e->getMessage()]);
 }
+*/
