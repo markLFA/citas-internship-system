@@ -1210,46 +1210,120 @@ const Interns = {
 
 // Intern detail modal
   
-  openDetailModal(intern) {
+openDetailModal(intern) {
     const body = document.createElement('div');
 
+    // ── Profile header ────────────────────────────────────────
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
+
     const info = document.createElement('div');
     info.innerHTML = `
       <div style="font-family:Sora,sans-serif;font-size:1.05rem;font-weight:800;color:#1A0A00">${intern.name}</div>
       <div style="font-size:.8rem;color:#9A6647;margin-top:.15rem">${intern.email}</div>
-      <div style="font-size:.8rem;color:#9A6647">${intern.dept} · ${intern.school}</div>`;
+      <div style="font-size:.8rem;color:#9A6647">${intern.dept || '—'} · ${intern.school || '—'}</div>`;
     header.append(Helpers.internAvatar(intern.name, 'lg'), info);
     body.appendChild(header);
 
+    // ── Verified badge (shown when coordinator has locked profile) ──
+    const isReviewed = parseInt(intern.is_profile_reviewed ?? 0) === 1;
+    if (isReviewed) {
+      const reviewedBadge = document.createElement('div');
+      reviewedBadge.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.6rem .9rem;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;font-size:.8rem;color:#166534;font-weight:600;margin-bottom:1rem';
+      reviewedBadge.innerHTML = '✅ Internship profile has been verified by coordinator';
+      body.appendChild(reviewedBadge);
+    }
+
+    // ── Stat strip ────────────────────────────────────────────
     body.appendChild(UI.statRow([
-      { value: intern.totalHours + 'h', label: 'Total Hours',   color: '#EA580C' },
-      { value: intern.daysPresent,       label: 'Days Present',  color: '#10B981' },
-      { value: intern.reports,           label: 'Reports Filed', color: '#6366F1' },
+      { value: (intern.totalHours ?? 0) + 'h', label: 'Total Hours',   color: '#EA580C' },
+      { value: intern.daysPresent  ?? 0,        label: 'Days Present',  color: '#10B981' },
+      { value: intern.reportsSubmitted ?? intern.reports ?? 0,
+                                                label: 'Reports Filed', color: '#6366F1' },
     ]));
 
-    const pct = Math.min(100, Math.round(intern.totalHours / 500 * 100));
-    const lbl = document.createElement('p');
+    // ── Progress bar ──────────────────────────────────────────
+    const required = intern.required_hours ?? 500;
+    const pct      = Math.min(100, Math.round((intern.totalHours ?? 0) / required * 100));
+    const lbl      = document.createElement('p');
     lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.9rem 0 .4rem';
-    lbl.textContent   = `Completion: ${intern.totalHours}h of 500h required (${pct}%)`;
+    lbl.textContent   = `Completion: ${intern.totalHours ?? 0}h of ${required}h required (${pct}%)`;
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
 
+    // ── Company / internship details ──────────────────────────
     const compLabel = document.createElement('div');
     compLabel.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.875rem;margin:1.25rem 0 .6rem';
     compLabel.textContent   = 'Internship Details';
     body.appendChild(compLabel);
+
     body.appendChild(UI.companyInfoCard({
-      company:    intern.company,
-      position:   intern.dept + ' Intern',
-      supervisor: intern.supervisor,
+      company:    intern.company        || 'Not yet assigned',
+      position:   intern.position       || (intern.dept ? intern.dept + ' Intern' : '—'),
+      address:    intern.companyAddress || '—',
+      supervisor: intern.supervisor     || '—',
+      phone:      intern.supervisorPhone|| '—',
+      startDate:  intern.startDate      || '—',
+      endDate:    intern.endDate        || '—',
     }));
 
+    // ── Verify / Unlock button ────────────────────────────────
+    const verifyBtn = isReviewed
+      ? UI.button('🔓 Unlock Profile', {
+          size: 'sm',
+          color: { base:'#FFFBEB', hover:'#FEF3C7', text:'#92400E', border:'#FDE68A' },
+          onClick: async () => {
+            if (!confirm(`Unlock ${intern.name}'s internship info so they can edit it again?`)) return;
+            try {
+              const res  = await fetch('config/api.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                  action:   'setProfileReviewed',
+                  internId: intern.id,
+                  reviewed: false,
+                }),
+              });
+              const json = await res.json();
+              if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
+              intern.is_profile_reviewed = 0;
+              UI.toast(`🔓 ${intern.name}'s profile has been unlocked.`, 'info');
+              m.close();
+            } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+          },
+        })
+      : UI.button('✅ Verify Profile', {
+          size: 'sm',
+          color: { base:'#10B981', hover:'#059669', text:'#fff' },
+          onClick: async () => {
+            if (!confirm(`Mark ${intern.name}'s internship info as verified?\nThis will lock it from further edits by the intern.`)) return;
+            try {
+              const res  = await fetch('config/api.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                  action:   'setProfileReviewed',
+                  internId: intern.id,
+                  reviewed: true,
+                }),
+              });
+              const json = await res.json();
+              if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
+              intern.is_profile_reviewed = 1;
+              UI.toast(`✅ ${intern.name}'s profile verified and locked.`, 'success');
+              m.close();
+            } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+          },
+        });
+
+    // ── Modal ─────────────────────────────────────────────────
     const m = UI.modal({
-      title: '👤 Intern Details', body, size: 'lg',
+      title: '👤 Intern Details',
+      body,
+      size: 'lg',
       footer: [
         UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        verifyBtn,
         Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
       ],
     });
