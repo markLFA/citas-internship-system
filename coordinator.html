@@ -2918,18 +2918,14 @@ filesWrap.style.cssText = `
 
 if (report.files && report.files.length > 0) {
   report.files.forEach(f => {
-    const fileRow = document.createElement('div');
-    fileRow.style.cssText = `
-      display:flex;
-      align-items:center;
-      gap:.75rem;
-    `;
 
     const fileLink = document.createElement('a');
     fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
     fileLink.target = '_blank';
     fileLink.textContent = `📄 ${f.file_name}`;
     fileLink.style.cssText = `
+      width:300px;
+      box-sizing:border-box;
       padding:.75rem 1rem;
       background:#FFF7ED;
       border:1px solid #FED7AA;
@@ -2938,6 +2934,9 @@ if (report.files && report.files.length > 0) {
       color:#EA580C;
       font-weight:600;
       font-size:.875rem;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     `;
 
     const viewButton = Helpers.orangeBtn(
@@ -2947,10 +2946,17 @@ if (report.files && report.files.length > 0) {
 
     // Prevent the button from stretching
     viewButton.style.flexShrink = '0';
+    const fileRow = document.createElement('div');
+    fileRow.style.cssText = `
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    `;
 
     fileRow.appendChild(fileLink);
     fileRow.appendChild(viewButton);
-
+    
+    filesWrap.appendChild(fileRow);
     filesWrap.appendChild(fileRow);
   });
 } else {
