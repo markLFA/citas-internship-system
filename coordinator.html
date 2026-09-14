@@ -2907,67 +2907,73 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-// File container
-const filesWrap = document.createElement('div');
-filesWrap.style.cssText = `
-  display:flex;
-  flex-direction:column;
-  gap:.5rem;
-  margin-bottom:1.25rem
-`;
-
-if (report.files && report.files.length > 0) {
-  report.files.forEach(f => {
-
-    const fileLink = document.createElement('a');
-    fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
-    fileLink.target = '_blank';
-    fileLink.textContent = `📄 ${f.file_name}`;
-    fileLink.style.cssText = `
-      width:300px;
-      box-sizing:border-box;
-      padding:.75rem 1rem;
-      background:#FFF7ED;
-      border:1px solid #FED7AA;
-      border-radius:10px;
-      text-decoration:none;
-      color:#EA580C;
-      font-weight:600;
-      font-size:.875rem;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    `;
-
-    const viewButton = Helpers.orangeBtn(
-      'View',
-      () => viewDocument(f.file_path)
-    );
-
-    // Prevent the button from stretching
-    viewButton.style.flexShrink = '0';
-    const fileRow = document.createElement('div');
-    fileRow.style.cssText = `
+    // File container
+    const filesWrap = document.createElement('div');
+    filesWrap.style.cssText = `
       display:flex;
-      align-items:center;
-      gap:.75rem;
+      flex-direction:column;
+      gap:.5rem;
+      margin-bottom:1.25rem
     `;
 
-    fileRow.appendChild(fileLink);
-    fileRow.appendChild(viewButton);
-    
-    filesWrap.appendChild(fileRow);
-    filesWrap.appendChild(fileRow);
-  });
-} else {
-  filesWrap.innerHTML = `
-    <div style="font-size:.85rem;color:#999;font-style:italic">
-      No files attached to this report.
-    </div>
-  `;
-}
+    if (report.files && report.files.length > 0) {
+      report.files.forEach(f => {
+        const fileLink = document.createElement('a');
 
-body.appendChild(filesWrap);
+        fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
+        fileLink.target = '_blank';
+
+        fileLink.style.cssText = `
+          display:flex;
+          align-items:center;
+          gap:.75rem;
+          width:100%;
+          box-sizing:border-box;
+          padding:.75rem 1rem;
+          background:#FFF7ED;
+          border:1px solid #FED7AA;
+          border-radius:10px;
+          text-decoration:none;
+          color:#EA580C;
+          font-weight:600;
+          font-size:.875rem;
+        `;
+
+        const fileName = document.createElement('span');
+        fileName.textContent = `📄 ${f.file_name}`;
+        fileName.style.cssText = `
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+          flex:1;
+        `;
+
+        const viewButton = Helpers.orangeBtn(
+          'View',
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            viewDocument(f.file_path);
+          }
+        );
+
+        viewButton.style.cssText += `
+          flex-shrink:0;
+        `;
+
+        fileLink.appendChild(fileName);
+        fileLink.appendChild(viewButton);
+
+        filesWrap.appendChild(fileLink);
+      });
+    } else {
+      filesWrap.innerHTML = `
+        <div style="font-size:.85rem;color:#999;font-style:italic">
+          No files attached to this report.
+        </div>
+      `;
+    }
+    body.appendChild(filesWrap);
 
     // Status selector buttons
     const statusLabel = document.createElement('div');
