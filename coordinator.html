@@ -423,7 +423,7 @@ function navigate(name) {
 
 function viewDocument (file_path) {
     const directFileUrl = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${file_path}`;
-    const isOfficeDoc = /\.(docx?|xlsx?|pptx?)$/i.test(doc.file_path);
+    const isOfficeDoc = /\.(docx?|xlsx?|pptx?)$/i.test(file_path);
     if (isOfficeDoc) {
       const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directFileUrl)}`;
       window.open(previewUrl, '_blank');
