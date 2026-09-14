@@ -8,6 +8,7 @@ session_start();
 header('Content-Type: application/json');
 
 require 'functions.php';
+require 'report.php';
 
 // Check if this is a multipart/form-data request (File Uploads)
 if (isset($_POST['action'])) {
@@ -245,11 +246,7 @@ switch ($action) {
 
         setReportStatus($reportId, $status, $feedback);   // ← pass feedback
         break;
-    default:
-        echo json_encode([
-            "error" => "Invalid action"
-        ]);
-        break;
+
     case 'getSchoolYears':
         // Returns all available school years + the current one
         $years   = getSchoolYears();
@@ -277,6 +274,46 @@ switch ($action) {
             'success'     => true,
             'interns'     => $interns,
             'school_year' => $schoolYear ?: getCurrentSchoolYear(),
+        ]);
+        break;
+    case 'updateReport':
+        $reportId      = (int) ($data['report_id'] ?? 0);
+        $weekLabel     = $data['week_label'] ?? '';
+        $weekStart     = $data['week_start'] ?? '';
+        $description   = $data['description'] ?? '';
+        $filesToDelete = $data['delete_file_ids'] ?? [];
+        $newFiles      = $_FILES['files'] ?? [];
+
+        // Handle string array conversion if delete_file_ids was sent as a JSON string
+        if (is_string($filesToDelete)) {
+            $decoded = json_decode($filesToDelete, true);
+            if (is_array($decoded)) {
+                $filesToDelete = $decoded;
+            }
+        }
+
+        $result = updateReport(
+            $userId,
+            $reportId,
+            $weekLabel,
+            $weekStart,
+            $description,
+            (array) $filesToDelete,
+            $newFiles
+        );
+
+        echo json_encode($result);
+        break;
+    case 'deleteReport':
+        $reportId = (int) ($data['report_id'] ?? 0);
+
+        $result = deleteReport($userId, $reportId);
+
+        echo json_encode($result);
+            break;
+    default:
+        echo json_encode([
+            "error" => "Invalid action"
         ]);
         break;
 }

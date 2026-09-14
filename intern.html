@@ -2180,32 +2180,35 @@ const Reports = {
           wrap.style.cssText =
             'display:flex;align-items:center;justify-content:center;gap:.4rem';
 
-          const editBtn = UI.button('Edit', {
-            size: 'sm',
-            color: {
-              base: '#EA580C',
-              hover: '#C2410C',
-              text: '#fff'
-            },
-            onClick: () => {
-              this.openEditModal(row);
-            }
-          });
+          if (row.status === 'pending') {
+            const editBtn = UI.button('Edit', {
+              size: 'sm',
+              color: {
+                base: '#EA580C',
+                hover: '#C2410C',
+                text: '#fff'
+              },
+              onClick: () => this.openEditModal(row)
+            });
 
-          const deleteBtn = UI.button('Delete', {
-            size: 'sm',
-            color: {
-              base: '#DC2626',
-              hover: '#B91C1C',
-              text: '#fff'
-            },
-            onClick: () => {
-              this.deleteReport(row);
-            }
-          });
+            const deleteBtn = UI.button('Delete', {
+              size: 'sm',
+              color: {
+                base: '#DC2626',
+                hover: '#B91C1C',
+                text: '#fff'
+              },
+              onClick: () => this.deleteReport(row)
+            });
 
-          wrap.appendChild(editBtn);
-          wrap.appendChild(deleteBtn);
+            wrap.appendChild(editBtn);
+            wrap.appendChild(deleteBtn);
+          } else {
+            const lockedText = document.createElement('span');
+            lockedText.style.cssText = 'font-size:.75rem;color:#9CA3AF';
+            lockedText.textContent = 'Locked';
+            wrap.appendChild(lockedText);
+          }
 
           return wrap;
         }
@@ -2240,6 +2243,151 @@ const Reports = {
       body: tbl,
     });
   },
+
+  // ── Open Edit Modal ────────────────────────────────────────
+  openEditModal(row) {
+    const body = document.createElement('div');
+    body.style.cssText = 'display:flex;flex-direction:column;gap:.8rem';
+
+    // Track original files user chooses to remove
+    const deleteFileIds = [];
+
+    // Form inputs
+    const weekInput = UI.input({ value: row.week_label || '' });
+    const dateInput = UI.input({ type: 'date', value: row.week_start || '' });
+    const descInput = UI.textarea({ value: row.description || '', rows: 3 });
+
+    body.appendChild(UI.formGroup('Week Label', weekInput));
+    body.appendChild(UI.formGroup('Week Start Date', dateInput));
+    body.appendChild(UI.formGroup('Description', descInput));
+
+    // Existing Attached Files Section
+    if (row.files && row.files.length) {
+      const existingWrap = document.createElement('div');
+      const label = document.createElement('div');
+      label.className = 'cui-label';
+      label.textContent = 'Existing Files (click icon to remove)';
+      existingWrap.appendChild(label);
+
+      const listContainer = document.createElement('div');
+      listContainer.style.cssText = 'display:flex;flex-direction:column;gap:.3rem;margin-top:.3rem';
+
+      row.files.forEach(f => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:.8rem;background:#F3F4F6;padding:.4rem .6rem;border-radius:6px;border:1px solid #E5E7EB';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = '📄 ' + f.file_name;
+        nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '❌';
+        removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:.8rem;margin-left:.5rem';
+
+        removeBtn.onclick = () => {
+          deleteFileIds.push(f.id);
+          item.remove();
+        };
+
+        item.appendChild(nameSpan);
+        item.appendChild(removeBtn);
+        listContainer.appendChild(item);
+      });
+
+      existingWrap.appendChild(listContainer);
+      body.appendChild(existingWrap);
+    }
+
+    // New Files Upload Input
+    const newFilesLabel = document.createElement('div');
+    newFilesLabel.className = 'cui-label';
+    newFilesLabel.textContent = 'Add New Files (optional)';
+    body.appendChild(newFilesLabel);
+
+    const newFileInput = document.createElement('input');
+    newFileInput.type = 'file';
+    newFileInput.multiple = true;
+    newFileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    body.appendChild(newFileInput);
+
+    // Render Modal with UI helper
+    UI.modal({
+      title: '✏️ Edit Report',
+      body,
+      confirmText: 'Save Changes',
+      onConfirm: async () => {
+        const weekLabel = weekInput.value.trim();
+        const weekStart = dateInput.value;
+        const description = descInput.value.trim();
+
+        if (!weekLabel || !weekStart) {
+          UI.toast('Week label and start date are required.', 'danger');
+          return false;
+        }
+
+        const form = new FormData();
+        form.append('action', 'updateReport');
+        form.append('report_id', row.id);
+        form.append('week_label', weekLabel);
+        form.append('week_start', weekStart);
+        form.append('description', description);
+
+        deleteFileIds.forEach(id => form.append('delete_file_ids[]', id));
+
+        if (newFileInput.files.length) {
+          Array.from(newFileInput.files).forEach(f => form.append('files[]', f));
+        }
+
+        try {
+          const res = await fetch('config/api.php', { method: 'POST', body: form });
+          const json = await res.json();
+
+          if (json.success) {
+            UI.toast('✅ Report updated successfully.', 'success');
+            this.loadReports();
+            return true;
+          } else {
+            UI.toast('❌ ' + (json.error || 'Update failed.'), 'danger');
+            return false;
+          }
+        } catch (_) {
+          UI.toast('❌ Network error during update.', 'danger');
+          return false;
+        }
+      }
+    });
+  },
+
+  // ── Delete Report Confirmation & Execution ───────────────
+  async deleteReport(row) {
+    if (!confirm(`Are you sure you want to delete "${row.week_label}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('config/api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'deleteReport',
+          report_id: row.id
+        })
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        UI.toast('🗑️ Report deleted successfully.', 'success');
+        this.loadReports();
+      } else {
+        UI.toast('❌ ' + (json.error || 'Delete failed.'), 'danger');
+      }
+    } catch (_) {
+      UI.toast('❌ Network error during deletion.', 'danger');
+    }
+  },
+
   // Default the week-start field to the most recent Monday
   setDefaultDate() {
     const mon = new Date();
