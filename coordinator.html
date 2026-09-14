@@ -2907,27 +2907,61 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-  // File container
-  const filesWrap = document.createElement('div');
-  filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
+// File container
+const filesWrap = document.createElement('div');
+filesWrap.style.cssText = `
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+  margin-bottom:1.25rem
+`;
 
-  if (report.files && report.files.length > 0) {
-    report.files.forEach(f => {
-      const fileLink = document.createElement('a');
-      fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
-      fileLink.target = '_blank';
-      fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
+if (report.files && report.files.length > 0) {
+  report.files.forEach(f => {
+    const fileRow = document.createElement('div');
+    fileRow.style.cssText = `
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    `;
 
-      const viewButton = Helpers.orangeBtn('View', () => viewDocument(f.file_path));
-      viewButton.style.alignSelf = 'flex-start';
-      filesWrap.appendChild(fileLink);
-      filesWrap.appendChild(viewButton);
-    });
-  } else {
-    filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
-  }
+    const fileLink = document.createElement('a');
+    fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
+    fileLink.target = '_blank';
+    fileLink.textContent = `📄 ${f.file_name}`;
+    fileLink.style.cssText = `
+      padding:.75rem 1rem;
+      background:#FFF7ED;
+      border:1px solid #FED7AA;
+      border-radius:10px;
+      text-decoration:none;
+      color:#EA580C;
+      font-weight:600;
+      font-size:.875rem;
+    `;
 
-  body.appendChild(filesWrap);
+    const viewButton = Helpers.orangeBtn(
+      'View',
+      () => viewDocument(f.file_path)
+    );
+
+    // Prevent the button from stretching
+    viewButton.style.flexShrink = '0';
+
+    fileRow.appendChild(fileLink);
+    fileRow.appendChild(viewButton);
+
+    filesWrap.appendChild(fileRow);
+  });
+} else {
+  filesWrap.innerHTML = `
+    <div style="font-size:.85rem;color:#999;font-style:italic">
+      No files attached to this report.
+    </div>
+  `;
+}
+
+body.appendChild(filesWrap);
 
     // Status selector buttons
     const statusLabel = document.createElement('div');
