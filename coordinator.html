@@ -2907,24 +2907,27 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-    // File container
-    const filesWrap = document.createElement('div');
-    filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
-    
-    if (report.files && report.files.length > 0) {
-      report.files.forEach(f => {
-        const fileLink = document.createElement('a');
-        fileLink.href   = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
-        fileLink.target = '_blank';
-        fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
-        //fileLink.innerHTML = `📄 ${f.file_name} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
-        const viewButton = Helpers.orangeBtn('View', () => viewDocument(f.file_path));
-        filesWrap.appendChild(viewButton);
-      });
-    } else {
-      filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
-    }
-    body.appendChild(filesWrap);
+  // File container
+  const filesWrap = document.createElement('div');
+  filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
+
+  if (report.files && report.files.length > 0) {
+    report.files.forEach(f => {
+      const fileLink = document.createElement('a');
+      fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
+      fileLink.target = '_blank';
+      fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
+
+      const viewButton = Helpers.orangeBtn('View', () => viewDocument(f.file_path));
+      viewButton.style.alignSelf = 'flex-start';
+
+      filesWrap.appendChild(viewButton);
+    });
+  } else {
+    filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
+  }
+
+  body.appendChild(filesWrap);
 
     // Status selector buttons
     const statusLabel = document.createElement('div');
