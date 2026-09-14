@@ -849,66 +849,148 @@ const Approvals = {
 // ─────────────────────────────────────────────────────────────
 //  INTERNS  (approved interns list)
 // ─────────────────────────────────────────────────────────────
+// Mirrors PHP getCurrentSchoolYear() — school year starts June
+function getCurrentSchoolYearJS() {
+  const now = new Date();
+  const m   = now.getMonth() + 1;
+  const y   = now.getFullYear();
+  return m >= 6 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+}
+
 const Interns = {
 
-  build() {
+  // ── School year state ──────────────────────────────────────
+  currentSchoolYear: '',
+  availableYears:    [],
+  tableData:         [],
+
+  // ── Build — async so we can fetch school years first ───────
+  async build() {
     const sec = document.getElementById('sec-interns');
 
-    const exportDrop = UI.dropdown(
-      Helpers.ghostBtn('⬇ Export', null),
-      [
-        { label: '📋 All Active Interns',    onClick: () => Interns.exportCSV('active', '') },
-        { label: '⏳ Include Pending',        onClick: () => Interns.exportCSV('all',    '') },
-        { divider: true },
-        { label: '📂 BSIT only',             onClick: () => Interns.exportCSV('active', 'BSIT') },
-        { label: '📂 BSCS only',             onClick: () => Interns.exportCSV('active', 'BSCS') },
-        { label: '📂 BSBA only',             onClick: () => Interns.exportCSV('active', 'BSBA') },
-      ]
-    );
+    const exportBtn = UI.button('⬇ Export', {
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick: () => this.downloadExcel(this.tableData),
+    });
     const hdrActions = document.createElement('div');
     hdrActions.style.cssText = 'display:flex;gap:.5rem;align-items:center';
-   // hdrActions.appendChild(exportDrop);
-   const exportBtn = UI.button('⬇ Export ', {
-      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-      onClick: () => {
-        console.log('Exporting  for all active interns');
-        this.downloadExcel(this.tableData);
-      }
-    });
     hdrActions.appendChild(exportBtn);
 
-    sec.appendChild(Helpers.pageHeader(
-      'Interns',
-      INTERNS.length + ' interns enrolled',
-      hdrActions
-    ));
+    sec.appendChild(Helpers.pageHeader('Interns', '', hdrActions));
 
+    // Filter bar slot — rebuilt after school years load
+    const filterSlot = document.createElement('div');
+    filterSlot.id = 'interns-filter-slot';
+    sec.appendChild(filterSlot);
 
-    sec.appendChild( this.filterBar());
-    //sec.appendChild(document.createElement('br'));
-    sec.appendChild( this.tableContainer() );
+    sec.appendChild(this.tableContainer());
+
+    await this.loadSchoolYears();
+  },
+
+  // Fetch available school years, then load interns for current year
+  async loadSchoolYears() {
+    try {
+      const res  = await fetch('config/api.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'getSchoolYears' }),
+      });
+      const data = await res.json();
+      this.availableYears    = data.years        ?? [];
+      this.currentSchoolYear = data.current_year ?? getCurrentSchoolYearJS();
+    } catch (_) {
+      this.currentSchoolYear = getCurrentSchoolYearJS();
+      this.availableYears    = [this.currentSchoolYear];
+    }
+
+    if (!this.availableYears.includes(this.currentSchoolYear)) {
+      this.availableYears.unshift(this.currentSchoolYear);
+    }
+
+    // Rebuild filter bar with the year selector now populated
+    const slot = document.getElementById('interns-filter-slot');
+    if (slot) {
+      slot.innerHTML = '';
+      slot.appendChild(this.filterBar());
+    }
+
+    await this.loadInterns();
+  },
+
+  // Load interns for a specific school year
+  async loadInterns(schoolYear = '') {
+    const year = schoolYear || this.currentSchoolYear;
+    const wrap = document.getElementById('interns-table-wrap');
+    if (!wrap) return;
+
+    wrap.innerHTML = '';
+    wrap.appendChild(UI.spinner());
+
+    try {
+      const res  = await fetch('config/api.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'getInternsBySchoolYear', school_year: year }),
+      });
+      const data = await res.json();
+      // getInternsBySchoolYear returns the nested array directly
+      INTERNS_LIST = Array.isArray(data) ? data : (data.interns ?? []);
+    } catch (_) {
+      INTERNS_LIST = [];
+    }
+
+    // Update subtitle with school year + count
+    const subtitle = document.querySelector('#sec-interns .cui-page-subtitle');
+    if (subtitle) {
+      subtitle.textContent = `School Year ${year} — ${INTERNS_LIST.length} intern${INTERNS_LIST.length !== 1 ? 's' : ''}`;
+    }
 
     this.renderTable();
   },
 
-  // Search + dept filter + sort controls
+  // Search + school year + dept + sort controls
   filterBar() {
-
     const bar = document.createElement('div');
     bar.className = 'cui-filter-bar';
 
+    // ── School year selector ───────────────────────────────
+    const yearSel = UI.input({
+      type: 'select',
+      options: this.availableYears.map(y => ({
+        value: y,
+        label: y === getCurrentSchoolYearJS() ? `📅 ${y} (Current)` : `🗂️ ${y}`,
+      })),
+      value:    this.currentSchoolYear,
+      onChange: async e => {
+        this.currentSchoolYear = e.target.value;
+        filterSearch = '';
+        filterDept   = '';
+        const searchEl = bar.querySelector('input[type="search"]');
+        if (searchEl) searchEl.value = '';
+        await this.loadInterns(this.currentSchoolYear);
+      },
+    });
+    yearSel.style.minWidth   = '200px';
+    yearSel.style.fontWeight = '600';
+
+    // ── Search ─────────────────────────────────────────────
     const search = UI.input({ placeholder: '🔍 Search name or email…' });
     search.addEventListener('input', e => {
       filterSearch = e.target.value.toLowerCase();
       this.renderTable();
     });
 
-    const depts = [...new Set(INTERNS.map(i => i.dept))].sort();
-    const dept  = UI.select({ options: depts, placeholder: 'All Departments' });
+    // ── Dept filter — built from loaded INTERNS_LIST ───────
+    const depts = [...new Set((INTERNS_LIST ?? [])
+      .map(i => i.profile?.course || i.profile?.position || '')
+      .filter(Boolean))].sort();
+    const dept = UI.input({ type:'select', options: depts, placeholder: 'All Departments' });
     dept.style.minWidth = '160px';
     dept.addEventListener('change', e => { filterDept = e.target.value; this.renderTable(); });
 
-    const sort  = UI.select({ options: [
+    // ── Sort ───────────────────────────────────────────────
+    const sort = UI.input({ type:'select', options: [
       { value:'name',    label:'Sort: Name A–Z'    },
       { value:'hours',   label:'Sort: Most Hours'  },
       { value:'days',    label:'Sort: Most Days'   },
@@ -917,7 +999,7 @@ const Interns = {
     sort.style.minWidth = '160px';
     sort.addEventListener('change', e => { filterSort = e.target.value; this.renderTable(); });
 
-    bar.append(search, dept, sort);
+    bar.append(yearSel, search, dept, sort);
     return bar;
   },
 
@@ -999,25 +1081,14 @@ const Interns = {
   },
 
   renderTable() {
-
     const wrap = document.getElementById('interns-table-wrap');
-
     if (!wrap) return;
-
     wrap.innerHTML = '';
 
-    wrap.appendChild(
-      UI.spinner("120px")
-    );
+    const list = this.filteredList();
+    this.tableData = list;
 
-    this.getInternsList().then(() => {
-
-      const list = this.filteredList();
-      this.tableData = list;
-
-      wrap.innerHTML = '';
-
-      const tbl = UI.table([
+    const tbl = UI.table([
 
         // -----------------------------------
         // Intern
@@ -1182,41 +1253,19 @@ const Interns = {
           'No interns match your filters.',
       });
 
-      wrap.appendChild(UI.card({
-
-        title:
-          `Showing ${list.length} intern${list.length !== 1 ? 's' : ''}`,
-
-        padding: false,
-
-        body: tbl,
-      }));
-
-    })
-
-    .catch(err => {
-
-      console.error(err);
-
-      wrap.innerHTML = '';
-
-      wrap.appendChild(
-        UI.emptyState(
-          'Failed to load interns.'
-        )
-      );
-    });
+    wrap.appendChild(UI.card({
+      title:   `Showing ${list.length} intern${list.length !== 1 ? 's' : ''}`,
+      padding: false,
+      body:    tbl,
+    }));
   },
 
-// Intern detail modal
-  
-openDetailModal(intern) {
+  openDetailModal(intern) {
     const body = document.createElement('div');
 
-    // ── Profile header ────────────────────────────────────────
+    // ── Profile header ──────────────────────────────────────
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
-
     const info = document.createElement('div');
     info.innerHTML = `
       <div style="font-family:Sora,sans-serif;font-size:1.05rem;font-weight:800;color:#1A0A00">${intern.name}</div>
@@ -1225,24 +1274,24 @@ openDetailModal(intern) {
     header.append(Helpers.internAvatar(intern.name, 'lg'), info);
     body.appendChild(header);
 
-    // ── Verified badge (shown when coordinator has locked profile) ──
+    // ── Verified badge ──────────────────────────────────────
     const isReviewed = parseInt(intern.is_profile_reviewed ?? 0) === 1;
     if (isReviewed) {
-      const reviewedBadge = document.createElement('div');
-      reviewedBadge.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.6rem .9rem;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;font-size:.8rem;color:#166534;font-weight:600;margin-bottom:1rem';
-      reviewedBadge.innerHTML = '✅ Internship profile has been verified by coordinator';
-      body.appendChild(reviewedBadge);
+      const badge = document.createElement('div');
+      badge.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.6rem .9rem;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;font-size:.8rem;color:#166534;font-weight:600;margin-bottom:1rem';
+      badge.innerHTML = '✅ Internship profile has been verified by coordinator';
+      body.appendChild(badge);
     }
 
-    // ── Stat strip ────────────────────────────────────────────
+    // ── Stat strip ──────────────────────────────────────────
     body.appendChild(UI.statRow([
-      { value: (intern.totalHours ?? 0) + 'h', label: 'Total Hours',   color: '#EA580C' },
-      { value: intern.daysPresent  ?? 0,        label: 'Days Present',  color: '#10B981' },
-      { value: intern.reportsSubmitted ?? intern.reports ?? 0,
-                                                label: 'Reports Filed', color: '#6366F1' },
+      { value: (intern.totalHours     ?? 0) + 'h', label: 'Total Hours',   color: '#EA580C' },
+      { value:  intern.daysPresent    ?? 0,         label: 'Days Present',  color: '#10B981' },
+      { value:  intern.reportsSubmitted ?? intern.reports ?? 0,
+                                                    label: 'Reports Filed', color: '#6366F1' },
     ]));
 
-    // ── Progress bar ──────────────────────────────────────────
+    // ── Progress ────────────────────────────────────────────
     const required = intern.required_hours ?? 500;
     const pct      = Math.min(100, Math.round((intern.totalHours ?? 0) / required * 100));
     const lbl      = document.createElement('p');
@@ -1251,12 +1300,11 @@ openDetailModal(intern) {
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
 
-    // ── Company / internship details ──────────────────────────
+    // ── Company info ────────────────────────────────────────
     const compLabel = document.createElement('div');
     compLabel.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.875rem;margin:1.25rem 0 .6rem';
     compLabel.textContent   = 'Internship Details';
     body.appendChild(compLabel);
-
     body.appendChild(UI.companyInfoCard({
       company:    intern.company        || 'Not yet assigned',
       position:   intern.position       || (intern.dept ? intern.dept + ' Intern' : '—'),
@@ -1267,7 +1315,7 @@ openDetailModal(intern) {
       endDate:    intern.endDate        || '—',
     }));
 
-    // ── Verify / Unlock button ────────────────────────────────
+    // ── Verify / Unlock button ──────────────────────────────
     const verifyBtn = isReviewed
       ? UI.button('🔓 Unlock Profile', {
           size: 'sm',
@@ -1276,13 +1324,8 @@ openDetailModal(intern) {
             if (!confirm(`Unlock ${intern.name}'s internship info so they can edit it again?`)) return;
             try {
               const res  = await fetch('config/api.php', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                  action:   'setProfileReviewed',
-                  internId: intern.id,
-                  reviewed: false,
-                }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action:'setProfileReviewed', internId: intern.id, reviewed: false }),
               });
               const json = await res.json();
               if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
@@ -1296,16 +1339,12 @@ openDetailModal(intern) {
           size: 'sm',
           color: { base:'#10B981', hover:'#059669', text:'#fff' },
           onClick: async () => {
-            if (!confirm(`Mark ${intern.name}'s internship info as verified?\nThis will lock it from further edits by the intern.`)) return;
+            if (!confirm(`Mark ${intern.name}'s internship info as verified?
+This will lock it from further edits by the intern.`)) return;
             try {
               const res  = await fetch('config/api.php', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                  action:   'setProfileReviewed',
-                  internId: intern.id,
-                  reviewed: true,
-                }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action:'setProfileReviewed', internId: intern.id, reviewed: true }),
               });
               const json = await res.json();
               if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
@@ -1316,46 +1355,29 @@ openDetailModal(intern) {
           },
         });
 
-    // ── Modal ─────────────────────────────────────────────────
     const m = UI.modal({
-      title: '👤 Intern Details',
-      body,
-      size: 'lg',
+      title: '👤 Intern Details', body, size: 'lg',
       footer: [
         UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         verifyBtn,
-       // Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
+        Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
       ],
     });
     m.open();
   },
+  // Kept for any other parts of coordinator.html that call it directly.
+  // The Interns section itself uses loadInterns() which filters by school year.
   async getInternsList() {
-
     try {
-
-      const res = await fetch('config/api.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify({
-          action: 'getCoordinatorInternDatas'
-        })
+      const year = this.currentSchoolYear || getCurrentSchoolYearJS();
+      const res  = await fetch('config/api.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'getInternsBySchoolYear', school_year: year }),
       });
-
       const data = await res.json();
-      //console.log('InternList ' + JSON.stringify(data, null, 2));
-
-      if (!res.ok || data.error) {
-        console.error(data.error || 'Failed to fetch intern data');
-        INTERNS_LIST = [];
-      }
-
-      INTERNS_LIST = data;
-
+      INTERNS_LIST = Array.isArray(data) ? data : (data.interns ?? []);
     } catch (err) {
-
       console.error('Fetch error:', err);
       INTERNS_LIST = [];
     }
@@ -1381,7 +1403,6 @@ openDetailModal(intern) {
     );
   }
 };
-
 
 /*
 const Interns = {
