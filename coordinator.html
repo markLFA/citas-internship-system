@@ -421,6 +421,16 @@ function navigate(name) {
   setCurrentPage(name)
 }
 
+function viewDocument (file_path) {
+    const directFileUrl = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${file_path}`;
+    const isOfficeDoc = /\.(docx?|xlsx?|pptx?)$/i.test(doc.file_path);
+    if (isOfficeDoc) {
+      const previewUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directFileUrl)}`;
+      window.open(previewUrl, '_blank');
+    } else {
+      window.open(directFileUrl, '_blank');
+    }
+}
 // ─────────────────────────────────────────────────────────────
 //  DASHBOARD
 // ─────────────────────────────────────────────────────────────
@@ -2849,7 +2859,7 @@ const Reports = {
         render: files => {
           if (!files || files.length === 0) return `<span style="font-size:.8rem;color:#999;font-style:italic">No files</span>`;
           return files.map(f => 
-            `<a href="/uploads/${f.file_path}" target="_blank" style="display:block;color:#EA580C;font-size:.8rem;text-decoration:none;margin-bottom:.2rem" title="${f.file_name}">📄 ${f.file_name}</a>`
+            `<a href="https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}" target="_blank" style="display:block;color:#EA580C;font-size:.8rem;text-decoration:none;margin-bottom:.2rem" title="${f.file_name}">📄 ${f.file_name}</a>`
           ).join('');
         }},
       { key:'uploaded_at',   label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
@@ -2904,11 +2914,12 @@ const Reports = {
     if (report.files && report.files.length > 0) {
       report.files.forEach(f => {
         const fileLink = document.createElement('a');
-        fileLink.href   = `/uploads/${f.file_path}`;
+        fileLink.href   = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
         fileLink.target = '_blank';
         fileLink.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
-        fileLink.innerHTML = `📄 ${f.file_name} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
-        filesWrap.appendChild(fileLink);
+        //fileLink.innerHTML = `📄 ${f.file_name} <span style="margin-left:auto;font-size:.75rem;color:#9A6647">Click to open</span>`;
+        const viewButton = Helpers.orangeBtn('View', () => viewDocument(f.file_path));
+        filesWrap.appendChild(viewButton);
       });
     } else {
       filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
@@ -3002,7 +3013,9 @@ const Reports = {
     });
     m.open();
   },
-};// ─────────────────────────────────────────────────────────────
+
+};
+// ─────────────────────────────────────────────────────────────
 //  ANALYTICS
 // ─────────────────────────────────────────────────────────────
 const Analytics = {
