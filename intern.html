@@ -2365,14 +2365,14 @@ const Reports = {
       return;
     }
 
+    const form = new FormData();
+    form.append('action', 'deleteReport');
+    form.append('report_id', row.id);
+
     try {
       const res = await fetch('config/api.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'deleteReport',
-          report_id: row.id
-        })
+        body: form
       });
 
       const json = await res.json();
@@ -2383,12 +2383,12 @@ const Reports = {
       } else {
         UI.toast('❌ ' + (json.error || 'Delete failed.'), 'danger');
       }
-    } catch (_) {
+    } catch (err) {
+      console.error('Delete Error:', err);
       UI.toast('❌ Network error during deletion.', 'danger');
     }
   },
-
-  // Default the week-start field to the most recent Monday
+    // Default the week-start field to the most recent Monday
   setDefaultDate() {
     const mon = new Date();
     mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
