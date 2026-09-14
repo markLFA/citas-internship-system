@@ -2078,64 +2078,168 @@ const Reports = {
 
   // ── Reports table card ─────────────────────────────────────
   tableCard() {
-    const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
-    const tl = { pending:'⏳ Pending', approved:'✅ Accepted', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
+    const sl = {
+      pending: 'rs-pending',
+      approved: 'rs-approved',
+      revision: 'rs-revision',
+      reviewed: 'rs-reviewed'
+    };
+
+    const tl = {
+      pending: '⏳ Pending',
+      approved: '✅ Accepted',
+      revision: '🔁 Revision',
+      reviewed: '👁 Reviewed'
+    };
 
     if (!this.data.length) {
       return UI.card({
         title: '📋 Submitted Reports',
-        body:  UI.empty('📭', 'No reports yet', 'Submit your first weekly report above.'),
+        body: UI.empty(
+          '📭',
+          'No reports yet',
+          'Submit your first weekly report above.'
+        ),
       });
     }
 
     const tbl = UI.table([
-      { key:'week_label', label:'Week',
-        render: v => `<strong>${v}</strong>` },
-      { key:'files',      label:'Files',
+      {
+        key: 'week_label',
+        label: 'Week',
+        render: v => `<strong>${v}</strong>`
+      },
+
+      {
+        key: 'files',
+        label: 'Files',
         render: files => {
           if (!files?.length) return '—';
+
           const wrap = document.createElement('div');
-          wrap.style.cssText = 'display:flex;flex-direction:column;gap:.2rem';
+          wrap.style.cssText =
+            'display:flex;flex-direction:column;gap:.2rem';
+
           files.forEach(f => {
             const a = document.createElement('a');
-            a.href   = 'https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/' + f.file_path;
+
+            a.href =
+              'https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/' +
+              f.file_path;
+
             a.target = '_blank';
-            a.style.cssText = 'color:#EA580C;font-size:.78rem;text-decoration:none;display:flex;align-items:center;gap:.25rem';
+
+            a.style.cssText =
+              'color:#EA580C;font-size:.78rem;text-decoration:none;display:flex;align-items:center;gap:.25rem';
+
             a.innerHTML = '📄 ' + f.file_name;
+
             wrap.appendChild(a);
           });
+
           return wrap;
-        }},
-      { key:'status', label:'Status', align:'center',
+        }
+      },
+
+      {
+        key: 'status',
+        label: 'Status',
+        align: 'center',
         render: v => {
           const b = document.createElement('span');
-          b.className   = 'cui-badge ' + (sl[v] ?? 'rs-pending');
+
+          b.className =
+            'cui-badge ' + (sl[v] ?? 'rs-pending');
+
           b.textContent = tl[v] ?? v;
+
           return b;
-        }},
-      { key:'uploaded_at', label:'Submitted',
-        render: v => `<span style="font-size:.78rem;color:#9A6647">${new Date(v).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>` },
+        }
+      },
+
+      {
+        key: 'uploaded_at',
+        label: 'Submitted',
+        render: v =>
+          `<span style="font-size:.78rem;color:#9A6647">
+            ${new Date(v).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </span>`
+      },
+
+      {
+        key: 'id',
+        label: 'Actions',
+        align: 'center',
+        render: (id, row) => {
+          const wrap = document.createElement('div');
+
+          wrap.style.cssText =
+            'display:flex;align-items:center;justify-content:center;gap:.4rem';
+
+          const editBtn = UI.button('Edit', {
+            size: 'sm',
+            color: {
+              base: '#EA580C',
+              hover: '#C2410C',
+              text: '#fff'
+            },
+            onClick: () => {
+              this.openEditModal(row);
+            }
+          });
+
+          const deleteBtn = UI.button('Delete', {
+            size: 'sm',
+            color: {
+              base: '#DC2626',
+              hover: '#B91C1C',
+              text: '#fff'
+            },
+            onClick: () => {
+              this.deleteReport(row);
+            }
+          });
+
+          wrap.appendChild(editBtn);
+          wrap.appendChild(deleteBtn);
+
+          return wrap;
+        }
+      }
     ], this.data, { hoverable: true });
 
     // Inject feedback rows under reports that have feedback
-    const tbody  = tbl.querySelector('tbody');
-    let   offset = 0;
+    const tbody = tbl.querySelector('tbody');
+
+    let offset = 0;
+
     this.data.forEach((r, i) => {
       if (!r.feedback) return;
+
       const fr = tbody.insertRow(i + 1 + offset++);
-      fr.innerHTML = `<td colspan="4" style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">
-        💬 <strong>Feedback:</strong> ${r.feedback}
-      </td>`;
+
+      fr.innerHTML = `
+        <td colspan="5"
+            style="background:#FFFBEB;font-size:.8rem;color:#92400E;padding:.5rem 1rem">
+          💬 <strong>Feedback:</strong> ${r.feedback}
+        </td>
+      `;
     });
 
     return UI.card({
-      title:         '📋 Submitted Reports',
-      padding:       false,
-      headerActions: UI.badge(this.data.length + ' submitted', 'warning'),
-      body:          tbl,
+      title: '📋 Submitted Reports',
+      padding: false,
+      headerActions: UI.badge(
+        this.data.length + ' submitted',
+        'warning'
+      ),
+      body: tbl,
     });
   },
-
   // Default the week-start field to the most recent Monday
   setDefaultDate() {
     const mon = new Date();
