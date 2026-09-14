@@ -2920,7 +2920,7 @@ const Reports = {
 
       const viewButton = Helpers.orangeBtn('View', () => viewDocument(f.file_path));
       viewButton.style.alignSelf = 'flex-start';
-
+      filesWrap.appendChild(fileLink);
       filesWrap.appendChild(viewButton);
     });
   } else {
