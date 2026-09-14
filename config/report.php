@@ -218,12 +218,25 @@ function updateReport(
  * @param int $reportId ID of the report to delete
  * @return array Response array containing status and message
  */
-function deleteReport( int $userId, int $reportId): array
+function deleteReport(int $userId = 0, int $reportId = 0): array
 {
-    $pdo = getDB();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    if ($userId <= 0) {
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+    }
+
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Unauthorized user.'];
+    }
+
     if ($reportId <= 0) {
         return ['success' => false, 'error' => 'Invalid report ID.'];
     }
+
+    $pdo = getDB();
 
     try {
         // Verify ownership and status
@@ -239,14 +252,13 @@ function deleteReport( int $userId, int $reportId): array
             return ['success' => false, 'error' => 'Report not found, access denied, or report cannot be deleted.'];
         }
 
-        // Fetch file paths prior to DB removal
+        // Fetch file paths before deletion
         $filesStmt = $pdo->prepare("SELECT file_path FROM weekly_report_files WHERE report_id = ?");
         $filesStmt->execute([$reportId]);
         $files = $filesStmt->fetchAll(PDO::FETCH_ASSOC);
 
         $pdo->beginTransaction();
 
-        // Remove associated database records
         $delFilesStmt = $pdo->prepare("DELETE FROM weekly_report_files WHERE report_id = ?");
         $delFilesStmt->execute([$reportId]);
 
@@ -255,12 +267,10 @@ function deleteReport( int $userId, int $reportId): array
 
         $pdo->commit();
 
-        // Delete underlying Supabase files after successful DB transaction
+        // Delete from Supabase after DB commit
         foreach ($files as $f) {
             if (!empty($f['file_path'])) {
-                if (!deleteFromSupabase($f['file_path'])) {
-                    error_log('Failed to clean up Supabase file during report deletion: ' . $f['file_path']);
-                }
+                deleteFromSupabase($f['file_path']);
             }
         }
 

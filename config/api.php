@@ -10,6 +10,9 @@ header('Content-Type: application/json');
 require 'functions.php';
 require 'report.php';
 
+// Retrieve session user ID
+$userId = (int) ($_SESSION['user']['id'] ?? 0);
+
 // Check if this is a multipart/form-data request (File Uploads)
 if (isset($_POST['action'])) {
     $action = $_POST['action'];
@@ -184,16 +187,14 @@ switch ($action) {
         break;
     // ── Document Checklist actions ────────────────────────────
     case 'getInternDocuments':
-        $internId = $_SESSION['user']['id'] ?? null;
-        if ($internId) {
-            echo json_encode(getInternDocuments($internId));
+        if ($userId) {
+            echo json_encode(getInternDocuments($userId));
         } else {
             echo json_encode(['error' => 'Unauthenticated session status.']);
         }
         break;
     case 'uploadInternDocument':
-        $internId = $_SESSION['user']['id'] ?? null;
-        if (!$internId) {
+        if (!$userId) {
             echo json_encode(['success' => false, 'message' => 'Session expired. Please re-authenticate.']);
             break;
         }
@@ -206,7 +207,7 @@ switch ($action) {
         if (empty($type) || !$file) {
             echo json_encode(['success' => false, 'message' => 'Required multi-part form files or tracking metadata elements missing.']);
         } else {
-            echo json_encode(uploadInternDocument($internId, $type, $file, $notes, $coordinatorId));
+            echo json_encode(uploadInternDocument($userId, $type, $file, $notes, $coordinatorId));
         }
         break;
     case 'getCoordinatorDocuments':
@@ -220,21 +221,20 @@ switch ($action) {
         if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
             echo json_encode(['error' => 'Unauthorized access']); break;
         }
-        $coordinatorId = $_SESSION['user']['id'] ?? null;
-        $docId         = (int)($data['docId'] ?? 0);
-        $status        = $data['status'] ?? '';
-        $feedback      = $data['feedback'] ?? '';
+        $docId    = (int)($data['docId'] ?? 0);
+        $status   = $data['status'] ?? '';
+        $feedback = $data['feedback'] ?? '';
 
-        if (!$docId || empty($status) || !$coordinatorId) {
+        if (!$docId || empty($status) || !$userId) {
             echo json_encode(['success' => false, 'message' => 'Missing tracking parameters.']);
         } else {
-            echo json_encode(reviewInternDocument($docId, $status, $feedback, $coordinatorId));
+            echo json_encode(reviewInternDocument($docId, $status, $feedback, $userId));
         }
         break;
     case 'setReportStatus':
         $reportId = (int)   ($data['reportId'] ?? 0);
         $status   =          $data['status']   ?? '';
-        $feedback =          $data['feedback'] ?? '';   // ← add this line
+        $feedback =          $data['feedback'] ?? '';
 
         if (!$reportId || !$status) {
             echo json_encode([
@@ -244,14 +244,12 @@ switch ($action) {
             break;
         }
 
-        setReportStatus($reportId, $status, $feedback);   // ← pass feedback
+        setReportStatus($reportId, $status, $feedback);
         break;
 
     case 'getSchoolYears':
-        // Returns all available school years + the current one
         $years   = getSchoolYears();
         $current = getCurrentSchoolYear();
-        // Make sure current year is always in the list
         if (!in_array($current, $years, true)) {
             array_unshift($years, $current);
         }
@@ -263,8 +261,7 @@ switch ($action) {
         break;
 
     case 'getInternsBySchoolYear':
-        if (empty($_SESSION['user']['id']) ||
-            !in_array($_SESSION['user']['role'], ['coordinator','admin'], true)) {
+        if (!$userId || !in_array($_SESSION['user']['role'] ?? '', ['coordinator','admin'], true)) {
             echo json_encode(['success' => false, 'error' => 'Unauthorized.']);
             break;
         }
@@ -276,7 +273,14 @@ switch ($action) {
             'school_year' => $schoolYear ?: getCurrentSchoolYear(),
         ]);
         break;
+
+    // ── Report Update & Delete actions ───────────────────────
     case 'updateReport':
+        if (!$userId) {
+            echo json_encode(['success' => false, 'error' => 'Not logged in.']);
+            break;
+        }
+
         $reportId      = (int) ($data['report_id'] ?? 0);
         $weekLabel     = $data['week_label'] ?? '';
         $weekStart     = $data['week_start'] ?? '';
@@ -284,7 +288,6 @@ switch ($action) {
         $filesToDelete = $data['delete_file_ids'] ?? [];
         $newFiles      = $_FILES['files'] ?? [];
 
-        // Handle string array conversion if delete_file_ids was sent as a JSON string
         if (is_string($filesToDelete)) {
             $decoded = json_decode($filesToDelete, true);
             if (is_array($decoded)) {
@@ -304,13 +307,20 @@ switch ($action) {
 
         echo json_encode($result);
         break;
+
     case 'deleteReport':
+        if (!$userId) {
+            echo json_encode(['success' => false, 'error' => 'Not logged in.']);
+            break;
+        }
+
         $reportId = (int) ($data['report_id'] ?? 0);
 
         $result = deleteReport($userId, $reportId);
 
         echo json_encode($result);
-            break;
+        break;
+
     default:
         echo json_encode([
             "error" => "Invalid action"
