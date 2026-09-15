@@ -1369,8 +1369,8 @@ This will lock it from further edits by the intern.`)) return;
       title: '👤 Intern Details', body, size: 'lg',
       footer: [
         UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
-        verifyBtn,
-        Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
+        verifyBtn
+        //Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
       ],
     });
     m.open();
