@@ -2246,84 +2246,80 @@ const Reports = {
 
   // ── Open Edit Modal ────────────────────────────────────────
   openEditModal(row) {
-    const body = document.createElement('div');
-    body.style.cssText = 'display:flex;flex-direction:column;gap:.8rem';
+      const body = document.createElement('div');
+      body.style.cssText = 'display:flex;flex-direction:column;gap:.8rem';
 
-    // Track original files user chooses to remove
-    const deleteFileIds = [];
+      // Track original files user chooses to remove
+      const deleteFileIds = [];
 
-    // Form inputs
-    const weekInput = UI.input({ value: row.week_label || '' });
-    const dateInput = UI.input({ type: 'date', value: row.week_start || '' });
-    const descInput = UI.textarea({ value: row.description || '', rows: 3 });
+      // Form inputs
+      const weekInput = UI.input({ value: row.week_label || '' });
+      const dateInput = UI.input({ type: 'date', value: row.week_start || '' });
+      const descInput = UI.textarea({ value: row.description || '', rows: 3 });
 
-    body.appendChild(UI.formGroup('Week Label', weekInput));
-    body.appendChild(UI.formGroup('Week Start Date', dateInput));
-    body.appendChild(UI.formGroup('Description', descInput));
+      body.appendChild(UI.formGroup('Week Label', weekInput));
+      body.appendChild(UI.formGroup('Week Start Date', dateInput));
+      body.appendChild(UI.formGroup('Description', descInput));
 
-    // Existing Attached Files Section
-    if (row.files && row.files.length) {
-      const existingWrap = document.createElement('div');
-      const label = document.createElement('div');
-      label.className = 'cui-label';
-      label.textContent = 'Existing Files (click icon to remove)';
-      existingWrap.appendChild(label);
+      // Existing Attached Files Section
+      if (row.files && row.files.length) {
+        const existingWrap = document.createElement('div');
+        const label = document.createElement('div');
+        label.className = 'cui-label';
+        label.textContent = 'Existing Files (click icon to remove)';
+        existingWrap.appendChild(label);
 
-      const listContainer = document.createElement('div');
-      listContainer.style.cssText = 'display:flex;flex-direction:column;gap:.3rem;margin-top:.3rem';
+        const listContainer = document.createElement('div');
+        listContainer.style.cssText = 'display:flex;flex-direction:column;gap:.3rem;margin-top:.3rem';
 
-      row.files.forEach(f => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:.8rem;background:#F3F4F6;padding:.4rem .6rem;border-radius:6px;border:1px solid #E5E7EB';
+        row.files.forEach(f => {
+          const item = document.createElement('div');
+          item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;font-size:.8rem;background:#F3F4F6;padding:.4rem .6rem;border-radius:6px;border:1px solid #E5E7EB';
 
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = '📄 ' + f.file_name;
-        nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = '📄 ' + f.file_name;
+          nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
 
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.textContent = '❌';
-        removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:.8rem;margin-left:.5rem';
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '❌';
+          removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:.8rem;margin-left:.5rem';
 
-        removeBtn.onclick = () => {
-          deleteFileIds.push(f.id);
-          item.remove();
-        };
+          removeBtn.onclick = () => {
+            deleteFileIds.push(f.id);
+            item.remove();
+          };
 
-        item.appendChild(nameSpan);
-        item.appendChild(removeBtn);
-        listContainer.appendChild(item);
-      });
+          item.appendChild(nameSpan);
+          item.appendChild(removeBtn);
+          listContainer.appendChild(item);
+        });
 
-      existingWrap.appendChild(listContainer);
-      body.appendChild(existingWrap);
-    }
+        existingWrap.appendChild(listContainer);
+        body.appendChild(existingWrap);
+      }
 
-    // New Files Upload Input
-    const newFilesLabel = document.createElement('div');
-    newFilesLabel.className = 'cui-label';
-    newFilesLabel.textContent = 'Add New Files (optional)';
-    body.appendChild(newFilesLabel);
+      // New Files Upload Input
+      const newFilesLabel = document.createElement('div');
+      newFilesLabel.className = 'cui-label';
+      newFilesLabel.textContent = 'Add New Files (optional)';
+      body.appendChild(newFilesLabel);
 
-    const newFileInput = document.createElement('input');
-    newFileInput.type = 'file';
-    newFileInput.multiple = true;
-    newFileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
-    body.appendChild(newFileInput);
+      const newFileInput = document.createElement('input');
+      newFileInput.type = 'file';
+      newFileInput.multiple = true;
+      newFileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+      body.appendChild(newFileInput);
 
-    // Render Modal with UI helper
-    const modal = UI.modal({
-      title: '✏️ Edit Report',
-      body,
-      confirmText: 'Save Changes',
-      onConfirm: async () => {
+      // Save action execution helper
+      const handleSave = async () => {
         const weekLabel = weekInput.value.trim();
         const weekStart = dateInput.value;
         const description = descInput.value.trim();
 
         if (!weekLabel || !weekStart) {
           UI.toast('Week label and start date are required.', 'danger');
-          return false;
+          return;
         }
 
         const form = new FormData();
@@ -2346,20 +2342,45 @@ const Reports = {
           if (json.success) {
             UI.toast('✅ Report updated successfully.', 'success');
             this.loadReports();
-            return true;
+            modal.close();
           } else {
             UI.toast('❌ ' + (json.error || 'Update failed.'), 'danger');
-            return false;
           }
         } catch (_) {
           UI.toast('❌ Network error during update.', 'danger');
-          return false;
         }
-      }
-    });
-    modal.open();
-  },
+      };
 
+      // Explicit Action Footer
+      const footer = document.createElement('div');
+      footer.style.cssText = 'display:flex;justify-content:flex-end;gap:.5rem;margin-top:1.2rem;padding-top:.8rem;border-top:1px solid #E5E7EB';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.className = 'cui-btn cui-btn-secondary';
+      cancelBtn.onclick = () => modal.close();
+
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.textContent = 'Save Changes';
+      saveBtn.className = 'cui-btn cui-btn-primary';
+      saveBtn.onclick = handleSave;
+
+      footer.appendChild(cancelBtn);
+      footer.appendChild(saveBtn);
+      body.appendChild(footer);
+
+      // Render Modal
+      const modal = UI.modal({
+        title: '✏️ Edit Report',
+        body,
+        confirmText: 'Save Changes',
+        onConfirm: handleSave
+      });
+
+      modal.open();
+    },
   // ── Delete Report Confirmation & Execution ───────────────
   async deleteReport(row) {
     if (!confirm(`Are you sure you want to delete "${row.week_label}"? This action cannot be undone.`)) {
