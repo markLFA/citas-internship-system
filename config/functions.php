@@ -753,8 +753,8 @@ function getInternReports(): array
         $placeholders = implode(',', array_fill(0, count($reportIds), '?'));
 
         $stmt = $pdo->prepare("
-            SELECT report_id, file_name, file_path, file_size, mime_type
-            FROM   weekly_report_files
+            SELECT id, report_id, file_name, file_path, file_size, mime_type
+            FROM weekly_report_files
             WHERE  report_id IN ($placeholders)
             ORDER BY id ASC
         ");
