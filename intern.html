@@ -406,32 +406,264 @@ const Dashboard = {
 
 
   announcementsCard() {
-      const body = document.createElement('div');
-
-      // Scrollable container — caps height at ~3 cards, scrolls beyond that
-      body.style.cssText = 'max-height:340px;overflow-y:auto;padding-right:.25rem';
-
-      // Custom scrollbar to match the orange theme
-      body.setAttribute('style',
-        'max-height:340px;overflow-y:auto;padding-right:.25rem;' +
-        'scrollbar-width:thin;scrollbar-color:#FED7AA transparent'
-      );
-
-      if (!ANNOUNCEMENTS.length) {
-        body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
-      } else {
-        [...ANNOUNCEMENTS]
-          .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
-          .forEach(a => body.appendChild(Helpers.annItem(a)));
-      }
-
-      const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
-      return UI.card({
-        title: '📢 Announcements',
-        headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
-        body,
+    const body = document.createElement('div');
+    body.setAttribute('style',
+      'max-height:420px;overflow-y:auto;padding-right:.25rem;' +
+      'scrollbar-width:thin;scrollbar-color:#FED7AA transparent'
+    );
+ 
+    if (!ANNOUNCEMENTS.length) {
+      body.appendChild(UI.empty('📭', 'No announcements', 'Check back later.'));
+    } else {
+      [...ANNOUNCEMENTS]
+        .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
+        .forEach(ann => body.appendChild(Helpers.annPostCard(ann)));
+    }
+ 
+    const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
+    return UI.card({
+      title: '📢 Announcements',
+      headerActions: pinned ? UI.badge(pinned + ' pinned', 'warning') : null,
+      body,
+    });
+  },
+ 
+ 
+// ============================================================
+//  CHANGE 2: Inside Helpers = { }
+//  Add this method anywhere inside Helpers (e.g. after annItem).
+//  Do NOT remove annItem — it may still be used elsewhere.
+// ============================================================
+ 
+  annPostCard(ann) {
+    const pinned  = parseInt(ann.is_pinned) || ann.pinned || 0;
+    const date    = ann.date
+      || (ann.created_at
+          ? new Date(ann.created_at).toLocaleDateString('en-US',
+              { month:'short', day:'numeric', year:'numeric' })
+          : '');
+    const author  = ann.author || 'Coordinator';
+    const myName  = InternData?.user?.name ?? 'Me';
+ 
+    if (!ann._comments) ann._comments = [];
+    ann._comments.forEach(c => { if (!c._replies) c._replies = []; });
+ 
+    // ── Tiny helpers ─────────────────────────────────────
+    const mkAv = (name, bg = 'linear-gradient(135deg,#6366F1,#4F46E5)') => {
+      const a = UI.avatar(name, 'sm');
+      a.style.cssText = `width:28px;height:28px;min-width:28px;font-size:.65rem;background:${bg};flex-shrink:0`;
+      return a;
+    };
+ 
+    const mkInp = (ph) => {
+      const i = document.createElement('input');
+      i.type = 'text'; i.placeholder = ph;
+      i.style.cssText = [
+        'flex:1', 'padding:.38rem .8rem',
+        'border:1.5px solid #FED7AA', 'border-radius:20px',
+        'font-size:.8rem', 'font-family:inherit',
+        'background:#FFF7ED', 'color:#1A0A00', 'outline:none',
+      ].join(';');
+      i.addEventListener('focus', () => i.style.borderColor = '#EA580C');
+      i.addEventListener('blur',  () => i.style.borderColor = '#FED7AA');
+      return i;
+    };
+ 
+    const nowStr = () => new Date().toLocaleDateString('en-US',
+      { month:'short', day:'numeric' });
+ 
+    const postToApi = async (text, parentId = null) => {
+      try {
+        const r = await fetch('config/api.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:          'postAnnouncementComment',
+            announcement_id: ann.id,
+            parent_id:       parentId,
+            comment:         text,
+          }),
+        });
+        return await r.json();
+      } catch (_) { return { success: false }; }
+    };
+ 
+    const totalCount = () =>
+      ann._comments.reduce((s, c) => s + 1 + (c._replies?.length ?? 0), 0);
+ 
+    // ── Card wrapper ──────────────────────────────────────
+    const wrap = document.createElement('div');
+    wrap.style.cssText = [
+      'background:#fff',
+      'border:1px solid ' + (pinned ? '#FDE68A' : '#FED7AA'),
+      'border-radius:14px',
+      'margin-bottom:.85rem',
+      'overflow:hidden',
+      'box-shadow:0 1px 4px rgba(234,88,12,.07)',
+    ].join(';');
+ 
+    // ── Post header ───────────────────────────────────────
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:.65rem;padding:.85rem 1rem .5rem';
+    const headAv = UI.avatar(author, 'sm');
+    headAv.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
+    headAv.style.flexShrink = '0';
+    const meta = document.createElement('div');
+    meta.style.flex = '1';
+    meta.innerHTML  = `
+      <div style="font-weight:700;font-size:.85rem;color:#1A0A00">${author}</div>
+      <div style="font-size:.72rem;color:#9A6647">${date}</div>`;
+    head.append(headAv, meta);
+    if (pinned) {
+      const pin = document.createElement('span');
+      pin.style.cssText = 'font-size:.72rem;font-weight:700;color:#92400E;background:#FEF3C7;padding:.2rem .55rem;border-radius:20px';
+      pin.textContent   = '📌 Pinned';
+      head.appendChild(pin);
+    }
+    wrap.appendChild(head);
+ 
+    // ── Post body ─────────────────────────────────────────
+    const pb = document.createElement('div');
+    pb.style.cssText = 'padding:.3rem 1rem .75rem';
+    const tEl = document.createElement('div');
+    tEl.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.9rem;margin-bottom:.3rem';
+    tEl.textContent   = ann.title;
+    const bEl = document.createElement('div');
+    bEl.style.cssText = 'font-size:.83rem;color:#4B2E0A;line-height:1.55';
+    bEl.textContent   = ann.body;
+    pb.append(tEl, bEl);
+    wrap.appendChild(pb);
+ 
+    // ── Reaction bar ──────────────────────────────────────
+    const rBar = document.createElement('div');
+    rBar.style.cssText = 'display:flex;align-items:center;padding:.35rem 1rem;border-top:1px solid #FFF0E0;border-bottom:1px solid #FFF0E0';
+    const countEl = document.createElement('span');
+    countEl.style.cssText = 'font-size:.75rem;color:#9A6647;margin-left:auto';
+    const refreshCount = () => {
+      const n = totalCount();
+      countEl.textContent = n ? n + ' comment' + (n !== 1 ? 's' : '') : '';
+    };
+    refreshCount();
+    rBar.appendChild(countEl);
+    wrap.appendChild(rBar);
+ 
+    // ── Comments list ─────────────────────────────────────
+    const cList = document.createElement('div');
+    cList.style.cssText = 'padding:.5rem 1rem 0;max-height:260px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
+ 
+    const renderReply = (reply) => {
+      const rRow = document.createElement('div');
+      rRow.style.cssText = 'display:flex;gap:.45rem;margin-top:.45rem;align-items:flex-start;padding-left:36px';
+      const rBub = document.createElement('div');
+      rBub.style.cssText = 'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:0 10px 10px 10px;padding:.4rem .7rem;flex:1';
+      rBub.innerHTML = `
+        <div style="font-weight:700;font-size:.73rem;color:#1A0A00">${reply.author ?? reply.user_name ?? ''}</div>
+        <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${reply.text ?? reply.comment ?? ''}</div>
+        <div style="font-size:.66rem;color:#9A6647;margin-top:.2rem">${reply.date ?? ''}</div>`;
+      rRow.append(mkAv(reply.author ?? '?', 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
+      return rRow;
+    };
+ 
+    const renderAll = () => {
+      cList.innerHTML = '';
+      ann._comments.forEach(cm => {
+        if (!cm._replies) cm._replies = [];
+        const cmWrap = document.createElement('div');
+        cmWrap.style.marginBottom = '.75rem';
+ 
+        // Comment row
+        const cmRow = document.createElement('div');
+        cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
+        const cmBub = document.createElement('div');
+        cmBub.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:0 10px 10px 10px;padding:.45rem .75rem;flex:1';
+ 
+        const cmHead = document.createElement('div');
+        cmHead.style.cssText = 'display:flex;align-items:baseline;gap:.4rem';
+        cmHead.innerHTML = `
+          <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cm.author ?? cm.user_name ?? ''}</span>
+          <span style="font-size:.66rem;color:#C4845A">${cm.date ?? ''}</span>`;
+ 
+        const cmText = document.createElement('div');
+        cmText.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
+        cmText.textContent   = cm.text ?? cm.comment ?? '';
+ 
+        // Reply button
+        const replyBtn = document.createElement('button');
+        replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
+        replyBtn.textContent   = '↩ Reply';
+ 
+        cmBub.append(cmHead, cmText, replyBtn);
+        cmRow.append(mkAv(cm.author ?? '?'), cmBub);
+        cmWrap.appendChild(cmRow);
+ 
+        // Existing replies
+        const replWrap = document.createElement('div');
+        cm._replies.forEach(r => replWrap.appendChild(renderReply(r)));
+        cmWrap.appendChild(replWrap);
+ 
+        // Inline reply input (hidden)
+        const replyRow = document.createElement('div');
+        replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
+        const replyInp = mkInp(`Reply to ${cm.author ?? 'intern'}…`);
+        const replySend = UI.button('Reply', {
+          size: 'sm',
+          color: { base:'#6366F1', hover:'#4F46E5', text:'#fff' },
+          onClick: async () => {
+            const text = replyInp.value.trim();
+            if (!text) return;
+            await postToApi(text, cm.id);
+            cm._replies.push({ author: myName, text, date: nowStr() });
+            replyInp.value = '';
+            replyRow.style.display = 'none';
+            renderAll(); refreshCount();
+            cList.scrollTop = cList.scrollHeight;
+          },
+        });
+        replyInp.addEventListener('keydown', e => {
+          if (e.key === 'Enter')  replySend.click();
+          if (e.key === 'Escape') replyRow.style.display = 'none';
+        });
+        replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySend);
+        cmWrap.appendChild(replyRow);
+ 
+        replyBtn.addEventListener('click', () => {
+          const open = replyRow.style.display !== 'none';
+          replyRow.style.display = open ? 'none' : 'flex';
+          if (!open) setTimeout(() => replyInp.focus(), 50);
+        });
+ 
+        cList.appendChild(cmWrap);
       });
-    },
+    };
+ 
+    renderAll();
+    wrap.appendChild(cList);
+ 
+    // ── Main comment input ────────────────────────────────
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex;gap:.5rem;padding:.65rem 1rem .85rem;align-items:center;border-top:1px solid #FFF0E0;margin-top:.5rem';
+    const mainInp = mkInp('Write a comment…');
+    const mainSend = UI.button('Send', {
+      size: 'sm',
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick: async () => {
+        const text = mainInp.value.trim();
+        if (!text) return;
+        const res = await postToApi(text, null);
+        ann._comments.push({
+          id: res.comment_id ?? Date.now(),
+          author: myName, text, date: nowStr(), _replies: [],
+        });
+        mainInp.value = '';
+        renderAll(); refreshCount();
+        cList.scrollTop = cList.scrollHeight;
+      },
+    });
+    mainInp.addEventListener('keydown', e => { if (e.key === 'Enter') mainSend.click(); });
+    inputRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), mainInp, mainSend);
+    wrap.appendChild(inputRow);
+ 
+    return wrap;
+  },
   progressInsightsCard() {
       // Reference the primary internship object directly from InternData
       const internship = InternData.internships[0];

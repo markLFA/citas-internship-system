@@ -135,7 +135,34 @@ switch ($action) {
     case 'deleteAnnouncement':
         echo json_encode(deleteAnnouncement($data['id']));
         break;
-    // ── Admin actions ──────────────────────────────────────────
+    // ── Announcement comments ──────────────────────────────────
+    case 'getAnnouncementComments':
+        $annId = (int)($data['announcement_id'] ?? 0);
+        echo json_encode($annId
+            ? getAnnouncementComments($annId)
+            : ['error' => 'Missing announcement_id']);
+        break;
+ 
+    case 'postAnnouncementComment':
+        $annId    = (int)      ($data['announcement_id'] ?? 0);
+        $comment  =             $data['comment']          ?? '';
+        $parentId = isset($data['parent_id']) && $data['parent_id'] !== null
+                  ? (int) $data['parent_id']
+                  : null;
+        echo json_encode($annId
+            ? postAnnouncementComment($annId, $comment, $parentId)
+            : ['success' => false, 'error' => 'Missing announcement_id']);
+        break;
+ 
+    case 'deleteAnnouncementComment':
+        $commentId = (int)($data['comment_id'] ?? 0);
+        echo json_encode($commentId
+            ? deleteAnnouncementComment($commentId)
+            : ['success' => false, 'error' => 'Missing comment_id']);
+        break;
+ 
+    
+        // ── Admin actions ──────────────────────────────────────────
     case 'getSystemStats':
         if (($_SESSION['user']['role'] ?? '') !== 'admin') {
             echo json_encode(['error' => 'Unauthorized']); break;

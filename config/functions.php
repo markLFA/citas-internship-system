@@ -1213,6 +1213,154 @@ function deleteAnnouncement($id) {
         'message' => $success ? 'Deleted successfully!' : 'Delete failed or unauthorized.'
     ];
 }
+// ════════════════════════════════════════════════════════════
+//  ANNOUNCEMENT COMMENTS
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Get all comments for a given announcement.
+ * Returns [{ id, user_id, user_name, comment, created_at }]
+ */
+function getAnnouncementComments(int $announcementId): array
+{
+    $pdo = getDB();
+    try {
+        // Fetch all comments (top-level + replies) in one query
+        $stmt = $pdo->prepare("
+            SELECT
+                ac.id,
+                ac.parent_id,
+                ac.user_id,
+                u.name       AS user_name,
+                u.role       AS user_role,
+                ac.comment,
+                ac.created_at
+            FROM announcement_comments ac
+            JOIN users u ON u.id = ac.user_id
+            WHERE ac.announcement_id = ?
+            ORDER BY ac.created_at ASC
+        ");
+        $stmt->execute([$announcementId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+ 
+        // Nest replies under their parent comments
+        $topLevel = [];
+        $byId     = [];
+ 
+        foreach ($rows as &$row) {
+            $row['_replies'] = [];
+            $byId[$row['id']] = &$row;
+        }
+        unset($row);
+ 
+        foreach ($rows as &$row) {
+            if ($row['parent_id'] === null) {
+                $topLevel[] = &$row;
+            } else {
+                if (isset($byId[$row['parent_id']])) {
+                    $byId[$row['parent_id']]['_replies'][] = &$row;
+                }
+            }
+        }
+        unset($row);
+ 
+        return array_values($topLevel);
+    } catch (PDOException $e) {
+        error_log('getAnnouncementComments(): ' . $e->getMessage());
+        return [];
+    }
+}
+ 
+/**
+ * Post a comment on an announcement.
+ * Any logged-in user (intern or coordinator) can comment.
+ */
+function postAnnouncementComment(int $announcementId, string $comment, ?int $parentId = null): array
+{
+    if (empty($_SESSION['user']['id'])) {
+        return ['success' => false, 'error' => 'Not logged in.'];
+    }
+ 
+    $comment = trim($comment);
+    if (empty($comment)) {
+        return ['success' => false, 'error' => 'Comment cannot be empty.'];
+    }
+ 
+    $pdo = getDB();
+    try {
+        // Verify announcement exists
+        $check = $pdo->prepare("SELECT id FROM announcements WHERE id = ? LIMIT 1");
+        $check->execute([$announcementId]);
+        if (!$check->fetch()) {
+            return ['success' => false, 'error' => 'Announcement not found.'];
+        }
+ 
+        // If replying, verify parent exists and belongs to same announcement
+        if ($parentId !== null) {
+            $pCheck = $pdo->prepare("
+                SELECT id FROM announcement_comments
+                WHERE id = ? AND announcement_id = ? AND parent_id IS NULL
+                LIMIT 1
+            ");
+            $pCheck->execute([$parentId, $announcementId]);
+            if (!$pCheck->fetch()) {
+                return ['success' => false, 'error' => 'Parent comment not found.'];
+            }
+        }
+ 
+        $stmt = $pdo->prepare("
+            INSERT INTO announcement_comments (announcement_id, parent_id, user_id, comment)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([$announcementId, $parentId, $_SESSION['user']['id'], $comment]);
+ 
+        return [
+            'success'    => true,
+            'comment_id' => (int) $pdo->lastInsertId(),
+            'parent_id'  => $parentId,
+            'user_name'  => $_SESSION['user']['name'],
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+    } catch (PDOException $e) {
+        error_log('postAnnouncementComment(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}
+ 
+/**
+ * Delete a comment.
+ * Users can only delete their own comments; coordinators can delete any.
+ */
+function deleteAnnouncementComment(int $commentId): array
+{
+    if (empty($_SESSION['user']['id'])) {
+        return ['success' => false, 'error' => 'Not logged in.'];
+    }
+ 
+    $pdo    = getDB();
+    $userId = (int) $_SESSION['user']['id'];
+    $role   = $_SESSION['user']['role'] ?? '';
+ 
+    try {
+        // Coordinators and admins can delete any comment
+        if (in_array($role, ['coordinator', 'admin'], true)) {
+            $stmt = $pdo->prepare("DELETE FROM announcement_comments WHERE id = ?");
+            $stmt->execute([$commentId]);
+        } else {
+            // Interns can only delete their own
+            $stmt = $pdo->prepare("DELETE FROM announcement_comments WHERE id = ? AND user_id = ?");
+            $stmt->execute([$commentId, $userId]);
+        }
+ 
+        return $stmt->rowCount()
+            ? ['success' => true]
+            : ['success' => false, 'error' => 'Comment not found or not authorized.'];
+    } catch (PDOException $e) {
+        error_log('deleteAnnouncementComment(): ' . $e->getMessage());
+        return ['success' => false, 'error' => 'Database error.'];
+    }
+}
+ 
 /**
  * Calculates the weekly average of time logs for the current week 
  * and saves/updates the summary in the coordinator_weekly_hours_summary table.
