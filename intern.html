@@ -2353,32 +2353,36 @@ build() {
     grid.className = 'pg-grid-2';
     grid.style.cssText = `
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 1.25rem;
       align-items: start;
       width: 100%;
+      box-sizing: border-box;
     `;
-    
+
     grid.appendChild(this.submitCard());
 
-    // Right side wrapper with min-width: 0 to enable responsive table scrolling
+    // Right side: table wrap configured with horizontal overflow/scroll
     const tableWrap = document.createElement('div');
     tableWrap.id = 'reports-table-wrap';
-    tableWrap.style.cssText = 'min-width: 0; width: 100%; overflow-x: auto;';
-    
+    tableWrap.style.cssText = `
+      min-width: 0;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    `;
+
     tableWrap.appendChild(UI.card({
       title: '📋 Submitted Reports',
-      body: UI.spinner(),
+      body:  UI.spinner(),
     }));
-    
-    grid.appendChild(tableWrap);
 
+    grid.appendChild(tableWrap);
     sec.appendChild(grid);
 
     this.setDefaultDate();
     this.loadReports();
   },
-
   // ── Submit card ───────────────────────────────────────────
   submitCard() {
     const body = document.createElement('div');
