@@ -1298,9 +1298,10 @@ const Profile = {
   },
 
   // ── Layout ────────────────────────────────────────────────
+// ── Layout ────────────────────────────────────────────────
   leftColumn() {
     const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem;min-width:0;width:100%';
     col.appendChild(this.personalCard());
     col.appendChild(this.detailsCard());
     // Edit personal button — always editable
@@ -1314,7 +1315,7 @@ const Profile = {
 
   rightColumn() {
     const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem';
+    col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem;min-width:0;width:100%';
 
     // Reviewed badge shown above the company card when locked
     if (this.isReviewed) {
@@ -1339,6 +1340,29 @@ const Profile = {
     return col;
   },
 
+  hoursCard() {
+    const total    = parseFloat(this.internship.total_hours    ?? 0);
+    const required = parseInt(InternData.profile.required_hours ?? 500);
+    const pct      = required ? Math.min(100, Math.round((total / required) * 100)) : 0;
+    
+    // Round rendered and remaining values to 2 decimal places (or use Math.round / Math.ceil as needed)
+    const renderedDisplay = (Math.round(total * 100) / 100) + 'h';
+    const remainingVal = Math.max(0, required - total);
+    const remainingDisplay = (Math.round(remainingVal * 100) / 100) + 'h';
+
+    const body     = document.createElement('div');
+    body.appendChild(UI.statRow([
+      { value: renderedDisplay,  label: 'Rendered',  color: '#EA580C' },
+      { value: remainingDisplay, label: 'Remaining', color: '#6B3A1F' },
+      { value: pct + '%',        label: 'Complete',  color: '#10B981' },
+    ]));
+    const lbl = document.createElement('p');
+    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
+    lbl.textContent   = `Progress toward ${required}h requirement`;
+    body.appendChild(lbl);
+    body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
+    return UI.card({ title: '⏳ Hours Summary', body });
+  },
   // ── Cards ─────────────────────────────────────────────────
   personalCard() {
     return UI.profileCard({
@@ -1375,23 +1399,6 @@ const Profile = {
     });
   },
 
-  hoursCard() {
-    const total    = parseFloat(this.internship.total_hours    ?? 0);
-    const required = parseInt(InternData.profile.required_hours ?? 500);
-    const pct      = required ? Math.min(100, Math.round((total / required) * 100)) : 0;
-    const body     = document.createElement('div');
-    body.appendChild(UI.statRow([
-      { value: total + 'h',              label: 'Rendered',  color: '#EA580C' },
-      { value: Math.max(0, required - total) + 'h', label: 'Remaining', color: '#6B3A1F' },
-      { value: pct + '%',               label: 'Complete',  color: '#10B981' },
-    ]));
-    const lbl = document.createElement('p');
-    lbl.style.cssText = 'font-size:.78rem;color:#9A6647;margin:.7rem 0 .4rem';
-    lbl.textContent   = `Progress toward ${required}h requirement`;
-    body.appendChild(lbl);
-    body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
-    return UI.card({ title: '⏳ Hours Summary', body });
-  },
 
   // ── Profile incomplete reminder card ──────────────────────
   // Call this anywhere: sec.appendChild(Profile.incompleteCard())
