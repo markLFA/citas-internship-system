@@ -314,6 +314,7 @@ switch ($action) {
         $description   = $data['description'] ?? '';
         $filesToDelete = $data['delete_file_ids'] ?? [];
         $newFiles      = $_FILES['files'] ?? [];
+        echo "update report data: " . json_encode($data) . "\n";
 
         if (is_string($filesToDelete)) {
             $decoded = json_decode($filesToDelete, true);

@@ -2961,7 +2961,8 @@ openEditModal(row) {
 
   modal.open();
 },
-  // ── Delete Report Confirmation & Execution ───────────────
+ 
+// ── Delete Report Confirmation & Execution ───────────────
   async deleteReport(row) {
     if (!confirm(`Are you sure you want to delete "${row.week_label}"? This action cannot be undone.`)) {
       return;

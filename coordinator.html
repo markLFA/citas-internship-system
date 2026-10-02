@@ -2438,318 +2438,461 @@ openDetailModal(intern) {
 // ─────────────────────────────────────────────────────────────
 //  ANNOUNCEMENTS
 // ─────────────────────────────────────────────────────────────
+// ============================================================
+//  coordinator.html — replace the entire Announcements object
+//  with this one. Find:
+//    const Announcements = {
+//  and replace everything up to its closing  };
+// ============================================================
+
 const Announcements = {
 
-build() {
+  // ─────────────────────────────────────────────────────────
+  //  BUILD
+  // ─────────────────────────────────────────────────────────
+  build() {
     const sec = document.getElementById('sec-announcements');
-    if (!sec) return; // Safety check
+    sec.innerHTML = '';
 
     sec.appendChild(Helpers.pageHeader(
       'Announcements',
-      'Post updates and notices for all interns',
-      Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())
+      'Post updates and notices for your interns',
+      Helpers.orangeBtn('➕ New Announcement', () => Announcements.openCreateModal())
     ));
 
-    const listWrap = document.createElement('div');
-    listWrap.id = 'ann-list-wrap';
-    sec.appendChild(listWrap);
-
-    // CHANGE THIS: Call fetch instead of render
-    this.fetchAnnouncements(); 
-  },
-
-  renderList() {
-      const wrap = document.getElementById('ann-list-wrap');
-      if (!wrap) return;
-
-      // Remove the .then() and fetch call from here!
-      wrap.innerHTML = '';
-      
-      if (!ANNOUNCEMENTS.length) {
-        wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Post your first update.',
-          Helpers.orangeBtn('+ New Announcement', () => this.openCreateModal())));
-        return;
-      }
-
-      [...ANNOUNCEMENTS].sort((a,b) => b.pinned - a.pinned)
-        .forEach(ann => wrap.appendChild(this.annItem(ann)));
-    },
-
-async fetchAnnouncements() {
-      const wrap = document.getElementById('ann-list-wrap');
-      if (wrap) wrap.innerHTML = '<p style="padding:2rem; text-align:center; color:#6B3A1F;">Loading announcements...</p>';
-
-      try {
-          const response = await fetch('config/api.php', { // Ensure this path is correct!
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'getAnnouncements' })
-          });
-
-          const data = await response.json();
-          console.log("Data received:", data); // Check your browser console!
-
-          ANNOUNCEMENTS = data.map(ann => ({
-              id: ann.id,
-              title: ann.title,
-              body: ann.body,
-              pinned: parseInt(ann.is_pinned) === 1,
-              author: "Coordinator", 
-              date: new Date(ann.created_at).toLocaleDateString('en-US', { 
-                  month: 'short', day: 'numeric', year: 'numeric' 
-              })
-          }));
-
-          this.renderList(); 
-      } catch (error) {
-          console.error('Error fetching announcements:', error);
-          if (wrap) wrap.innerHTML = '';
-          UI.toast('Could not load announcements.', 'danger');
-      }
-  },
-  
-  
-  annItem(ann) {
     const wrap = document.createElement('div');
-    wrap.className = 'ann-item' + (ann.pinned ? ' pinned' : '');
+    wrap.id = 'ann-list-wrap';
+    sec.appendChild(wrap);
 
-    const body = document.createElement('div');
-    body.className = 'ann-item-body';
-    body.innerHTML = `
-      ${ann.pinned ? '<span style="font-size:.72rem;font-weight:700;color:#EA580C;display:block;margin-bottom:.2rem">📌 Pinned</span>' : ''}
-      <div class="ann-item-title">${ann.title}</div>
-      <div class="ann-item-text">${ann.body}</div>
-      <div class="ann-item-meta">By ${ann.author} · ${ann.date}</div>`;
+    this.renderList();
+  },
 
-    const actions = document.createElement('div');
-    actions.className = 'ann-item-actions';
+  // ─────────────────────────────────────────────────────────
+  //  RENDER LIST
+  // ─────────────────────────────────────────────────────────
+  renderList() {
+    const wrap = document.getElementById('ann-list-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '';
 
-    actions.appendChild(Helpers.ghostBtn(ann.pinned ? 'Unpin' : '📌 Pin', () => {
-      ann.pinned = !ann.pinned;
-      this.renderList();
-      UI.toast(ann.pinned ? 'Pinned.' : 'Unpinned.', 'info');
-      this.togglePin(ann)
-    }));
-    actions.appendChild(Helpers.ghostBtn('✏️ Edit', () => this.openEditModal(ann)));
-    actions.appendChild(UI.button('🗑 Delete', {
-      variant:'ghost', size:'sm',
-      color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
-    onClick: async () => {
-        if (!confirm(`Delete "${ann.title}"?`)) return;
-        const result = await this.removeAnnouncement(ann.id);
-        if (result.success) {
-            ANNOUNCEMENTS = ANNOUNCEMENTS.filter(a => a.id !== ann.id);
-            this.renderList();
-            UI.toast('Deleted.', 'danger');
-        } else {
-            UI.toast(result.message, 'danger');
-        }
+    if (!ANNOUNCEMENTS.length) {
+      wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Create one to notify your interns.'));
+      return;
     }
-    }));
 
-    wrap.append(body, actions);
+    [...ANNOUNCEMENTS]
+      .sort((a, b) => (parseInt(b.is_pinned) || 0) - (parseInt(a.is_pinned) || 0))
+      .forEach(ann => wrap.appendChild(this.annCard(ann)));
+  },
+
+  // ─────────────────────────────────────────────────────────
+  //  ANNOUNCEMENT CARD — Facebook-style with comments/replies
+  // ─────────────────────────────────────────────────────────
+  annCard(ann) {
+    const pinned  = parseInt(ann.is_pinned) || 0;
+    const date    = ann.created_at
+      ? new Date(ann.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+      : (ann.date || '');
+    const myName  = 'Coordinator'; // coordinator's display name on comments
+
+    // Ensure _comments exists with _replies on each
+    if (!ann._comments) ann._comments = [];
+    ann._comments.forEach(c => { if (!c._replies) c._replies = []; });
+
+    // ── Tiny helpers ──────────────────────────────────────
+    const mkAv = (name, bg = 'linear-gradient(135deg,#6366F1,#4F46E5)') => {
+      const a = UI.avatar(name, 'sm');
+      a.style.cssText = `width:28px;height:28px;min-width:28px;font-size:.65rem;background:${bg};flex-shrink:0`;
+      return a;
+    };
+
+    const mkInp = (ph) => {
+      const i = document.createElement('input');
+      i.type = 'text'; i.placeholder = ph;
+      i.style.cssText = 'flex:1;padding:.38rem .8rem;border:1.5px solid #FED7AA;border-radius:20px;font-size:.8rem;font-family:inherit;background:#FFF7ED;color:#1A0A00;outline:none';
+      i.addEventListener('focus', () => i.style.borderColor = '#EA580C');
+      i.addEventListener('blur',  () => i.style.borderColor = '#FED7AA');
+      return i;
+    };
+
+    const nowStr = () => new Date().toLocaleDateString('en-US', { month:'short', day:'numeric' });
+
+    const postToApi = async (text, parentId = null) => {
+      try {
+        const r = await fetch('config/api.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'postAnnouncementComment',
+            announcement_id: ann.id,
+            parent_id: parentId,
+            comment: text,
+          }),
+        });
+        return await r.json();
+      } catch (_) { return { success: false }; }
+    };
+
+    const totalCount = () =>
+      ann._comments.reduce((s, c) => s + 1 + (c._replies?.length ?? 0), 0);
+
+    // ── Outer wrapper ─────────────────────────────────────
+    const wrap = document.createElement('div');
+    wrap.id = 'ann-card-' + ann.id;
+    wrap.style.cssText = [
+      'background:#fff',
+      'border:1.5px solid ' + (pinned ? '#FDE68A' : '#FED7AA'),
+      'border-radius:14px',
+      'margin-bottom:1rem',
+      'overflow:hidden',
+      'box-shadow:0 2px 8px rgba(234,88,12,.06)',
+    ].join(';');
+
+    // ── Header: avatar + meta + action buttons ────────────
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:.65rem;padding:.9rem 1rem .55rem;flex-wrap:wrap';
+
+    const headAv = UI.avatar(myName, 'sm');
+    headAv.style.cssText = 'background:linear-gradient(135deg,#FF6B00,#EA580C);flex-shrink:0';
+
+    const meta = document.createElement('div');
+    meta.style.flex = '1';
+    meta.innerHTML = `
+      <div style="font-weight:700;font-size:.88rem;color:#1A0A00">${myName}</div>
+      <div style="font-size:.72rem;color:#9A6647">${date}</div>`;
+
+    head.append(headAv, meta);
+
+    if (pinned) {
+      const pin = document.createElement('span');
+      pin.style.cssText = 'font-size:.72rem;font-weight:700;color:#92400E;background:#FEF3C7;padding:.2rem .55rem;border-radius:20px';
+      pin.textContent = '📌 Pinned';
+      head.appendChild(pin);
+    }
+
+    // Coordinator action buttons
+    const acts = document.createElement('div');
+    acts.style.cssText = 'display:flex;gap:.3rem;flex-shrink:0';
+
+    const pinBtn = UI.button(pinned ? '📌 Unpin' : '📌 Pin', {
+      variant: 'ghost', size: 'sm',
+      color: { base:'#FFFBEB', hover:'#FEF3C7', text:'#92400E', border:'#FDE68A' },
+      onClick: () => Announcements.togglePin(ann),
+    });
+    const editBtn = UI.button('✏️ Edit', {
+      variant: 'ghost', size: 'sm',
+      color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
+      onClick: () => Announcements.openEditModal(ann),
+    });
+    const delBtn = UI.button('🗑️', {
+      variant: 'ghost', size: 'sm',
+      color: { base:'#FEF2F2', hover:'#FEE2E2', text:'#991B1B', border:'#FECACA' },
+      onClick: () => Announcements.deleteAnn(ann.id),
+    });
+
+    acts.append(pinBtn, editBtn, delBtn);
+    head.appendChild(acts);
+    wrap.appendChild(head);
+
+    // ── Post body ─────────────────────────────────────────
+    const pb = document.createElement('div');
+    pb.style.cssText = 'padding:.25rem 1rem .85rem';
+    const tEl = document.createElement('div');
+    tEl.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.95rem;margin-bottom:.3rem';
+    tEl.textContent = ann.title;
+    const bEl = document.createElement('div');
+    bEl.style.cssText = 'font-size:.85rem;color:#4B2E0A;line-height:1.6;white-space:pre-wrap';
+    bEl.textContent = ann.body;
+    pb.append(tEl, bEl);
+    wrap.appendChild(pb);
+
+    // ── Reaction bar ──────────────────────────────────────
+    const rBar = document.createElement('div');
+    rBar.style.cssText = 'display:flex;align-items:center;padding:.35rem 1rem;border-top:1px solid #FFF0E0;border-bottom:1px solid #FFF0E0';
+    const countEl = document.createElement('span');
+    countEl.style.cssText = 'font-size:.75rem;color:#9A6647;margin-left:auto';
+
+    const refreshCount = () => {
+      const n = totalCount();
+      countEl.textContent = n ? n + ' comment' + (n !== 1 ? 's' : '') : '';
+    };
+    refreshCount();
+    rBar.appendChild(countEl);
+    wrap.appendChild(rBar);
+
+    // ── Comments list ─────────────────────────────────────
+    const cWrapOuter = document.createElement('div');
+    cWrapOuter.style.cssText = 'padding:.5rem 1rem 0;max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
+
+    // Render a reply bubble (indented, purple theme)
+    const renderReply = (reply) => {
+      const rRow = document.createElement('div');
+      rRow.id = reply.id ? 'cmt-' + reply.id : '';
+      rRow.style.cssText = 'display:flex;gap:.45rem;margin-top:.45rem;align-items:flex-start;padding-left:36px';
+      const rBub = document.createElement('div');
+      rBub.style.cssText = 'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:0 10px 10px 10px;padding:.4rem .7rem;flex:1';
+      rBub.innerHTML = `
+        <div style="display:flex;align-items:baseline;gap:.4rem">
+          <span style="font-weight:700;font-size:.73rem;color:#1A0A00">${reply.author ?? reply.user_name ?? ''}</span>
+          <span style="font-size:.66rem;color:#9A6647">${reply.date ?? reply.created_at?.substring(0,10) ?? ''}</span>
+          ${reply.id ? `<button onclick="Announcements.deleteComment(${reply.id},${ann.id})"
+            style="background:none;border:none;font-size:.65rem;color:#EF4444;cursor:pointer;margin-left:auto;padding:0">✕</button>` : ''}
+        </div>
+        <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${reply.text ?? reply.comment ?? ''}</div>`;
+      rRow.append(mkAv(reply.author ?? reply.user_name ?? '?', 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
+      return rRow;
+    };
+
+    // Render all top-level comments + their replies
+    const renderAll = () => {
+      cWrapOuter.innerHTML = '';
+      ann._comments.forEach(cm => {
+        if (!cm._replies) cm._replies = [];
+
+        const cmWrap = document.createElement('div');
+        cmWrap.id = cm.id ? 'cmt-' + cm.id : '';
+        cmWrap.style.marginBottom = '.75rem';
+
+        // Comment bubble
+        const cmRow = document.createElement('div');
+        cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
+        const cmBub = document.createElement('div');
+        cmBub.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:0 10px 10px 10px;padding:.45rem .75rem;flex:1';
+
+        const cmHead = document.createElement('div');
+        cmHead.style.cssText = 'display:flex;align-items:baseline;gap:.4rem';
+        cmHead.innerHTML = `
+          <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cm.author ?? cm.user_name ?? ''}</span>
+          <span style="font-size:.66rem;color:#C4845A">${cm.date ?? cm.created_at?.substring(0,10) ?? ''}</span>
+          ${cm.id ? `<button onclick="Announcements.deleteComment(${cm.id},${ann.id})"
+            style="background:none;border:none;font-size:.65rem;color:#EF4444;cursor:pointer;margin-left:auto;padding:0">✕ Delete</button>` : ''}`;
+
+        const cmText = document.createElement('div');
+        cmText.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
+        cmText.textContent = cm.text ?? cm.comment ?? '';
+
+        // Reply button
+        const replyBtn = document.createElement('button');
+        replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
+        replyBtn.textContent = '↩ Reply';
+
+        cmBub.append(cmHead, cmText, replyBtn);
+        cmRow.append(mkAv(cm.author ?? cm.user_name ?? '?'), cmBub);
+        cmWrap.appendChild(cmRow);
+
+        // Replies
+        const repliesWrap = document.createElement('div');
+        cm._replies.forEach(r => repliesWrap.appendChild(renderReply(r)));
+        cmWrap.appendChild(repliesWrap);
+
+        // Inline reply input
+        const replyRow = document.createElement('div');
+        replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
+        const replyInp = mkInp(`Reply to ${cm.author ?? cm.user_name ?? 'intern'}…`);
+        const replySendBtn = UI.button('Reply', {
+          size: 'sm',
+          color: { base:'#6366F1', hover:'#4F46E5', text:'#fff' },
+          onClick: async () => {
+            const text = replyInp.value.trim();
+            if (!text) return;
+            const res = await postToApi(text, cm.id);
+            cm._replies.push({ id: res.comment_id ?? null, author: myName, text, date: nowStr() });
+            replyInp.value = '';
+            replyRow.style.display = 'none';
+            renderAll();
+            refreshCount();
+            cWrapOuter.scrollTop = cWrapOuter.scrollHeight;
+          },
+        });
+        replyInp.addEventListener('keydown', e => { if (e.key === 'Enter') replySendBtn.click(); });
+        replyInp.addEventListener('keydown', e => { if (e.key === 'Escape') { replyRow.style.display = 'none'; } });
+        replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySendBtn);
+        cmWrap.appendChild(replyRow);
+
+        // Toggle reply input
+        replyBtn.addEventListener('click', () => {
+          const open = replyRow.style.display !== 'none';
+          replyRow.style.display = open ? 'none' : 'flex';
+          if (!open) setTimeout(() => replyInp.focus(), 50);
+        });
+
+        cWrapOuter.appendChild(cmWrap);
+      });
+    };
+
+    renderAll();
+    wrap.appendChild(cWrapOuter);
+
+    // ── Main comment input ────────────────────────────────
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex;gap:.5rem;padding:.65rem 1rem .85rem;align-items:center;border-top:1px solid #FFF0E0;margin-top:.5rem';
+    const mainInp = mkInp('Write a comment…');
+    const mainSend = UI.button('Send', {
+      size: 'sm',
+      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+      onClick: async () => {
+        const text = mainInp.value.trim();
+        if (!text) return;
+        const res = await postToApi(text, null);
+        ann._comments.push({
+          id: res.comment_id ?? Date.now(),
+          author: myName, text, date: nowStr(), _replies: [],
+        });
+        mainInp.value = '';
+        renderAll();
+        refreshCount();
+        cWrapOuter.scrollTop = cWrapOuter.scrollHeight;
+      },
+    });
+    mainInp.addEventListener('keydown', e => { if (e.key === 'Enter') mainSend.click(); });
+    inputRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), mainInp, mainSend);
+    wrap.appendChild(inputRow);
+
     return wrap;
   },
 
-// Store the form reference outside the function so it persists
-  formCache: null,
-  buildForm({ title = '', body = '', pinned = false } = {}) {
-      // 1. If form doesn't exist yet, create it once
-      if (!this.formCache) {
-          const wrap = document.createElement('div');
-          
-          wrap.appendChild(UI.formGroup('Title',
-              UI.input({ id: 'ann-form-title', placeholder: 'Announcement title', required: true }),
-              '', { required: true }));
-              
-          wrap.appendChild(UI.formGroup('Message',
-              UI.textarea({ id: 'ann-form-body', placeholder: 'Write your message…', rows: 5 })));
-              
-          const pinLabel = document.createElement('label');
-          pinLabel.style.cssText = 'display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;font-weight:600;color:#6B3A1F;margin-top:.5rem';
-          pinLabel.innerHTML = `<input type="checkbox" id="ann-form-pin" style="width:15px;height:15px;accent-color:#EA580C"> 📌 Pin this announcement`;
-          
-          wrap.appendChild(pinLabel);
-          this.formCache = wrap;
+  // ─────────────────────────────────────────────────────────
+  //  DELETE COMMENT (coordinator can delete any)
+  // ─────────────────────────────────────────────────────────
+  async deleteComment(commentId, annId) {
+    if (!confirm('Delete this comment and its replies?')) return;
+    try {
+      const res  = await fetch('config/api.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteAnnouncementComment', comment_id: commentId }),
+      });
+      const json = await res.json();
+      if (!json.success) { UI.toast('❌ Could not delete comment.', 'danger'); return; }
+
+      // Remove from local cache
+      const ann = ANNOUNCEMENTS.find(a => a.id === annId);
+      if (ann) {
+        ann._comments = ann._comments.filter(c => c.id !== commentId);
+        ann._comments.forEach(c => {
+          c._replies = (c._replies ?? []).filter(r => r.id !== commentId);
+        });
+        // Rebuild just this card
+        const cardEl = document.getElementById('ann-card-' + annId);
+        if (cardEl) cardEl.replaceWith(this.annCard(ann));
       }
-
-      // 2. Update the existing elements with the new values
-      const titleInput = this.formCache.querySelector('#ann-form-title');
-      const bodyInput = this.formCache.querySelector('#ann-form-body');
-      const pinInput = this.formCache.querySelector('#ann-form-pin');
-
-      if (titleInput) titleInput.value = title;
-      if (bodyInput) bodyInput.value = body;
-      if (pinInput) pinInput.checked = pinned;
-
-      return this.formCache;
+      UI.toast('Comment deleted.', 'success');
+    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
   },
 
-  openCreateModal() {
-      const m = UI.modal({
-          title: '📢 New Announcement', 
-          body: this.buildForm(), 
-          size: 'lg',
-          footer: [
-              UI.button('Cancel', { variant: 'ghost', size: 'sm', onClick: () => m.close() }),
-              Helpers.orangeBtn('Post Announcement', async () => {
-                  const t = document.getElementById('ann-form-title')?.value.trim();
-                  const b = document.getElementById('ann-form-body')?.value.trim();
-                  const p = document.getElementById('ann-form-pin')?.checked ?? false;
-
-                  if (!t || !b) { 
-                      UI.toast('Please fill in all fields.', 'danger'); 
-                      return; 
-                  }
-                  const result = await this.postAnnouncement(t, b, p);
-
-                  if (result.success) {
-                      ANNOUNCEMENTS.unshift({
-                          id: result.id,
-                          title: t,
-                          body: b,
-                          pinned: p,
-                          author: COORDINATOR.name,
-                          date: new Date().toLocaleDateString('en-US', { 
-                              month: 'short', day: 'numeric', year: 'numeric' 
-                          }),
-                      });
-
-                      this.renderList();
-                      m.close();
-                      UI.toast('Announcement posted!', 'success');
-                  } else {
-                      UI.toast(result.message, 'danger');
-                  }
-              }),
-          ],
-      });
-      m.open();
-  },
-
-  openEditModal(ann) {
-      const m = UI.modal({
-          title: '✏️ Edit Announcement',
-          body: this.buildForm(ann),
-          footer: [
-              UI.button('Cancel', { variant:'ghost', onClick: () => m.close() }),
-              Helpers.orangeBtn('Save Changes', async () => {
-                  const t = document.getElementById('ann-form-title').value;
-                  const b = document.getElementById('ann-form-body').value;
-                  const p = document.getElementById('ann-form-pin').checked;
-
-                  const result = await this.updateAnnouncement(ann.id, t, b, p);
-                  if (result.success) {
-                      ann.title = t;
-                      ann.body = b;
-                      ann.pinned = p;
-                      
-                      this.renderList();
-                      m.close();
-                      UI.toast('Announcement updated!', 'success');
-                  }
-              })
-          ]
-      });
-      m.open();
-  },
+  // ─────────────────────────────────────────────────────────
+  //  TOGGLE PIN
+  // ─────────────────────────────────────────────────────────
   async togglePin(ann) {
-      const newPinnedStatus = !ann.pinned;
-      
-      const result = await this.updateAnnouncement(
-          ann.id, 
-          ann.title, 
-          ann.body, 
-          newPinnedStatus
-      );
+    const newVal = parseInt(ann.is_pinned) ? 0 : 1;
+    try {
+      await fetch('config/api.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'togglePin', announcementId: ann.id, is_pinned: newVal }),
+      });
+      ann.is_pinned = newVal;
+      this.renderList();
+    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+  },
 
-      if (result.success) {
-          ann.pinned = newPinnedStatus;
-          this.renderList(); 
-          UI.toast(ann.pinned ? 'Announcement Pinned' : 'Announcement Unpinned', 'info');
+  // ─────────────────────────────────────────────────────────
+  //  DELETE ANNOUNCEMENT
+  // ─────────────────────────────────────────────────────────
+  async deleteAnn(id) {
+    if (!confirm('Delete this announcement?\nAll comments will also be removed.')) return;
+    try {
+      const res  = await fetch('config/api.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteAnnouncement', announcementId: id }),
+      });
+      const json = await res.json();
+      if (!json.success) { UI.toast('❌ Delete failed.', 'danger'); return; }
+      ANNOUNCEMENTS = ANNOUNCEMENTS.filter(a => a.id !== id);
+      this.renderList();
+      UI.toast('Announcement deleted.', 'success');
+    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+  },
+
+  // ─────────────────────────────────────────────────────────
+  //  CREATE / EDIT MODAL  (shared form)
+  // ─────────────────────────────────────────────────────────
+  openCreateModal() { this._openFormModal(null); },
+  openEditModal(ann) { this._openFormModal(ann); },
+
+  _openFormModal(ann) {
+    const isEdit = !!ann;
+    const body   = document.createElement('div');
+
+    body.appendChild(UI.formGroup('Title',
+      UI.input({ id:'ann-title', value: ann?.title ?? '', placeholder:'Announcement title' })));
+
+    body.appendChild(UI.formGroup('Message',
+      UI.textarea({ id:'ann-body', value: ann?.body ?? '', rows: 5,
+        placeholder:'Write your announcement here…' })));
+
+    const pinRow = document.createElement('label');
+    pinRow.style.cssText = 'display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:#6B3A1F;cursor:pointer;margin-top:.5rem';
+    const pinChk = document.createElement('input');
+    pinChk.type    = 'checkbox';
+    pinChk.id      = 'ann-pin';
+    pinChk.checked = parseInt(ann?.is_pinned) === 1;
+    pinRow.append(pinChk, document.createTextNode('📌 Pin this announcement (shows at top for all interns)'));
+    body.appendChild(pinRow);
+
+    const m = UI.modal({
+      title: isEdit ? '✏️ Edit Announcement' : '📢 New Announcement',
+      body,
+      size: 'lg',
+      footer: [
+        UI.button('Cancel', { variant:'ghost', size:'sm', onClick: () => m.close() }),
+        UI.button(isEdit ? 'Save Changes' : 'Post Announcement', {
+          size: 'sm',
+          color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+          onClick: () => Announcements._saveForm(m, ann),
+        }),
+      ],
+    });
+    m.open();
+  },
+
+  async _saveForm(modal, ann) {
+    const title     = document.getElementById('ann-title')?.value.trim();
+    const body      = document.getElementById('ann-body')?.value.trim();
+    const is_pinned = document.getElementById('ann-pin')?.checked ? 1 : 0;
+
+    if (!title) { UI.toast('Please enter a title.',   'danger'); return; }
+    if (!body)  { UI.toast('Please write a message.', 'danger'); return; }
+
+    const isEdit = !!ann;
+    const action = isEdit ? 'updateAnnouncement' : 'createAnnouncement';
+
+    try {
+      const res  = await fetch('config/api.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          announcementId: ann?.id ?? null,
+          title, body, is_pinned,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
+
+      if (isEdit) {
+        Object.assign(ann, { title, body, is_pinned });
       } else {
-          UI.toast(result.message || 'Failed to update pin status', 'danger');
+        ANNOUNCEMENTS.unshift({
+          id:         json.announcement_id ?? Date.now(),
+          title, body, is_pinned,
+          created_at: new Date().toISOString(),
+          _comments:  [],
+        });
       }
+
+      this.renderList();
+      modal.close();
+      UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
+    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
   },
-  async fetchAnnouncements() {
-      try {
-          const response = await fetch('config/api.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'getAnnouncements' })
-          });
-
-          const data = await response.json();
-
-          ANNOUNCEMENTS = data.map(ann => ({
-              id: ann.id,
-              title: ann.title,
-              body: ann.body,
-              pinned: parseInt(ann.is_pinned) === 1,
-              author: "Coordinator", // Or you can include the name in the PHP SQL Join
-              date: new Date(ann.created_at).toLocaleDateString('en-US', { 
-                  month: 'short', day: 'numeric', year: 'numeric' 
-              })
-          }));
-
-          this.renderList();
-      } catch (error) {
-          console.error('Error fetching announcements:', error);
-          UI.toast('Could not load announcements.', 'danger');
-      }
-  },
-  async postAnnouncement(title, body, isPinned) {
-      try {
-          const response = await fetch('config/api.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  action: 'addAnnouncement',
-                  title: title,
-                  body: body,
-                  isPinned: isPinned ? 1 : 0
-              })
-          });
-
-          return await response.json();
-      } catch (error) {
-          console.error('Fetch Error:', error);
-          return { success: false, message: 'Network error. Please try again.' };
-      }
-  },
-  async updateAnnouncement(id, title, body, isPinned) {
-      try {
-          const response = await fetch('config/api.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  action: 'updateAnnouncement',
-                  id: id,
-                  title: title,
-                  body: body,
-                  isPinned: isPinned ? 1 : 0
-              })
-          });
-          return await response.json();
-      } catch (error) {
-          return { success: false, message: 'Network error.' };
-      }
-  },
-
-  async removeAnnouncement(id) {
-      try {
-          const response = await fetch('config/api.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'deleteAnnouncement', id: id })
-          });
-          return await response.json();
-      } catch (error) {
-          return { success: false, message: 'Network error.' };
-      }
-  }
 };
-
 
 // ─────────────────────────────────────────────────────────────
 //  REPORTS  (weekly reports from all interns)
