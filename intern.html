@@ -1979,7 +1979,7 @@ const Attendance = {
   // Cached logs (synced from ATTENDANCE_LOG global at boot)
   logs: [],
 
-  build() {
+build() {
     const sec = document.getElementById('sec-attendance');
     sec.appendChild(Helpers.pageHeader('Attendance', 'Track your daily time in and out'));
     const disclaimer = document.createElement('div');
@@ -2025,16 +2025,18 @@ const Attendance = {
     grid.style.alignItems = 'start';
     grid.appendChild(this.clockCard());
 
-    // Slot so hours card can be refreshed after clock actions
+    // Slot so hours card can be refreshed after clock actions (with min-width: 0 fix)
     const hoursSlot = document.createElement('div');
     hoursSlot.id = 'att-hours-slot';
+    hoursSlot.style.cssText = 'min-width:0;width:100%';
     hoursSlot.appendChild(this.hoursCard());
     grid.appendChild(hoursSlot);
     sec.appendChild(grid);
 
-    // Slot so log table can be refreshed after clock actions / edits
+    // Slot so log table can be refreshed after clock actions / edits (with overflow wrap fix)
     const logSlot = document.createElement('div');
     logSlot.id = 'att-log-slot';
+    logSlot.style.cssText = 'min-width:0;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch';
     sec.appendChild(logSlot);
 
     this.startClock();
@@ -2100,25 +2102,31 @@ const Attendance = {
 
   // Big hours number + stat strip + progress bar
   hoursCard() {
-    const totalHours = InternData.internships[0].total_hours
-    const requiredHours = InternData.profile.required_hours
-    const daysPresent = InternData.internships[0].days_present;
-    const pct  = Math.round(totalHours / requiredHours * 100);
+    const totalHours    = parseFloat(InternData.internships[0]?.total_hours ?? 0);
+    const requiredHours = parseInt(InternData.profile?.required_hours ?? 500);
+    const daysPresent   = InternData.internships[0]?.days_present ?? 0;
+    const pct           = requiredHours ? Math.round((totalHours / requiredHours) * 100) : 0;
+    
+    // Round off hours left to avoid long decimals (e.g. 163.29000000000002h -> 163.29h or rounded integer)
+    const hoursLeftVal  = Math.max(0, requiredHours - totalHours);
+    const hoursLeft     = (Math.round(hoursLeftVal * 100) / 100) + 'h';
+    const totalDisplay  = (Math.round(totalHours * 100) / 100) + 'h';
+
     const body = document.createElement('div');
 
     const big = document.createElement('div');
     big.style.cssText = 'text-align:center;padding:1rem 0';
     big.innerHTML = `
       <div style="font-family:Sora,sans-serif;font-size:2.5rem;font-weight:800;color:#EA580C;line-height:1">
-        ${totalHours}h
+        ${totalDisplay}
       </div>
       <div style="font-size:.8rem;color:#9A6647;margin-top:.3rem">of ${requiredHours}h required</div>`;
     body.appendChild(big);
 
     body.appendChild(UI.statRow([
-      { value: daysPresent,                           label: 'Days Present', color: '#EA580C' },
-      { value: (requiredHours - totalHours) + 'h', label: 'Hours Left',   color: '#6B3A1F' },
-      { value: pct + '%',                            label: 'Complete',     color: '#10B981' },
+      { value: daysPresent, label: 'Days Present', color: '#EA580C' },
+      { value: hoursLeft,   label: 'Hours Left',   color: '#6B3A1F' },
+      { value: pct + '%',   label: 'Complete',     color: '#10B981' },
     ]));
 
     const lbl = document.createElement('p');
@@ -2176,7 +2184,6 @@ const Attendance = {
       body:    tbl,
     }));
   },
-
   // Tick every second
   startClock() {
     const tick = () => {
