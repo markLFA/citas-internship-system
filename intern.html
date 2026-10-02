@@ -2888,7 +2888,7 @@ openEditModal(row) {
         form.append('files[]', file);
       });
     }
-
+    console.log("form "+JSON.stringify(form));
     try {
       const res = await fetch('config/api.php', {
         method: 'POST',
