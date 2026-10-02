@@ -2858,68 +2858,53 @@ openEditModal(row) {
   body.appendChild(newFileInput);
 
   // ── Save Action ──────────────────────────────────────────
-  const handleSave = async () => {
-    const weekLabel = weekInput.value.trim();
-    const weekStart = dateInput.value;
-    const description = descInput.value.trim();
+const handleSave = async () => {
+  const weekLabel = weekInput.value.trim();
+  const weekStart = dateInput.value;
+  const description = descInput.value.trim();
 
-    if (!weekLabel || !weekStart) {
-      UI.toast(
-        'Week label and start date are required.',
-        'danger'
-      );
-      return;
-    }
+  if (!weekLabel || !weekStart) {
+    UI.toast('Week label and start date are required.', 'danger');
+    return;
+  }
 
-    const form = new FormData();
+  const form = new FormData();
+  form.append('action', 'updateReport');
+  form.append('report_id', row.id);
+  form.append('week_label', weekLabel);
+  form.append('week_start', weekStart);
+  form.append('description', description);
 
-    form.append('action', 'updateReport');
-    form.append('report_id', row.id);
-    form.append('week_label', weekLabel);
-    form.append('week_start', weekStart);
-    form.append('description', description);
+  deleteFileIds.forEach(id => {
+    form.append('delete_file_ids[]', id);
+  });
 
-    deleteFileIds.forEach(id => {
-      form.append('delete_file_ids[]', id);
+  if (newFileInput.files.length) {
+    Array.from(newFileInput.files).forEach(file => {
+      form.append('files[]', file);
+    });
+  }
+
+  try {
+    const res = await fetch('config/api.php', {
+      method: 'POST',
+      body: form
     });
 
-    if (newFileInput.files.length) {
-      Array.from(newFileInput.files).forEach(file => {
-        form.append('files[]', file);
-      });
+    const json = await res.json();
+
+    if (json.success) {
+      UI.toast('✅ Report updated successfully.', 'success');
+      this.loadReports();
+      modal.close();
+    } else {
+      UI.toast('❌ ' + (json.error || 'Update failed.'), 'danger');
     }
-    console.log("form "+JSON.stringify(form));
-    try {
-      const res = await fetch('config/api.php', {
-        method: 'POST',
-        body: form
-      });
-
-      const json = await res.json();
-
-      if (json.success) {
-        UI.toast(
-          '✅ Report updated successfully.',
-          'success'
-        );
-
-        this.loadReports();
-        modal.close();
-      } else {
-        UI.toast(
-          '❌ ' + (json.error || 'Update failed.'),
-          'danger'
-        );
-      }
-
-    } catch (_) {
-      UI.toast(
-        '❌ Network error during update.',
-        'danger'
-      );
-    }
-  };
-
+  } catch (err) {
+    console.error('Update error:', err);
+    UI.toast('❌ Network or server error during update.', 'danger');
+  }
+};
   // ── Modal Footer ──────────────────────────────────────────
   const footer = document.createElement('div');
 

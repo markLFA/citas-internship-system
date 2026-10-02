@@ -302,20 +302,24 @@ switch ($action) {
         break;
 
     // ── Report Update & Delete actions ───────────────────────
-    case 'updateReport':
-        echo "update report data: " . json_encode($data) . "\n";
+case 'updateReport':
+        // Ensure response header is JSON and prevent plain text output
+        header('Content-Type: application/json');
+
         if (!$userId) {
             echo json_encode(['success' => false, 'error' => 'Not logged in.']);
             break;
         }
 
-        $reportId      = (int) ($data['report_id'] ?? 0);
-        $weekLabel     = $data['week_label'] ?? '';
-        $weekStart     = $data['week_start'] ?? '';
-        $description   = $data['description'] ?? '';
-        $filesToDelete = $data['delete_file_ids'] ?? [];
+        // Use $_POST for multipart/form-data requests
+        $reportId      = (int) ($_POST['report_id'] ?? $data['report_id'] ?? 0);
+        $weekLabel     = $_POST['week_label'] ?? $data['week_label'] ?? '';
+        $weekStart     = $_POST['week_start'] ?? $data['week_start'] ?? '';
+        $description   = $_POST['description'] ?? $data['description'] ?? '';
+        $filesToDelete = $_POST['delete_file_ids'] ?? $data['delete_file_ids'] ?? [];
         $newFiles      = $_FILES['files'] ?? [];
 
+        // Handle stringified JSON array if sent as string
         if (is_string($filesToDelete)) {
             $decoded = json_decode($filesToDelete, true);
             if (is_array($decoded)) {
@@ -334,9 +338,7 @@ switch ($action) {
         );
 
         echo json_encode($result);
-        break;
-
-    case 'deleteReport':
+        break;    case 'deleteReport':
         if (!$userId) {
             echo json_encode(['success' => false, 'error' => 'Not logged in.']);
             break;

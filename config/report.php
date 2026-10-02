@@ -1,19 +1,15 @@
 <?php
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/supabase.php';
-/**
- * Updates an existing pending weekly report and manages optional file updates.
- *
- * @param PDO   $pdo          Database connection
- * @param int   $userId       ID of the authenticated user
- * @param int   $reportId     ID of the report to update
- * @param string $weekLabel   Updated week label
- * @param string $weekStart   Updated week start date (Y-m-d)
- * @param string $description Updated description
- * @param array $filesToDelete List of file IDs in weekly_report_files to delete
- * @param array $newFiles     Raw $_FILES['files'] array for new attachments
- * @return array Response array containing status and message
- */
+
+// Define constants if not already defined elsewhere
+if (!defined('MAX_BYTES')) {
+    define('MAX_BYTES', 10 * 1024 * 1024); // 10 MB limit
+}
+if (!defined('ALLOWED_EXTS')) {
+    define('ALLOWED_EXTS', ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg']);
+}
+
 function updateReport(
     int $userId,
     int $reportId,
@@ -41,7 +37,7 @@ function updateReport(
         return ['success' => false, 'error' => 'Invalid week start date.'];
     }
 
-    // Verify ownership and status
+    // Verify ownership and pending status
     $stmt = $pdo->prepare("
         SELECT id 
         FROM weekly_reports 
@@ -55,7 +51,7 @@ function updateReport(
 
     // Validate new files if attached
     $validatedNewFiles = [];
-    if (!empty($newFiles['name'][0])) {
+    if (!empty($newFiles['name']) && is_array($newFiles['name']) && !empty($newFiles['name'][0])) {
         $fileCount = count($newFiles['name']);
 
         for ($i = 0; $i < $fileCount; $i++) {
@@ -64,8 +60,12 @@ function updateReport(
             $size = (int) ($newFiles['size'][$i] ?? 0);
             $err  = (int) ($newFiles['error'][$i] ?? UPLOAD_ERR_NO_FILE);
 
+            if ($err === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
             if ($err !== UPLOAD_ERR_OK) {
-                return ['success' => false, 'error' => '"' . $name . '" failed to upload.'];
+                return ['success' => false, 'error' => '"' . $name . '" failed to upload (Code ' . $err . ').'];
             }
 
             if (empty($tmp) || !is_uploaded_file($tmp)) {
@@ -159,7 +159,7 @@ function updateReport(
 
             $uploadResult = uploadToSupabase($file['tmp'], $storagePath, $file['mime']);
             if (empty($uploadResult['success'])) {
-                throw new RuntimeException($uploadResult['message'] ?? 'Failed to upload to Supabase.');
+                throw new RuntimeException($uploadResult['message'] ?? 'Failed to upload file to storage.');
             }
 
             $uploadedSupabaseFiles[] = $storagePath;
@@ -196,7 +196,7 @@ function updateReport(
             $pdo->rollBack();
         }
 
-        // Clean up any files uploaded during this failed request
+        // Clean up uploaded files in Supabase if DB transaction fails
         foreach ($uploadedSupabaseFiles as $storagePath) {
             deleteFromSupabase($storagePath);
         }
