@@ -645,7 +645,7 @@ const Dashboard = {
     } else {
       [...ANNOUNCEMENTS]
         .sort((a, b) => (parseInt(b.is_pinned)||b.pinned||0) - (parseInt(a.is_pinned)||a.pinned||0))
-        .forEach(ann => body.appendChild(Helpers.annPostCard(ann)));
+        .forEach(ann => body.appendChild(this.annPostCard(ann)));
     }
  
     const pinned = ANNOUNCEMENTS.filter(a => parseInt(a.is_pinned) || a.pinned).length;
