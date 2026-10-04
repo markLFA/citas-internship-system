@@ -3,6 +3,7 @@
 require 'supabase.php';
 require_once __DIR__ . '/api.php';
 
+/*
 
 if (isset($_GET['test_supabase'])) {
     header('Content-Type: application/json');
@@ -15,4 +16,10 @@ $interns    = getCoordinatorInternDatas($schoolYear);
 echo json_encode([
     'success' => true,
     'interns' => $interns
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+*/
+$comments    = getAnnouncementComments(16);
+echo json_encode([
+    'success' => true,
+    'interns' => $comments
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
