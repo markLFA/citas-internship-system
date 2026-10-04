@@ -663,7 +663,7 @@ const Dashboard = {
 //  Do NOT remove annItem — it may still be used elsewhere.
 // ============================================================
  
-  annPostCard(ann) {
+annPostCard(ann) {
     const pinned  = parseInt(ann.is_pinned) || ann.pinned || 0;
     const date    = ann.date
       || (ann.created_at
@@ -672,16 +672,45 @@ const Dashboard = {
           : '');
     const author  = ann.author || 'Coordinator';
     const myName  = InternData?.user?.name ?? 'Me';
+
     if (!ann._comments) ann._comments = [];
-    ann._comments.forEach(c => { if (!c._replies) c._replies = []; });
- 
+
+    // Helper to format timestamps gracefully
+    const fmtDate = (d) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    // ── Fetch Comments from Backend ──────────────────────
+    const fetchComments = async () => {
+      try {
+        const res = await fetch('config/api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'getAnnouncementComments',
+            announcement_id: ann.id,
+          }),
+        });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          ann._comments = data;
+          renderAll();
+          refreshCount();
+        }
+      } catch (e) {
+        console.error('Error loading comments for announcement ' + ann.id, e);
+      }
+    };
+
     // ── Tiny helpers ─────────────────────────────────────
     const mkAv = (name, bg = 'linear-gradient(135deg,#6366F1,#4F46E5)') => {
-      const a = UI.avatar(name, 'sm');
+      const a = UI.avatar(name || 'User', 'sm');
       a.style.cssText = `width:28px;height:28px;min-width:28px;font-size:.65rem;background:${bg};flex-shrink:0`;
       return a;
     };
- 
+
     const mkInp = (ph) => {
       const i = document.createElement('input');
       i.type = 'text'; i.placeholder = ph;
@@ -695,10 +724,9 @@ const Dashboard = {
       i.addEventListener('blur',  () => i.style.borderColor = '#FED7AA');
       return i;
     };
- 
-    const nowStr = () => new Date().toLocaleDateString('en-US',
-      { month:'short', day:'numeric' });
- 
+
+    const nowStr = () => new Date().toLocaleDateString('en-US', { month:'short', day:'numeric' });
+
     const postToApi = async (text, parentId = null) => {
       try {
         const r = await fetch('config/api.php', {
@@ -713,35 +741,10 @@ const Dashboard = {
         return await r.json();
       } catch (_) { return { success: false }; }
     };
- 
+
     const totalCount = () =>
       ann._comments.reduce((s, c) => s + 1 + (c._replies?.length ?? 0), 0);
 
-    // ── Fetch Comments Asynchronously ─────────────────────
-      const fetchAndRenderComments = async () => {
-        try {
-          const res = await fetch('config/api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'getAnnouncementComments',
-              announcement_id: ann.id
-            })
-          });
-          const comments = await res.json();
-          if (Array.isArray(comments)) {
-            ann._comments = comments;
-            renderAll();
-            refreshCount();
-          }
-        } catch (e) {
-          console.error('Failed to load comments for announcement', ann.id, e);
-        }
-      };
-
-      // Call the function to trigger fetching on card render
-      fetchAndRenderComments();
- 
     // ── Card wrapper ──────────────────────────────────────
     const wrap = document.createElement('div');
     wrap.style.cssText = [
@@ -752,7 +755,7 @@ const Dashboard = {
       'overflow:hidden',
       'box-shadow:0 1px 4px rgba(234,88,12,.07)',
     ].join(';');
- 
+
     // ── Post header ───────────────────────────────────────
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;align-items:center;gap:.65rem;padding:.85rem 1rem .5rem';
@@ -772,7 +775,7 @@ const Dashboard = {
       head.appendChild(pin);
     }
     wrap.appendChild(head);
- 
+
     // ── Post body ─────────────────────────────────────────
     const pb = document.createElement('div');
     pb.style.cssText = 'padding:.3rem 1rem .75rem';
@@ -784,7 +787,7 @@ const Dashboard = {
     bEl.textContent   = ann.body;
     pb.append(tEl, bEl);
     wrap.appendChild(pb);
- 
+
     // ── Reaction bar ──────────────────────────────────────
     const rBar = document.createElement('div');
     rBar.style.cssText = 'display:flex;align-items:center;padding:.35rem 1rem;border-top:1px solid #FFF0E0;border-bottom:1px solid #FFF0E0';
@@ -797,65 +800,74 @@ const Dashboard = {
     refreshCount();
     rBar.appendChild(countEl);
     wrap.appendChild(rBar);
- 
+
     // ── Comments list ─────────────────────────────────────
     const cList = document.createElement('div');
     cList.style.cssText = 'padding:.5rem 1rem 0;max-height:260px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
- 
+
     const renderReply = (reply) => {
+      const replyAuthor = reply.author || reply.user_name || 'User';
+      const replyText = reply.text || reply.comment || '';
+      const replyDate = fmtDate(reply.date || reply.created_at);
+
       const rRow = document.createElement('div');
       rRow.style.cssText = 'display:flex;gap:.45rem;margin-top:.45rem;align-items:flex-start;padding-left:36px';
       const rBub = document.createElement('div');
       rBub.style.cssText = 'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:0 10px 10px 10px;padding:.4rem .7rem;flex:1';
       rBub.innerHTML = `
-        <div style="font-weight:700;font-size:.73rem;color:#1A0A00">${reply.author ?? reply.user_name ?? ''}</div>
-        <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${reply.text ?? reply.comment ?? ''}</div>
-        <div style="font-size:.66rem;color:#9A6647;margin-top:.2rem">${reply.date ?? ''}</div>`;
-      rRow.append(mkAv(reply.author ?? '?', 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
+        <div style="font-weight:700;font-size:.73rem;color:#1A0A00">${replyAuthor}</div>
+        <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${replyText}</div>
+        <div style="font-size:.66rem;color:#9A6647;margin-top:.2rem">${replyDate}</div>`;
+      rRow.append(mkAv(replyAuthor, 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
       return rRow;
     };
- 
+
     const renderAll = () => {
       cList.innerHTML = '';
       ann._comments.forEach(cm => {
         if (!cm._replies) cm._replies = [];
+
+        const cmAuthor = cm.author || cm.user_name || 'User';
+        const cmText   = cm.text || cm.comment || '';
+        const cmDate   = fmtDate(cm.date || cm.created_at);
+
         const cmWrap = document.createElement('div');
         cmWrap.style.marginBottom = '.75rem';
- 
+
         // Comment row
         const cmRow = document.createElement('div');
         cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
         const cmBub = document.createElement('div');
         cmBub.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:0 10px 10px 10px;padding:.45rem .75rem;flex:1';
- 
+
         const cmHead = document.createElement('div');
         cmHead.style.cssText = 'display:flex;align-items:baseline;gap:.4rem';
         cmHead.innerHTML = `
-          <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cm.author ?? cm.user_name ?? ''}</span>
-          <span style="font-size:.66rem;color:#C4845A">${cm.date ?? ''}</span>`;
- 
-        const cmText = document.createElement('div');
-        cmText.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
-        cmText.textContent   = cm.text ?? cm.comment ?? '';
- 
+          <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cmAuthor}</span>
+          <span style="font-size:.66rem;color:#C4845A">${cmDate}</span>`;
+
+        const cmTextEl = document.createElement('div');
+        cmTextEl.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
+        cmTextEl.textContent   = cmText;
+
         // Reply button
         const replyBtn = document.createElement('button');
         replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
         replyBtn.textContent   = '↩ Reply';
- 
-        cmBub.append(cmHead, cmText, replyBtn);
-        cmRow.append(mkAv(cm.author ?? '?'), cmBub);
+
+        cmBub.append(cmHead, cmTextEl, replyBtn);
+        cmRow.append(mkAv(cmAuthor), cmBub);
         cmWrap.appendChild(cmRow);
- 
+
         // Existing replies
         const replWrap = document.createElement('div');
         cm._replies.forEach(r => replWrap.appendChild(renderReply(r)));
         cmWrap.appendChild(replWrap);
- 
+
         // Inline reply input (hidden)
         const replyRow = document.createElement('div');
         replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
-        const replyInp = mkInp(`Reply to ${cm.author ?? 'intern'}…`);
+        const replyInp = mkInp(`Reply to ${cmAuthor}…`);
         const replySend = UI.button('Reply', {
           size: 'sm',
           color: { base:'#6366F1', hover:'#4F46E5', text:'#fff' },
@@ -876,20 +888,23 @@ const Dashboard = {
         });
         replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySend);
         cmWrap.appendChild(replyRow);
- 
+
         replyBtn.addEventListener('click', () => {
           const open = replyRow.style.display !== 'none';
           replyRow.style.display = open ? 'none' : 'flex';
           if (!open) setTimeout(() => replyInp.focus(), 50);
         });
- 
+
         cList.appendChild(cmWrap);
       });
     };
- 
+
     renderAll();
     wrap.appendChild(cList);
- 
+
+    // Trigger comment loading from backend
+    fetchComments();
+
     // ── Main comment input ────────────────────────────────
     const inputRow = document.createElement('div');
     inputRow.style.cssText = 'display:flex;gap:.5rem;padding:.65rem 1rem .85rem;align-items:center;border-top:1px solid #FFF0E0;margin-top:.5rem';
@@ -913,9 +928,9 @@ const Dashboard = {
     mainInp.addEventListener('keydown', e => { if (e.key === 'Enter') mainSend.click(); });
     inputRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), mainInp, mainSend);
     wrap.appendChild(inputRow);
- 
+
     return wrap;
-  },
+  }, 
   async loadAnnouncementComments(announcementId) {
     try {
       const response = await fetch(`config/api.php?action=getAnnouncementComments&announcement_id=${announcementId}`);
