@@ -717,6 +717,31 @@ const Dashboard = {
  
     const totalCount = () =>
       ann._comments.reduce((s, c) => s + 1 + (c._replies?.length ?? 0), 0);
+
+    // ── Fetch Comments Asynchronously ─────────────────────
+      const fetchAndRenderComments = async () => {
+        try {
+          const res = await fetch('config/api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'getAnnouncementComments',
+              announcement_id: ann.id
+            })
+          });
+          const comments = await res.json();
+          if (Array.isArray(comments)) {
+            ann._comments = comments;
+            renderAll();
+            refreshCount();
+          }
+        } catch (e) {
+          console.error('Failed to load comments for announcement', ann.id, e);
+        }
+      };
+
+      // Call the function to trigger fetching on card render
+      fetchAndRenderComments();
  
     // ── Card wrapper ──────────────────────────────────────
     const wrap = document.createElement('div');
@@ -891,6 +916,27 @@ const Dashboard = {
     wrap.appendChild(inputRow);
  
     return wrap;
+  },
+  async loadAnnouncementComments(announcementId) {
+    try {
+      const response = await fetch(`config/api.php?action=getAnnouncementComments&announcement_id=${announcementId}`);
+      // If you send payload via POST or query parameters depending on your router structure:
+      /*
+      const response = await fetch('config/api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getAnnouncementComments',
+          announcement_id: announcementId
+        })
+      });
+      */
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Failed to load comments:', err);
+      return [];
+    }
   },
   progressInsightsCard() {
       // Reference the primary internship object directly from InternData
