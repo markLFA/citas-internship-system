@@ -906,6 +906,7 @@ annPostCard(ann) {
     fetchComments();
 
     // ── Main comment input ────────────────────────────────
+    console.log('log comments', ann._comments);
     const inputRow = document.createElement('div');
     inputRow.style.cssText = 'display:flex;gap:.5rem;padding:.65rem 1rem .85rem;align-items:center;border-top:1px solid #FFF0E0;margin-top:.5rem';
     const mainInp = mkInp('Write a comment…');
