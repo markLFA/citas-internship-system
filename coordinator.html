@@ -2835,18 +2835,31 @@ const Announcements = {
   // ─────────────────────────────────────────────────────────
   //  TOGGLE PIN
   // ─────────────────────────────────────────────────────────
-  async togglePin(ann) {
+async togglePin(ann) {
     const newVal = parseInt(ann.is_pinned) ? 0 : 1;
     try {
-      await fetch('config/api.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'togglePin', announcementId: ann.id, is_pinned: newVal }),
+      const res = await fetch('config/api.php', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'togglePin', 
+          announcementId: ann.id, 
+          is_pinned: newVal 
+        }),
       });
-      ann.is_pinned = newVal;
-      this.renderList();
-    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+      const json = await res.json();
+      
+      if (json.success) {
+        ann.is_pinned = newVal;
+        this.renderList(); // Automatically re-sorts pinned items to top
+        UI.toast(newVal ? '📌 Announcement pinned.' : '📌 Announcement unpinned.', 'success');
+      } else {
+        UI.toast('❌ ' + (json.message || json.error || 'Could not update pin status.'), 'danger');
+      }
+    } catch (_) { 
+      UI.toast('❌ Network error.', 'danger'); 
+    }
   },
-
   // ─────────────────────────────────────────────────────────
   //  DELETE ANNOUNCEMENT
   // ─────────────────────────────────────────────────────────

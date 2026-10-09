@@ -1129,6 +1129,31 @@ function getAnnouncements() {
     $stmt->execute([$targetCoordinatorId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+function togglePin($id, $isPinned) {
+    if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {
+        return ['success' => false, 'message' => 'Unauthorized.'];
+    }
+
+    $pdo = getDB();
+    $coordinatorId = $_SESSION['user']['id'];
+
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE announcements 
+            SET is_pinned = ?, updated_at = NOW() 
+            WHERE id = ? AND coordinator_id = ?
+        ");
+        $success = $stmt->execute([(int)$isPinned, $id, $coordinatorId]);
+
+        return [
+            'success' => $success,
+            'message' => $success ? 'Pin status updated successfully.' : 'Failed to update pin status or announcement not found.'
+        ];
+    } catch (PDOException $e) {
+        error_log('togglePin(): ' . $e->getMessage());
+        return ['success' => false, 'message' => 'Database error.'];
+    }
+}
 function addAnnouncement($title, $body, $isPinned = 0) {
     // Only coordinators should be allowed to add announcements
     if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {
