@@ -2461,6 +2461,7 @@ const Announcements = {
       
       // getAnnouncements() returns an array directly: [...]
       window.ANNOUNCEMENTS = Array.isArray(data) ? data : (data.interns ?? []);
+      console.log('Fetched announcements:', window.ANNOUNCEMENTS);
     } catch (err) {
       console.error('Failed to load announcements:', err);
       window.ANNOUNCEMENTS = [];
