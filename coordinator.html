@@ -1340,7 +1340,7 @@ const Announcements = {
     }
   },
 
-  async fetchComments(announcementId) {
+async fetchComments(announcementId) {
     try {
       const res = await fetch('config/api.php', {
         method: 'POST',
@@ -1350,14 +1350,20 @@ const Announcements = {
           announcement_id: announcementId,
         }),
       });
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      
+      const text = await res.text(); // Read as text first to debug if it's HTML
+      try {
+        const data = JSON.parse(text);
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        console.error(`PHP Error for announcement ${announcementId}:`, text);
+        return [];
+      }
     } catch (err) {
       console.error(`Failed to load comments for announcement ${announcementId}:`, err);
       return [];
     }
   },
-
   // ─────────────────────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────────────────────

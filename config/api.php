@@ -147,12 +147,13 @@ switch ($action) {
         break;
     // ── Announcement comments ──────────────────────────────────
     case 'getAnnouncementComments':
-        $annId = (int)($data['announcement_id'] ?? 0);
-        echo json_encode($annId
-            ? getAnnouncementComments($annId)
-            : ['error' => 'Missing announcement_id']);
-        break;
- 
+            if (!isset($_SESSION['user']['id'])) {
+                echo json_encode(['error' => 'Unauthorized']);
+                break;
+            }
+            $announcementId = intval($data['announcement_id'] ?? 0);
+            echo json_encode(getAnnouncementComments($announcementId));
+            break;
     case 'postAnnouncementComment':
         $annId    = (int)      ($data['announcement_id'] ?? 0);
         $comment  =             $data['comment']          ?? '';
