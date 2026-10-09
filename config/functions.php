@@ -3091,133 +3091,101 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
     $pdo = getDB();
     $coordinatorId = $_SESSION['user']['id'];
 
-    // -------------------------------------------------
-    // Get all interns handled by this coordinator
-    // -------------------------------------------------
+    if (empty($schoolYear)) {
+        $schoolYear = getCurrentSchoolYear();
+    }
+
+    // Fetch only interns who have an internship record for the selected school year
     $stmt = $pdo->prepare("
         SELECT 
-            u.id,
+            u.id                  AS user_id,
             u.name,
             u.email,
-
             ip.course,
             ip.year_level,
             ip.phone,
             ip.required_hours,
-            ip.joined_date
-
-        FROM intern_profiles ip
-
-        INNER JOIN users u
-            ON u.id = ip.user_id
-
-        WHERE ip.coordinator_id = ? and u.is_active = 1 and u.role = 'intern'
-
+            ip.joined_date,
+            i.id                  AS internship_id,
+            i.position,
+            i.supervisor,
+            i.supervisor_phone,
+            i.start_date,
+            i.end_date,
+            i.status,
+            i.created_at,
+            i.total_hours,
+            i.days_present,
+            i.reports_submitted,
+            i.is_profile_reviewed,
+            c.id                  AS company_id,
+            c.name                AS company_name,
+            c.address             AS company_address,
+            c.phone               AS company_phone,
+            c.email               AS company_email,
+            c.created_at          AS company_created
+        FROM users u
+        INNER JOIN intern_profiles ip ON ip.user_id = u.id
+        INNER JOIN internships i      ON i.intern_id = u.id
+        LEFT JOIN companies c         ON c.id = i.company_id
+        WHERE ip.coordinator_id = :coordinator_id 
+          AND u.role = 'intern'
+          AND i.school_year = :school_year
         ORDER BY u.name ASC
     ");
 
-    $stmt->execute([$coordinatorId]);
+    $stmt->execute([
+        ':coordinator_id' => $coordinatorId,
+        ':school_year'    => $schoolYear
+    ]);
 
-    $internUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Format output structure to match front-end expectations
     $internDatas = [];
-
-    // -------------------------------------------------
-    // Build complete intern data structure
-    // -------------------------------------------------
-    foreach ($internUsers as $intern) {
-        $internId = $intern['id'];
-
-        $stmt = $pdo->prepare("
-            SELECT i.id, i.position, i.supervisor, i.supervisor_phone,
-                i.start_date, i.end_date, i.status, i.created_at,
-                i.total_hours, i.days_present, i.reports_submitted,
-                c.id AS company_id, c.name AS company_name, c.address,
-                c.phone AS company_phone, c.email AS company_email, c.created_at AS company_created
-            FROM internships i
-            LEFT JOIN companies c ON c.id = i.company_id
-            WHERE i.intern_id = ? AND i.school_year = ?
-            ORDER BY i.created_at DESC
-        ");
-        $stmt->execute([$internId, $schoolYear]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // FIX: Skip this intern if they have no internship in the selected school year
-        if (empty($rows)) {
-            continue;
-        }
-
-        $internships = [];
-        foreach ($rows as $row) {
-            $internships[] = [ /* ... rest of your mapping code ... */ ];
-        }
-
+    foreach ($rows as $row) {
         $internDatas[] = [
-            "user" => [ ... ],
-            "profile" => [ ... ],
-            "internships" => $internships
+            "user" => [
+                "id"    => $row["user_id"],
+                "name"  => $row["name"],
+                "email" => $row["email"]
+            ],
+            "profile" => [
+                "course"         => $row["course"],
+                "year_level"     => $row["year_level"],
+                "phone"          => $row["phone"],
+                "required_hours" => $row["required_hours"],
+                "joined_date"    => $row["joined_date"]
+            ],
+            "internships" => [
+                [
+                    "id"                  => $row["internship_id"],
+                    "position"            => $row["position"],
+                    "supervisor"          => $row["supervisor"],
+                    "supervisor_phone"    => $row["supervisor_phone"],
+                    "start_date"          => $row["start_date"],
+                    "end_date"            => $row["end_date"],
+                    "status"              => $row["status"],
+                    "created_at"          => $row["created_at"],
+                    "total_hours"         => $row["total_hours"],
+                    "days_present"        => $row["days_present"],
+                    "reports_submitted"   => $row["reports_submitted"],
+                    "is_profile_reviewed" => $row["is_profile_reviewed"],
+                    "company" => [
+                        "id"         => $row["company_id"],
+                        "name"       => $row["company_name"],
+                        "address"    => $row["company_address"],
+                        "phone"      => $row["company_phone"],
+                        "email"      => $row["company_email"],
+                        "created_at" => $row["company_created"]
+                    ]
+                ]
+            ]
         ];
     }
 
     return $internDatas;
-    /*
-    $pdo = getDB();
-
-    if (empty($schoolYear)) {
-        $schoolYear = getCurrentSchoolYear( );
-    }
-
-    try {
-        $stmt = $pdo->prepare("
-            SELECT
-                u.id,
-                u.name,
-                u.email,
-                u.is_active,
-                ip.school,
-                ip.course,
-                ip.year_level,
-                ip.phone,
-                ip.required_hours,
-                ip.joined_date,
-                i.id            AS internship_id,
-                i.school_year,
-                i.position,
-                i.supervisor,
-                i.start_date,
-                i.end_date,
-                i.status        AS internship_status,
-                i.total_hours,
-                i.days_present,
-                i.reports_submitted,
-                c.name          AS company_name,
-                c.address       AS company_address,
-                c.phone         AS company_phone,
-                c.email         AS company_email
-            FROM users u
-            JOIN intern_profiles ip  ON ip.user_id  = u.id
-            JOIN internships     i   ON i.intern_id  = u.id
-            LEFT JOIN companies  c   ON c.id         = i.company_id
-            WHERE u.role     = 'intern'
-              AND u.is_active = 1
-              AND i.school_year = :school_year
-              AND i.id = (
-                  SELECT id FROM internships
-                  WHERE intern_id = u.id
-                  ORDER BY created_at DESC
-                  LIMIT 1
-              )
-            ORDER BY u.name ASC
-        ");
-        $stmt->execute([':school_year' => $schoolYear]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log('getInternsBySchoolYear(): ' . $e->getMessage());
-        return [];
-    }
-        */
 }
-
 /**
  * Auto-assign school_year when a new internship row is created.
  * Call this from register.php / createInternship().
