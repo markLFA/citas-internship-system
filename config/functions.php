@@ -1100,7 +1100,8 @@ function getCurrentPage() {
     ];
 }
 
-function getAnnouncements() {
+function getAnnouncements(): array
+{
     if (!isset($_SESSION['user']['id']) || !isset($_SESSION['user']['role'])) {
         return [];
     }
@@ -1144,7 +1145,15 @@ function getAnnouncements() {
     ");
 
     $stmt->execute([$targetCoordinatorId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Bundle comments directly on the server to prevent query floods on refresh
+    foreach ($announcements as &$ann) {
+        $ann['comments'] = getAnnouncementComments($ann['id']);
+    }
+    unset($ann);
+
+    return $announcements;
 }
 function togglePin($id, $isPinned) {
     if (!isset($_SESSION['user']['id']) || $_SESSION['user']['role'] !== 'coordinator') {

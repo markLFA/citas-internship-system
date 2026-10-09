@@ -1356,9 +1356,18 @@ const Announcements = {
   // ─────────────────────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────────────────────
-  async build() {
+async build() {
     const sec = document.getElementById('sec-announcements');
     sec.innerHTML = '';
+
+    if (!this._isListening) {
+      window.addEventListener('schoolYearChanged', () => {
+        if (document.getElementById('sec-announcements')?.checkVisibility()) {
+          this.build();
+        }
+      });
+      this._isListening = true;
+    }
 
     sec.appendChild(Helpers.pageHeader(
       'Announcements',
@@ -1370,22 +1379,19 @@ const Announcements = {
     wrap.id = 'ann-list-wrap';
     sec.appendChild(wrap);
 
-    // 1. Fetch announcements
+    // 1. Fetch announcements (now includes comments natively)
     await this.fetchAnnouncements();
 
-    // 2. Fetch comments for each announcement
+    // 2. Map bundled comments to _comments for rendering
     if (window.ANNOUNCEMENTS && window.ANNOUNCEMENTS.length > 0) {
-      await Promise.all(
-        window.ANNOUNCEMENTS.map(async (ann) => {
-          ann._comments = await this.fetchComments(ann.id);
-        })
-      );
+      window.ANNOUNCEMENTS.forEach(ann => {
+        ann._comments = ann.comments || [];
+      });
     }
 
-    // 3. Render list
+    // 3. Render list instantly without overwhelming database connections
     this.renderList();
   },
-
   // ─────────────────────────────────────────────────────────
   //  RENDER LIST
   // ─────────────────────────────────────────────────────────
