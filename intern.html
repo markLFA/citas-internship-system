@@ -608,9 +608,7 @@ const Dashboard = {
     const required = InternData.profile.required_hours;
 
     const total = internship?.total_hours ?? 0;
-    const remaining = Math.max(0, required - total);
-    const pct = required ? Math.round((total / required) * 100) : 0;
-
+    const remaining = Math.max(0, Math.ceil((required - total) * 100) / 100);
     const wrap = document.createElement('div');
     wrap.style.marginBottom = '1rem';
 
