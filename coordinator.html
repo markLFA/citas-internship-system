@@ -2853,46 +2853,51 @@ const Announcements = {
     m.open();
   },
 
-  async _saveForm(modal, ann) {
-    const title     = document.getElementById('ann-title')?.value.trim();
-    const body      = document.getElementById('ann-body')?.value.trim();
-    const is_pinned = document.getElementById('ann-pin')?.checked ? 1 : 0;
+async _saveForm(modal, ann) {
+  const title     = document.getElementById('ann-title')?.value.trim();
+  const body      = document.getElementById('ann-body')?.value.trim();
+  const is_pinned = document.getElementById('ann-pin')?.checked ? 1 : 0;
 
-    if (!title) { UI.toast('Please enter a title.',   'danger'); return; }
-    if (!body)  { UI.toast('Please write a message.', 'danger'); return; }
+  if (!title) { UI.toast('Please enter a title.',   'danger'); return; }
+  if (!body)  { UI.toast('Please write a message.', 'danger'); return; }
 
-    const isEdit = !!ann;
-    const action = isEdit ? 'updateAnnouncement' : 'createAnnouncement';
+  const isEdit = !!ann;
+  // Match backend case 'addAnnouncement'
+  const action = isEdit ? 'updateAnnouncement' : 'addAnnouncement';
 
-    try {
-      const res  = await fetch('config/api.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          announcementId: ann?.id ?? null,
-          title, body, is_pinned,
-        }),
+  try {
+    const res  = await fetch('config/api.php', {
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        id: ann?.id ?? null, // Backend expects 'id'
+        title, 
+        body, 
+        isPinned: is_pinned, // Backend expects 'isPinned'
+      }),
+    });
+    const json = await res.json();
+    if (!json.success) { UI.toast('❌ ' + (json.message ?? json.error ?? 'Failed.'), 'danger'); return; }
+
+    if (isEdit) {
+      Object.assign(ann, { title, body, is_pinned });
+    } else {
+      ANNOUNCEMENTS.unshift({
+        id:         json.id ?? Date.now(), // Backend returns 'id'
+        title, 
+        body, 
+        is_pinned,
+        created_at: new Date().toISOString(),
+        _comments:  [],
       });
-      const json = await res.json();
-      if (!json.success) { UI.toast('❌ ' + (json.error ?? 'Failed.'), 'danger'); return; }
+    }
 
-      if (isEdit) {
-        Object.assign(ann, { title, body, is_pinned });
-      } else {
-        ANNOUNCEMENTS.unshift({
-          id:         json.announcement_id ?? Date.now(),
-          title, body, is_pinned,
-          created_at: new Date().toISOString(),
-          _comments:  [],
-        });
-      }
-
-      this.renderList();
-      modal.close();
-      UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
-    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
-  },
-};
+    this.renderList();
+    modal.close();
+    UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
+  } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+}};
 
 // ─────────────────────────────────────────────────────────────
 //  REPORTS  (weekly reports from all interns)

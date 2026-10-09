@@ -169,7 +169,8 @@ switch ($action) {
         }
         echo json_encode(getSystemStats());
         break;
-    case 'getAllCoordinators':
+    
+        case 'getAllCoordinators':
         if (($_SESSION['user']['role'] ?? '') !== 'admin') {
             echo json_encode(['error' => 'Unauthorized']); break;
         }
