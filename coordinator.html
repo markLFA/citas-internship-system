@@ -2448,6 +2448,7 @@ openDetailModal(intern) {
 const Announcements = {
 
 // ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
   //  API FETCHERS
   // ─────────────────────────────────────────────────────────
   async fetchAnnouncements() {
@@ -2459,9 +2460,16 @@ const Announcements = {
       });
       const data = await res.json();
       
-      // getAnnouncements() returns an array directly: [...]
-      window.ANNOUNCEMENTS = Array.isArray(data) ? data : (data.interns ?? []);
-      console.log('Fetched announcements:', window.ANNOUNCEMENTS);
+      // Handle both raw array [...] and wrapped { interns: [...] } or { announcements: [...] }
+      if (Array.isArray(data)) {
+        window.ANNOUNCEMENTS = data;
+      } else if (Array.isArray(data.interns)) {
+        window.ANNOUNCEMENTS = data.interns;
+      } else if (Array.isArray(data.announcements)) {
+        window.ANNOUNCEMENTS = data.announcements;
+      } else {
+        window.ANNOUNCEMENTS = [];
+      }
     } catch (err) {
       console.error('Failed to load announcements:', err);
       window.ANNOUNCEMENTS = [];
@@ -2506,8 +2514,8 @@ const Announcements = {
     // 1. Fetch announcements
     await this.fetchAnnouncements();
 
-    // 2. Fetch comments for each announcement concurrently
-    if (window.ANNOUNCEMENTS.length > 0) {
+    // 2. Fetch comments for each announcement
+    if (window.ANNOUNCEMENTS && window.ANNOUNCEMENTS.length > 0) {
       await Promise.all(
         window.ANNOUNCEMENTS.map(async (ann) => {
           ann._comments = await this.fetchComments(ann.id);
@@ -2515,9 +2523,10 @@ const Announcements = {
       );
     }
 
-    // 3. Render list
+    // 3. Render the list with populated window.ANNOUNCEMENTS
     this.renderList();
   },
+
   // ─────────────────────────────────────────────────────────
   //  RENDER LIST
   // ─────────────────────────────────────────────────────────
@@ -2526,16 +2535,17 @@ const Announcements = {
     if (!wrap) return;
     wrap.innerHTML = '';
 
-    if (!ANNOUNCEMENTS.length) {
+    const list = window.ANNOUNCEMENTS || [];
+
+    if (!list.length) {
       wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Create one to notify your interns.'));
       return;
     }
 
-    [...ANNOUNCEMENTS]
+    [...list]
       .sort((a, b) => (parseInt(b.is_pinned) || 0) - (parseInt(a.is_pinned) || 0))
       .forEach(ann => wrap.appendChild(this.annCard(ann)));
   },
-
   // ─────────────────────────────────────────────────────────
   //  ANNOUNCEMENT CARD — Facebook-style with comments/replies
   // ─────────────────────────────────────────────────────────
