@@ -248,12 +248,12 @@ switch ($action) {
         }
         break;
     case 'getCoordinatorDocuments':
-        if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
-            echo json_encode(['error' => 'Unauthorized access']); break;
-        }
-        echo json_encode(getCoordinatorDocuments());
-        break;
-
+            if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
+                echo json_encode(['error' => 'Unauthorized access']); break;
+            }
+            $schoolYear = trim($data['school_year'] ?? '');
+            echo json_encode(getCoordinatorDocuments($schoolYear));
+            break;
     case 'reviewInternDocument':
         if (($_SESSION['user']['role'] ?? '') !== 'coordinator') {
             echo json_encode(['error' => 'Unauthorized access']); break;

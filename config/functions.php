@@ -2938,11 +2938,10 @@ try {
  *
  * @return array
  */
-function getCoordinatorDocuments(): array
+function getCoordinatorDocuments(string $schoolYear = ''): array
 {
     $pdo = getDB();
 
-    // Grab the logged-in coordinator's ID directly from the session
     $coordinatorId = $_SESSION['user']['id'] ?? null;
 
     if (!$coordinatorId) {
@@ -2950,7 +2949,12 @@ function getCoordinatorDocuments(): array
         return [];
     }
 
-    $sql = "SELECT d.id, 
+    if (empty($schoolYear)) {
+        $schoolYear = getCurrentSchoolYear();
+    }
+
+    $sql = "SELECT DISTINCT
+                   d.id, 
                    d.intern_id AS internId, 
                    u.name AS internName, 
                    p.course AS dept,
@@ -2965,32 +2969,24 @@ function getCoordinatorDocuments(): array
                 ON d.intern_id = u.id
             LEFT JOIN intern_profiles p 
                 ON d.intern_id = p.user_id
+            INNER JOIN internships i 
+                ON i.intern_id = d.intern_id
             WHERE d.coordinator_id = :coordinator_id
+              AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
     try {
         $stmt = $pdo->prepare($sql);
-
         $stmt->execute([
-            ':coordinator_id' => $coordinatorId
+            ':coordinator_id' => $coordinatorId,
+            ':school_year'    => $schoolYear
         ]);
 
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Debugging
-        error_log("Coordinator ID: " . $coordinatorId);
-        error_log("Documents Found: " . count($results));
-
-        return $results ?: [];
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     } catch (PDOException $e) {
-
-        // Show actual SQL error while developing
-        die("Database error in getCoordinatorDocuments: " . $e->getMessage());
-
-        // Production version:
-        // error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
-        // return [];
+        error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
+        return [];
     }
 }
 
