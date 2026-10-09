@@ -427,11 +427,12 @@ function navigate(name) {
   const center = document.querySelector('.cui-navbar-center');
   if (center) center.textContent = SECTIONS[name];
 
-  // Rebuild sections when navigated to
-  if (name === 'documents') {
+  // Rebuild pages dynamically when navigated to
+  if (name === 'reports') {
+    Reports.build();
+  } else if (name === 'documents') {
     CoordinatorDocuments.build();
   } else if (name === 'analytics') {
-    // Charts must be drawn after their canvas is visible
     setTimeout(() => Analytics.drawAllCharts(), 30);
   }
 
@@ -1813,21 +1814,33 @@ const Announcements = {
 // ─────────────────────────────────────────────────────────────
 const Reports = {
 
+  _isListening: false,
+
   build() {
     const sec = document.getElementById('sec-reports');
+    sec.innerHTML = ''; // Clear container on rebuild
+
+    // Attach listener for school year changes (once)
+    if (!this._isListening) {
+      window.addEventListener('schoolYearChanged', () => {
+        if (document.getElementById('sec-reports')?.checkVisibility()) {
+          this.build();
+        }
+      });
+      this._isListening = true;
+    }
+
     sec.appendChild(Helpers.pageHeader(
       'Weekly Reports',
-      'Review and give feedback on intern submissions'
+      `Review and give feedback on intern submissions (${window.AppState?.schoolYear || ''})`
     ));
 
-    Helpers.api('getCoordinatorReports').then(data => {
-      //console.log('Reports data:', JSON.stringify(data, null, 2));
-      
-      // Use the database-driven intern_name returned by your query
-      REPORTS = data.map(r => ({
+    // Pass the active school year from global AppState
+    Helpers.api('getCoordinatorReports', { school_year: window.AppState?.schoolYear }).then(data => {
+      REPORTS = (data || []).map(r => ({
         ...r,
         internName: r.intern_name || `Intern #${r.intern_id}`, 
-        dept: r.dept || ' ' // Fallback if department tracking is added later
+        dept: r.dept || ' '
       }));
 
       sec.appendChild( this.statusTabs()     );
@@ -1864,7 +1877,6 @@ const Reports = {
 
       btn.addEventListener('click', () => {
         reportFilterStatus = t.value;
-        // Update tab styles
         wrap.querySelectorAll('button').forEach(b => {
           const active = b.dataset.value === t.value;
           b.style.background  = active ? '#EA580C' : '#fff';
@@ -1911,15 +1923,15 @@ const Reports = {
           cell.append(Helpers.internAvatar(v), info);
           return cell;
         }},
-      { key:'week_label',   label:'Week',     render: v => `<span style="font-size:.82rem; text-transform: capitalize;">${v}</span>` },
-      { key:'files',   label:'Files',
+      { key:'week_label', label:'Week', render: v => `<span style="font-size:.82rem; text-transform: capitalize;">${v}</span>` },
+      { key:'files', label:'Files',
         render: files => {
           if (!files || files.length === 0) return `<span style="font-size:.8rem;color:#999;font-style:italic">No files</span>`;
           return files.map(f => 
             `<a href="https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}" target="_blank" style="display:block;color:#EA580C;font-size:.8rem;text-decoration:none;margin-bottom:.2rem" title="${f.file_name}">📄 ${f.file_name}</a>`
           ).join('');
         }},
-      { key:'uploaded_at',   label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
+      { key:'uploaded_at', label:'Submitted', render: v => `<span style="font-size:.8rem;color:#9A6647">${v}</span>` },
       { key:'status', label:'Status', align:'center',
         render: v => {
           const b = document.createElement('span');
@@ -1941,7 +1953,7 @@ const Reports = {
     }));
   },
 
-  // Review modal — read report + set status + write feedback
+  // Review modal
   openReviewModal(report) {
     const sl = { pending:'rs-pending', approved:'rs-approved', revision:'rs-revision', reviewed:'rs-reviewed' };
     const tl = { pending:'⏳ Pending', approved:'✅ Accepted', revision:'🔁 Revision', reviewed:'👁 Reviewed' };
@@ -1964,75 +1976,38 @@ const Reports = {
     hdr.appendChild(badge);
     body.appendChild(hdr);
 
-    // File container
+    // Files wrap
     const filesWrap = document.createElement('div');
-    filesWrap.style.cssText = `
-      display:flex;
-      flex-direction:column;
-      gap:.5rem;
-      margin-bottom:1.25rem
-    `;
+    filesWrap.style.cssText = 'display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem';
 
     if (report.files && report.files.length > 0) {
       report.files.forEach(f => {
         const fileLink = document.createElement('a');
-
         fileLink.href = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${f.file_path}`;
         fileLink.target = '_blank';
-
-        fileLink.style.cssText = `
-          display:flex;
-          align-items:center;
-          gap:.75rem;
-          width:100%;
-          box-sizing:border-box;
-          padding:.75rem 1rem;
-          background:#FFF7ED;
-          border:1px solid #FED7AA;
-          border-radius:10px;
-          text-decoration:none;
-          color:#EA580C;
-          font-weight:600;
-          font-size:.875rem;
-        `;
+        fileLink.style.cssText = 'display:flex;align-items:center;gap:.75rem;width:100%;box-sizing:border-box;padding:.75rem 1rem;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;text-decoration:none;color:#EA580C;font-weight:600;font-size:.875rem';
 
         const fileName = document.createElement('span');
         fileName.textContent = `📄 ${f.file_name}`;
-        fileName.style.cssText = `
-          overflow:hidden;
-          text-overflow:ellipsis;
-          white-space:nowrap;
-          flex:1;
-        `;
+        fileName.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
 
-        const viewButton = Helpers.orangeBtn(
-          'View',
-          (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            viewDocument(f.file_path);
-          }
-        );
-
-        viewButton.style.cssText += `
-          flex-shrink:0;
-        `;
+        const viewButton = Helpers.orangeBtn('View', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          viewDocument(f.file_path);
+        });
+        viewButton.style.cssText += 'flex-shrink:0;';
 
         fileLink.appendChild(fileName);
         fileLink.appendChild(viewButton);
-
         filesWrap.appendChild(fileLink);
       });
     } else {
-      filesWrap.innerHTML = `
-        <div style="font-size:.85rem;color:#999;font-style:italic">
-          No files attached to this report.
-        </div>
-      `;
+      filesWrap.innerHTML = `<div style="font-size:.85rem;color:#999;font-style:italic">No files attached to this report.</div>`;
     }
     body.appendChild(filesWrap);
 
-    // Status selector buttons
+    // Status selector
     const statusLabel = document.createElement('div');
     statusLabel.style.cssText = 'font-size:.8rem;font-weight:700;color:#6B3A1F;margin-bottom:.5rem';
     statusLabel.textContent   = 'Set Status';
@@ -2099,7 +2074,7 @@ const Reports = {
               action:   'setReportStatus',
               reportId: report.id,
               status:   selectedStatus,
-              feedback: feedback,        // ← make sure this is included
+              feedback: feedback,
             }),
           })
           .then(r => r.json())

@@ -871,16 +871,34 @@ function setReportStatus(int $reportId, string $status, string $feedback = ''): 
  * @param int $coordinatorId The ID of the signed-in coordinator.
  * @return array An array of reports, each containing an 'intern_name' and a 'files' array.
  */
-function getReportsByCoordinator(int $coordinatorId): array 
+function getReportsByCoordinator(int $coordinatorId, string $schoolYear = ''): array 
 {
     $pdo = getDB(); 
 
-    // Query 1: Fetch reports joined with the users table to get the intern's name
-    $reportSql = "SELECT r.id, r.intern_id, u.name AS intern_name, r.week_label, r.week_start, 
-                         r.description, r.status, r.feedback, r.uploaded_at, r.reviewed_at, r.reviewed_by 
+    if (empty($schoolYear)) {
+        $schoolYear = getCurrentSchoolYear();
+    }
+
+    // Query 1: Fetch reports joined with users and internships to filter by school_year
+    $reportSql = "SELECT DISTINCT 
+                         r.id, 
+                         r.intern_id, 
+                         u.name AS intern_name, 
+                         p.course AS dept,
+                         r.week_label, 
+                         r.week_start, 
+                         r.description, 
+                         r.status, 
+                         r.feedback, 
+                         r.uploaded_at, 
+                         r.reviewed_at, 
+                         r.reviewed_by 
                   FROM weekly_reports r
                   INNER JOIN users u ON r.intern_id = u.id
+                  LEFT JOIN intern_profiles p ON p.user_id = u.id
+                  INNER JOIN internships i ON i.intern_id = r.intern_id
                   WHERE r.coordinator_id = :coordinator_id
+                    AND i.school_year = :school_year
                   ORDER BY r.uploaded_at DESC";
 
     // Query 2: Fetch files for a specific report
@@ -889,25 +907,24 @@ function getReportsByCoordinator(int $coordinatorId): array
                 WHERE report_id = :report_id";
 
     try {
-        // Fetch the reports
         $reportStmt = $pdo->prepare($reportSql);
-        $reportStmt->execute([':coordinator_id' => $coordinatorId]);
+        $reportStmt->execute([
+            ':coordinator_id' => $coordinatorId,
+            ':school_year'    => $schoolYear
+        ]);
         $reports = $reportStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Prepare the file statement outside the loop for optimization
         $fileStmt = $pdo->prepare($fileSql);
 
-        // Loop through each report and attach its files
         foreach ($reports as &$report) {
             $fileStmt->execute([':report_id' => $report['id']]);
             $report['files'] = $fileStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
-        unset($report); // Break reference pointer loop safety
+        unset($report);
 
         return $reports;
 
     } catch (PDOException $e) {
-        // Check error_log.txt in your config directory if it still fails!
         error_log("Database error in getReportsByCoordinator: " . $e->getMessage());
         return [];
     }
