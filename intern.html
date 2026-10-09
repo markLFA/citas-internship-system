@@ -632,7 +632,7 @@ const Dashboard = {
   },
 
 
-  announcementsCard() {
+announcementsCard() {
     const body = document.createElement('div');
     body.setAttribute('style',
       'max-height:420px;overflow-y:auto;padding-right:.25rem;' +
@@ -654,15 +654,8 @@ const Dashboard = {
       body,
     });
   },
- 
- 
-// ============================================================
-//  CHANGE 2: Inside Helpers = { }
-//  Add this method anywhere inside Helpers (e.g. after annItem).
-//  Do NOT remove annItem — it may still be used elsewhere.
-// ============================================================
- 
-annPostCard(ann) {
+
+  annPostCard(ann) {
     const pinned  = parseInt(ann.is_pinned) || ann.pinned || 0;
     const date    = ann.date
       || (ann.created_at
@@ -674,15 +667,13 @@ annPostCard(ann) {
 
     if (!ann._comments) ann._comments = [];
 
-    // Helper to format timestamps gracefully
     const fmtDate = (d) => {
       if (!d) return '';
       const dt = new Date(d);
       return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // ── Fetch Comments from Backend ──────────────────────
-    const fetchComments = async () => {
+    const fetchComments = async (callback) => {
       try {
         const res = await fetch('config/api.php', {
           method: 'POST',
@@ -695,7 +686,7 @@ annPostCard(ann) {
         const data = await res.json();
         if (Array.isArray(data)) {
           ann._comments = data;
-          renderAll();
+          if (callback) callback();
           refreshCount();
         }
       } catch (e) {
@@ -703,7 +694,6 @@ annPostCard(ann) {
       }
     };
 
-    // ── Tiny helpers ─────────────────────────────────────
     const mkAv = (name, bg = 'linear-gradient(135deg,#6366F1,#4F46E5)') => {
       const a = UI.avatar(name || 'User', 'sm');
       a.style.cssText = `width:28px;height:28px;min-width:28px;font-size:.65rem;background:${bg};flex-shrink:0`;
@@ -744,7 +734,7 @@ annPostCard(ann) {
     const totalCount = () =>
       ann._comments.reduce((s, c) => s + 1 + (c._replies?.length ?? 0), 0);
 
-    // ── Card wrapper ──────────────────────────────────────
+    // ── Card wrapper (Main Dashboard View) ───────────────────
     const wrap = document.createElement('div');
     wrap.style.cssText = [
       'background:#fff',
@@ -753,9 +743,14 @@ annPostCard(ann) {
       'margin-bottom:.85rem',
       'overflow:hidden',
       'box-shadow:0 1px 4px rgba(234,88,12,.07)',
+      'cursor:pointer',
+      'transition:transform .15s ease, box-shadow .15s ease',
     ].join(';');
 
-    // ── Post header ───────────────────────────────────────
+    wrap.addEventListener('mouseenter', () => wrap.style.transform = 'translateY(-2px)');
+    wrap.addEventListener('mouseleave', () => wrap.style.transform = 'none');
+
+    // ── Post Header ───────────────────────────────────────
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;align-items:center;gap:.65rem;padding:.85rem 1rem .5rem';
     const headAv = UI.avatar(author, 'sm');
@@ -775,163 +770,242 @@ annPostCard(ann) {
     }
     wrap.appendChild(head);
 
-    // ── Post body ─────────────────────────────────────────
+    // ── Post Body (Truncated/Compact for Dashboard) ───────
     const pb = document.createElement('div');
     pb.style.cssText = 'padding:.3rem 1rem .75rem';
     const tEl = document.createElement('div');
     tEl.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.9rem;margin-bottom:.3rem';
     tEl.textContent   = ann.title;
     const bEl = document.createElement('div');
-    bEl.style.cssText = 'font-size:.83rem;color:#4B2E0A;line-height:1.55';
+    bEl.style.cssText = 'font-size:.83rem;color:#4B2E0A;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
     bEl.textContent   = ann.body;
     pb.append(tEl, bEl);
     wrap.appendChild(pb);
 
-    // ── Reaction bar ──────────────────────────────────────
+    // ── Footer Bar (Click to open Modal) ──────────────────
     const rBar = document.createElement('div');
-    rBar.style.cssText = 'display:flex;align-items:center;padding:.35rem 1rem;border-top:1px solid #FFF0E0;border-bottom:1px solid #FFF0E0';
+    rBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;border-top:1px solid #FFF0E0;background:#FFFBF7';
+    
+    const expandBtn = document.createElement('span');
+    expandBtn.style.cssText = 'font-size:.78rem;color:#EA580C;font-weight:700';
+    expandBtn.textContent = '🔍 View Details & Comments';
+
     const countEl = document.createElement('span');
-    countEl.style.cssText = 'font-size:.75rem;color:#9A6647;margin-left:auto';
+    countEl.style.cssText = 'font-size:.75rem;color:#9A6647';
     const refreshCount = () => {
       const n = totalCount();
-      countEl.textContent = n ? n + ' comment' + (n !== 1 ? 's' : '') : '';
+      countEl.textContent = n ? n + ' comment' + (n !== 1 ? 's' : '') : '0 comments';
     };
     refreshCount();
-    rBar.appendChild(countEl);
+    
+    rBar.append(expandBtn, countEl);
     wrap.appendChild(rBar);
 
-    // ── Comments list ─────────────────────────────────────
-    const cList = document.createElement('div');
-    cList.style.cssText = 'padding:.5rem 1rem 0;max-height:260px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
-
-    const renderReply = (reply) => {
-      const replyAuthor = reply.author || reply.user_name || 'User';
-      const replyText = reply.text || reply.comment || '';
-      const replyDate = fmtDate(reply.date || reply.created_at);
-
-      const rRow = document.createElement('div');
-      rRow.style.cssText = 'display:flex;gap:.45rem;margin-top:.45rem;align-items:flex-start;padding-left:36px';
-      const rBub = document.createElement('div');
-      rBub.style.cssText = 'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:0 10px 10px 10px;padding:.4rem .7rem;flex:1';
-      rBub.innerHTML = `
-        <div style="font-weight:700;font-size:.73rem;color:#1A0A00">${replyAuthor}</div>
-        <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${replyText}</div>
-        <div style="font-size:.66rem;color:#9A6647;margin-top:.2rem">${replyDate}</div>`;
-      rRow.append(mkAv(replyAuthor, 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
-      return rRow;
-    };
-
-    const renderAll = () => {
-      cList.innerHTML = '';
-      ann._comments.forEach(cm => {
-        if (!cm._replies) cm._replies = [];
-
-        const cmAuthor = cm.author || cm.user_name || 'User';
-        const cmText   = cm.text || cm.comment || '';
-        const cmDate   = fmtDate(cm.date || cm.created_at);
-
-        const cmWrap = document.createElement('div');
-        cmWrap.style.marginBottom = '.75rem';
-
-        // Comment row
-        const cmRow = document.createElement('div');
-        cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
-        const cmBub = document.createElement('div');
-        cmBub.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:0 10px 10px 10px;padding:.45rem .75rem;flex:1';
-
-        const cmHead = document.createElement('div');
-        cmHead.style.cssText = 'display:flex;align-items:baseline;gap:.4rem';
-        cmHead.innerHTML = `
-          <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cmAuthor}</span>
-          <span style="font-size:.66rem;color:#C4845A">${cmDate}</span>`;
-
-        const cmTextEl = document.createElement('div');
-        cmTextEl.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
-        cmTextEl.textContent   = cmText;
-
-        // Reply button
-        const replyBtn = document.createElement('button');
-        replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
-        replyBtn.textContent   = '↩ Reply';
-
-        cmBub.append(cmHead, cmTextEl, replyBtn);
-        cmRow.append(mkAv(cmAuthor), cmBub);
-        cmWrap.appendChild(cmRow);
-
-        // Existing replies
-        const replWrap = document.createElement('div');
-        cm._replies.forEach(r => replWrap.appendChild(renderReply(r)));
-        cmWrap.appendChild(replWrap);
-
-        // Inline reply input (hidden)
-        const replyRow = document.createElement('div');
-        replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
-        const replyInp = mkInp(`Reply to ${cmAuthor}…`);
-        const replySend = UI.button('Reply', {
-          size: 'sm',
-          color: { base:'#6366F1', hover:'#4F46E5', text:'#fff' },
-          onClick: async () => {
-            const text = replyInp.value.trim();
-            if (!text) return;
-            await postToApi(text, cm.id);
-            cm._replies.push({ author: myName, text, date: nowStr() });
-            replyInp.value = '';
-            replyRow.style.display = 'none';
-            renderAll(); refreshCount();
-            cList.scrollTop = cList.scrollHeight;
-          },
-        });
-        replyInp.addEventListener('keydown', e => {
-          if (e.key === 'Enter')  replySend.click();
-          if (e.key === 'Escape') replyRow.style.display = 'none';
-        });
-        replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySend);
-        cmWrap.appendChild(replyRow);
-
-        replyBtn.addEventListener('click', () => {
-          const open = replyRow.style.display !== 'none';
-          replyRow.style.display = open ? 'none' : 'flex';
-          if (!open) setTimeout(() => replyInp.focus(), 50);
-        });
-
-        cList.appendChild(cmWrap);
-      });
-    };
-
-    renderAll();
-    wrap.appendChild(cList);
-
-    // Trigger comment loading from backend
+    // Initial silent comment load for badge counter
     fetchComments();
 
-    // ── Main comment input ────────────────────────────────
-    console.log('log comments', ann._comments);
-    const inputRow = document.createElement('div');
-    inputRow.style.cssText = 'display:flex;gap:.5rem;padding:.65rem 1rem .85rem;align-items:center;border-top:1px solid #FFF0E0;margin-top:.5rem';
-    const mainInp = mkInp('Write a comment…');
-    const mainSend = UI.button('Send', {
-      size: 'sm',
-      color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
-      onClick: async () => {
-        const text = mainInp.value.trim();
-        if (!text) return;
-        const res = await postToApi(text, null);
-        ann._comments.push({
-          id: res.comment_id ?? Date.now(),
-          author: myName, text, date: nowStr(), _replies: [],
+    // ── POPUP MODAL BUILDER ────────────────────────────────
+    const openAnnouncementModal = () => {
+      const backdrop = document.createElement('div');
+      backdrop.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'width:100vw', 'height:100vh',
+        'background:rgba(26,10,0,0.5)', 'backdrop-filter:blur(3px)',
+        'z-index:9999', 'display:flex', 'align-items:center', 'justify-content:center',
+        'padding:1rem', 'box-sizing:border-box'
+      ].join(';');
+
+      const modal = document.createElement('div');
+      modal.style.cssText = [
+        'background:#fff', 'border-radius:16px', 'width:100%', 'max-width:640px',
+        'max-height:90vh', 'display:flex', 'flex-direction:column',
+        'box-shadow:0 20px 25px -5px rgba(0,0,0,0.2)', 'overflow:hidden'
+      ].join(';');
+
+      // Modal Header
+      const mHead = document.createElement('div');
+      mHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #FFF0E0;background:#FFFBF7';
+      mHead.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span style="font-size:1.1rem">📢</span>
+          <span style="font-weight:700;font-size:1rem;color:#1A0A00">Announcement</span>
+        </div>
+      `;
+      const closeBtn = document.createElement('button');
+      closeBtn.innerHTML = '✕';
+      closeBtn.style.cssText = 'background:none;border:none;font-size:1.2rem;color:#9A6647;cursor:pointer;padding:.2rem .5rem';
+      closeBtn.onclick = () => backdrop.remove();
+      mHead.appendChild(closeBtn);
+      modal.appendChild(mHead);
+
+      // Scrollable Body
+      const mBody = document.createElement('div');
+      mBody.style.cssText = 'padding:1.25rem;overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
+
+      // Full Title and Content
+      const mTitle = document.createElement('h3');
+      mTitle.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:1.1rem;margin:0 0 .5rem 0';
+      mTitle.textContent = ann.title;
+
+      const mMeta = document.createElement('div');
+      mMeta.style.cssText = 'font-size:.78rem;color:#9A6647;margin-bottom:1rem;display:flex;gap:.5rem';
+      mMeta.innerHTML = `<span><strong>${author}</strong></span>•<span>${date}</span>`;
+
+      const mText = document.createElement('div');
+      mText.style.cssText = 'font-size:.9rem;color:#4B2E0A;line-height:1.6;margin-bottom:1.5rem;white-space:pre-wrap';
+      mText.textContent = ann.body;
+
+      mBody.append(mTitle, mMeta, mText);
+
+      // Modal Comments Section
+      const cSection = document.createElement('div');
+      cSection.style.cssText = 'border-top:1px solid #FFF0E0;padding-top:1rem';
+
+      const cHeader = document.createElement('h4');
+      cHeader.style.cssText = 'font-size:.85rem;color:#1A0A00;margin:0 0 .75rem 0';
+      cHeader.textContent = 'Comments';
+      cSection.appendChild(cHeader);
+
+      const cList = document.createElement('div');
+
+      const renderReply = (reply) => {
+        const replyAuthor = reply.author || reply.user_name || 'User';
+        const replyText = reply.text || reply.comment || '';
+        const replyDate = fmtDate(reply.date || reply.created_at);
+
+        const rRow = document.createElement('div');
+        rRow.style.cssText = 'display:flex;gap:.45rem;margin-top:.45rem;align-items:flex-start;padding-left:36px';
+        const rBub = document.createElement('div');
+        rBub.style.cssText = 'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:0 10px 10px 10px;padding:.4rem .7rem;flex:1';
+        rBub.innerHTML = `
+          <div style="font-weight:700;font-size:.73rem;color:#1A0A00">${replyAuthor}</div>
+          <div style="font-size:.78rem;color:#4B2E0A;margin-top:.1rem">${replyText}</div>
+          <div style="font-size:.66rem;color:#9A6647;margin-top:.2rem">${replyDate}</div>`;
+        rRow.append(mkAv(replyAuthor, 'linear-gradient(135deg,#8B5CF6,#6D28D9)'), rBub);
+        return rRow;
+      };
+
+      const renderAllModalComments = () => {
+        cList.innerHTML = '';
+        if (!ann._comments.length) {
+          cList.innerHTML = '<div style="font-size:.8rem;color:#9A6647;font-style:italic">No comments yet. Be the first to comment!</div>';
+          return;
+        }
+
+        ann._comments.forEach(cm => {
+          if (!cm._replies) cm._replies = [];
+
+          const cmAuthor = cm.author || cm.user_name || 'User';
+          const cmText   = cm.text || cm.comment || '';
+          const cmDate   = fmtDate(cm.date || cm.created_at);
+
+          const cmWrap = document.createElement('div');
+          cmWrap.style.marginBottom = '.75rem';
+
+          const cmRow = document.createElement('div');
+          cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
+          const cmBub = document.createElement('div');
+          cmBub.style.cssText = 'background:#FFF7ED;border:1px solid #FED7AA;border-radius:0 10px 10px 10px;padding:.45rem .75rem;flex:1';
+
+          const cmHead = document.createElement('div');
+          cmHead.style.cssText = 'display:flex;align-items:baseline;gap:.4rem';
+          cmHead.innerHTML = `
+            <span style="font-weight:700;font-size:.75rem;color:#1A0A00">${cmAuthor}</span>
+            <span style="font-size:.66rem;color:#C4845A">${cmDate}</span>`;
+
+          const cmTextEl = document.createElement('div');
+          cmTextEl.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
+          cmTextEl.textContent   = cmText;
+
+          const replyBtn = document.createElement('button');
+          replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
+          replyBtn.textContent   = '↩ Reply';
+
+          cmBub.append(cmHead, cmTextEl, replyBtn);
+          cmRow.append(mkAv(cmAuthor), cmBub);
+          cmWrap.appendChild(cmRow);
+
+          const replWrap = document.createElement('div');
+          cm._replies.forEach(r => replWrap.appendChild(renderReply(r)));
+          cmWrap.appendChild(replWrap);
+
+          const replyRow = document.createElement('div');
+          replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
+          const replyInp = mkInp(`Reply to ${cmAuthor}…`);
+          const replySend = UI.button('Reply', {
+            size: 'sm',
+            color: { base:'#6366F1', hover:'#4F46E5', text:'#fff' },
+            onClick: async () => {
+              const text = replyInp.value.trim();
+              if (!text) return;
+              await postToApi(text, cm.id);
+              cm._replies.push({ author: myName, text, date: nowStr() });
+              replyInp.value = '';
+              replyRow.style.display = 'none';
+              renderAllModalComments();
+              refreshCount();
+            },
+          });
+          replyInp.addEventListener('keydown', e => {
+            if (e.key === 'Enter')  replySend.click();
+            if (e.key === 'Escape') replyRow.style.display = 'none';
+          });
+          replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySend);
+          cmWrap.appendChild(replyRow);
+
+          replyBtn.addEventListener('click', () => {
+            const open = replyRow.style.display !== 'none';
+            replyRow.style.display = open ? 'none' : 'flex';
+            if (!open) setTimeout(() => replyInp.focus(), 50);
+          });
+
+          cList.appendChild(cmWrap);
         });
-        mainInp.value = '';
-        renderAll(); refreshCount();
-        cList.scrollTop = cList.scrollHeight;
-      },
-    });
-    mainInp.addEventListener('keydown', e => { if (e.key === 'Enter') mainSend.click(); });
-    inputRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), mainInp, mainSend);
-    wrap.appendChild(inputRow);
+      };
+
+      cSection.appendChild(cList);
+      mBody.appendChild(cSection);
+      modal.appendChild(mBody);
+
+      // Input Footer on Modal
+      const mFooter = document.createElement('div');
+      mFooter.style.cssText = 'display:flex;gap:.5rem;padding:.75rem 1.25rem;align-items:center;border-top:1px solid #FFF0E0;background:#fff';
+      const mainInp = mkInp('Write a comment…');
+      const mainSend = UI.button('Send', {
+        size: 'sm',
+        color: { base:'#EA580C', hover:'#C2410C', text:'#fff' },
+        onClick: async () => {
+          const text = mainInp.value.trim();
+          if (!text) return;
+          const res = await postToApi(text, null);
+          ann._comments.push({
+            id: res.comment_id ?? Date.now(),
+            author: myName, text, date: nowStr(), _replies: [],
+          });
+          mainInp.value = '';
+          renderAllModalComments();
+          refreshCount();
+          mBody.scrollTop = mBody.scrollHeight;
+        },
+      });
+      mainInp.addEventListener('keydown', e => { if (e.key === 'Enter') mainSend.click(); });
+      mFooter.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), mainInp, mainSend);
+      modal.appendChild(mFooter);
+
+      backdrop.appendChild(modal);
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) backdrop.remove();
+      });
+      document.body.appendChild(backdrop);
+
+      // Fetch fresh comments when modal opens
+      fetchComments(renderAllModalComments);
+    };
+
+    wrap.addEventListener('click', openAnnouncementModal);
 
     return wrap;
-  }, 
-  async loadAnnouncementComments(announcementId) {
+  },
+    async loadAnnouncementComments(announcementId) {
     try {
       const response = await fetch(`config/api.php?action=getAnnouncementComments&announcement_id=${announcementId}`);
       // If you send payload via POST or query parameters depending on your router structure:
