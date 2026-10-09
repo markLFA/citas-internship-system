@@ -1100,7 +1100,8 @@ function getCurrentPage() {
     ];
 }
 
-function getAnnouncements() {
+function getAnnouncements(?string $schoolYear = null): array
+{
     if (!isset($_SESSION['user']['id']) || !isset($_SESSION['user']['role'])) {
         return [];
     }
@@ -1129,7 +1130,25 @@ function getAnnouncements() {
         return [];
     }
 
-    // Fetch announcements ordered by pinned status first, then newest date
+    // If $schoolYear is null or empty, automatically use the current school year
+    if (empty($schoolYear)) {
+        $schoolYear = getCurrentSchoolYear();
+    }
+
+    // Parse school year date range (e.g., "2025-2026" -> June 1, 2025 to May 31, 2026)
+    $parts = explode('-', $schoolYear);
+    if (count($parts) === 2) {
+        $startYear = (int) $parts[0];
+        $endYear   = (int) $parts[1];
+        
+        $startDate = "{$startYear}-06-01 00:00:00";
+        $endDate   = "{$endYear}-05-31 23:59:59";
+    } else {
+        $startDate = date('Y') . "-06-01 00:00:00";
+        $endDate   = (date('Y') + 1) . "-05-31 23:59:59";
+    }
+
+    // Fetch announcements filtered by coordinator and school year date range
     $stmt = $pdo->prepare("
         SELECT 
             id,
@@ -1140,10 +1159,12 @@ function getAnnouncements() {
             updated_at
         FROM announcements
         WHERE coordinator_id = ?
+          AND created_at >= ?
+          AND created_at <= ?
         ORDER BY is_pinned DESC, created_at DESC
     ");
 
-    $stmt->execute([$targetCoordinatorId]);
+    $stmt->execute([$targetCoordinatorId, $startDate, $endDate]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 function togglePin($id, $isPinned) {

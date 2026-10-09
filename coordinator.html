@@ -1316,7 +1316,7 @@ const Announcements = {
       const res = await fetch('config/api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getAnnouncements' }),
+        body: JSON.stringify({ action: 'getAnnouncements', school_year: window.AppState?.schoolYear || getCurrentSchoolYearJS() }),
       });
       const data = await res.json();
       
