@@ -1308,8 +1308,6 @@ if (typeof getCurrentSchoolYearJS === 'undefined') {
 
 const Announcements = {
 
-  _isListening: false,
-
   // ─────────────────────────────────────────────────────────
   //  API FETCHERS
   // ─────────────────────────────────────────────────────────
@@ -1318,10 +1316,7 @@ const Announcements = {
       const res = await fetch('config/api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getAnnouncements',
-          school_year: window.AppState?.schoolYear 
-        }),
+        body: JSON.stringify({ action: 'getAnnouncements' }),
       });
       const data = await res.json();
       
@@ -1340,7 +1335,7 @@ const Announcements = {
     }
   },
 
-async fetchComments(announcementId) {
+  async fetchComments(announcementId) {
     try {
       const res = await fetch('config/api.php', {
         method: 'POST',
@@ -1350,20 +1345,14 @@ async fetchComments(announcementId) {
           announcement_id: announcementId,
         }),
       });
-      
-      const text = await res.text(); // Read as text first to debug if it's HTML
-      try {
-        const data = JSON.parse(text);
-        return Array.isArray(data) ? data : [];
-      } catch (e) {
-        console.error(`PHP Error for announcement ${announcementId}:`, text);
-        return [];
-      }
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     } catch (err) {
       console.error(`Failed to load comments for announcement ${announcementId}:`, err);
       return [];
     }
   },
+
   // ─────────────────────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────────────────────
@@ -1371,19 +1360,9 @@ async fetchComments(announcementId) {
     const sec = document.getElementById('sec-announcements');
     sec.innerHTML = '';
 
-    // Attach listener for school year changes (once)
-    if (!this._isListening) {
-      window.addEventListener('schoolYearChanged', () => {
-        if (document.getElementById('sec-announcements')?.checkVisibility()) {
-          this.build();
-        }
-      });
-      this._isListening = true;
-    }
-
     sec.appendChild(Helpers.pageHeader(
       'Announcements',
-      `Post updates and notices for your interns (${window.AppState?.schoolYear || ''})`,
+      'Post updates and notices for your interns',
       Helpers.orangeBtn('➕ New Announcement', () => Announcements.openCreateModal())
     ));
 
@@ -1418,7 +1397,7 @@ async fetchComments(announcementId) {
     const list = window.ANNOUNCEMENTS || [];
 
     if (!list.length) {
-      wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Create one to notify your interns for this school year.'));
+      wrap.appendChild(UI.empty('📭', 'No announcements yet', 'Create one to notify your interns.'));
       return;
     }
 
@@ -1695,8 +1674,10 @@ async fetchComments(announcementId) {
       const json = await res.json();
       if (!json.success) { UI.toast('❌ Could not delete comment.', 'danger'); return; }
 
+      // Update state in window.ANNOUNCEMENTS
       const ann = (window.ANNOUNCEMENTS || []).find(a => parseInt(a.id) === parseInt(annId));
       if (ann && ann._comments) {
+        // Filter top-level comment or reply
         ann._comments = ann._comments.filter(c => parseInt(c.id) !== parseInt(commentId));
         ann._comments.forEach(c => {
           if (c._replies) {
@@ -1704,6 +1685,7 @@ async fetchComments(announcementId) {
           }
         });
 
+        // Live update the card DOM
         const cardEl = document.getElementById('ann-card-' + annId);
         if (cardEl) {
           cardEl.replaceWith(this.annCard(ann));
@@ -1726,7 +1708,7 @@ async fetchComments(announcementId) {
       const json = await res.json();
       if (json.success) {
         ann.is_pinned = newVal;
-        this.renderList();
+        this.renderList(); // Instantly re-sorts pinned cards to top
         UI.toast(newVal ? '📌 Announcement pinned.' : '📌 Announcement unpinned.', 'success');
       } else {
         UI.toast('❌ ' + (json.message || json.error || 'Failed to update pin.'), 'danger');
@@ -1747,6 +1729,7 @@ async fetchComments(announcementId) {
       const json = await res.json();
       if (!json.success) { UI.toast('❌ Delete failed.', 'danger'); return; }
 
+      // Remove from window.ANNOUNCEMENTS and re-render list
       window.ANNOUNCEMENTS = (window.ANNOUNCEMENTS || []).filter(a => parseInt(a.id) !== parseInt(id));
       this.renderList();
       UI.toast('Announcement deleted.', 'success');
@@ -1835,7 +1818,8 @@ async fetchComments(announcementId) {
       UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
     } catch (_) { UI.toast('❌ Network error.', 'danger'); }
   },
-};//  REPORTS  (weekly reports from all interns)
+};// ─────────────────────────────────────────────────────────────
+//  REPORTS  (weekly reports from all interns)
 // ─────────────────────────────────────────────────────────────
 const Reports = {
 
