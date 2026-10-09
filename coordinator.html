@@ -886,7 +886,8 @@ function getCurrentSchoolYearJS() {
 const Interns = {
 
   // ── School year state ──────────────────────────────────────
-  currentSchoolYear: '',
+  // Initialize currentSchoolYear directly from global AppState
+  currentSchoolYear: window.AppState?.schoolYear || getCurrentSchoolYearJS(),
   availableYears:    [],
   tableData:         [],
 
@@ -914,8 +915,11 @@ const Interns = {
     await this.loadSchoolYears();
   },
 
-  // Fetch available school years, then load interns for current year
+  // Fetch available school years, then load interns for saved/current year
   async loadSchoolYears() {
+    // 1. Get saved school year from AppState / localStorage
+    const savedYear = window.AppState?.schoolYear || getCurrentSchoolYearJS();
+
     try {
       const res  = await fetch('config/api.php', {
         method:  'POST',
@@ -923,30 +927,38 @@ const Interns = {
         body:    JSON.stringify({ action: 'getSchoolYears' }),
       });
       const data = await res.json();
-      this.availableYears    = data.years        ?? [];
-      this.currentSchoolYear = data.current_year ?? getCurrentSchoolYearJS();
+      this.availableYears = data.years ?? [];
+
+      // 2. Use savedYear if available in data, or fallback to backend default / current
+      this.currentSchoolYear = savedYear || data.current_year || getCurrentSchoolYearJS();
     } catch (_) {
-      this.currentSchoolYear = getCurrentSchoolYearJS();
+      this.currentSchoolYear = savedYear;
       this.availableYears    = [this.currentSchoolYear];
     }
 
+    // Ensure current active year is present in dropdown options
     if (!this.availableYears.includes(this.currentSchoolYear)) {
       this.availableYears.unshift(this.currentSchoolYear);
     }
 
-    // Rebuild filter bar with the year selector now populated
+    // Keep AppState synchronized
+    if (window.AppState) {
+      window.AppState.schoolYear = this.currentSchoolYear;
+    }
+
+    // Rebuild filter bar with the year selector now populated and set to saved option
     const slot = document.getElementById('interns-filter-slot');
     if (slot) {
       slot.innerHTML = '';
       slot.appendChild(this.filterBar());
     }
 
-    await this.loadInterns();
+    await this.loadInterns(this.currentSchoolYear);
   },
 
   // Load interns for a specific school year
   async loadInterns(schoolYear = '') {
-    const year = schoolYear || this.currentSchoolYear;
+    const year = schoolYear || this.currentSchoolYear || window.AppState?.schoolYear;
     const wrap = document.getElementById('interns-table-wrap');
     if (!wrap) return;
 
@@ -991,11 +1003,13 @@ const Interns = {
       onChange: async e => {
         const newYear = e.target.value;
         
-        // Update global state & persist
-        window.AppState.schoolYear = newYear; 
+        // Update global state & persist in localStorage
+        if (window.AppState) {
+          window.AppState.schoolYear = newYear; 
+        }
         this.currentSchoolYear = newYear;
         
-        // Optionally sync with PHP session in background
+        // Sync with PHP session in background
         fetch('config/api.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1004,6 +1018,8 @@ const Interns = {
 
         filterSearch = '';
         filterDept   = '';
+        const searchEl = bar.querySelector('input[type="search"]');
+        if (searchEl) searchEl.value = '';
         await this.loadInterns(newYear);
       },     
     });
@@ -1046,73 +1062,39 @@ const Interns = {
   },
 
   filteredList() {
-
     return INTERNS_LIST
-
-      // -----------------------------------
-      // Flatten needed fields only
-      // -----------------------------------
       .map(i => {
-
         const internship = i.internships?.[0] || {};
         const company    = internship.company || {};
 
         return {
-
-          // User
           id: i.user?.id || '',
           name: i.user?.name || '',
           email: i.user?.email || '',
           dept: i.profile?.position || '',
-
-          // Company
           company: company.name || '',
           companyAddress: company.address || '',
-
-          // Internship
           supervisor: internship.supervisor || '',
           supervisorPhone: internship.supervisor_phone || '',
           startDate: internship.start_date || '',
           endDate: internship.end_date || '',
-
           daysPresent: internship.days_present || 0,
           totalHours: internship.total_hours || 0,
           reportsSubmitted: internship.reports_submitted || 0,
         };
       })
-
-      // -----------------------------------
-      // Filters
-      // -----------------------------------
       .filter(i =>
-
         (!filterSearch ||
-
           i.name.toLowerCase().includes(filterSearch) ||
-
           i.email.toLowerCase().includes(filterSearch)
         ) &&
-
         (!filterDept || i.company === filterDept)
       )
-
-      // -----------------------------------
-      // Sorting
-      // -----------------------------------
       .sort((a, b) => ({
-
-        name:
-          a.name.localeCompare(b.name),
-
-        hours:
-          b.totalHours - a.totalHours,
-
-        days:
-          b.daysPresent - a.daysPresent,
-
-        reports:
-          b.reportsSubmitted - a.reportsSubmitted,
-
+        name:    a.name.localeCompare(b.name),
+        hours:   b.totalHours - a.totalHours,
+        days:    b.daysPresent - a.daysPresent,
+        reports: b.reportsSubmitted - a.reportsSubmitted,
       }[filterSort] ?? 0));
   },
 
@@ -1125,168 +1107,39 @@ const Interns = {
     this.tableData = list;
 
     const tbl = UI.table([
-
-        // -----------------------------------
-        // Intern
-        // -----------------------------------
         {
           key: 'name',
-
           label: 'Intern',
-
           render: (v, row) => {
-
             const cell = document.createElement('div');
-
-            cell.style.cssText =
-              'display:flex;align-items:center;gap:.65rem';
-
+            cell.style.cssText = 'display:flex;align-items:center;gap:.65rem';
             const info = document.createElement('div');
-
             info.innerHTML = `
-              <div style="font-weight:700;color:#1A0A00">
-                ${v}
-              </div>
-
-              <div style="font-size:.75rem;color:#9A6647">
-                ${row.email}
-              </div>
+              <div style="font-weight:700;color:#1A0A00">${v}</div>
+              <div style="font-size:.75rem;color:#9A6647">${row.email}</div>
             `;
-
-            cell.append(
-              Helpers.internAvatar(v),
-              info
-            );
-
+            cell.append(Helpers.internAvatar(v), info);
             return cell;
           }
         },
-
-        // -----------------------------------
-        // Company
-        // -----------------------------------
-        {
-          key: 'company',
-
-          label: 'Company',
-
-          render: v => `
-            <span style="font-size:.82rem">
-              ${v || '-'}
-            </span>
-          `
-        },
-
-        // -----------------------------------
-        // Company Address
-        // -----------------------------------
-        {
-          key: 'companyAddress',
-
-          label: 'Address',
-
-          render: v => `
-            <span style="font-size:.82rem;color:#9A6647">
-              ${v || '-'}
-            </span>
-          `
-        },
-
-        // -----------------------------------
-        // Supervisor
-        // -----------------------------------
+        { key: 'company', label: 'Company', render: v => `<span style="font-size:.82rem">${v || '-'}</span>` },
+        { key: 'companyAddress', label: 'Address', render: v => `<span style="font-size:.82rem;color:#9A6647">${v || '-'}</span>` },
         {
           key: 'supervisor',
-
           label: 'Supervisor',
-
           render: (v, row) => `
             <div>
-              <div style="font-size:.82rem">
-                ${v || '-'}
-              </div>
-
-              <div style="font-size:.75rem;color:#9A6647">
-                ${row.supervisorPhone || ''}
-              </div>
-            </div>
-          `
+              <div style="font-size:.82rem">${v || '-'}</div>
+              <div style="font-size:.75rem;color:#9A6647">${row.supervisorPhone || ''}</div>
+            </div>`
         },
-
-        // -----------------------------------
-        // Days
-        // -----------------------------------
-        {
-          key: 'daysPresent',
-
-          label: 'Days',
-
-          align: 'center',
-
-          render: v =>
-            UI.badge(v, {
-              base:'#D1FAE5',
-              text:'#065F46'
-            })
-        },
-
-        // -----------------------------------
-        // Hours
-        // -----------------------------------
-        {
-          key: 'totalHours',
-
-          label: 'Hours',
-
-          align: 'center',
-
-          render: v => `
-            <strong style="color:#EA580C">
-              ${v}h
-            </strong>
-          `
-        },
-
-        // -----------------------------------
-        // Reports
-        // -----------------------------------
-        {
-          key: 'reportsSubmitted',
-
-          label: 'Reports',
-
-          align: 'center',
-
-          render: v =>
-            UI.badge(v, {
-              base:'#DBEAFE',
-              text:'#1E40AF'
-            })
-        },
-
-        // -----------------------------------
-        // Actions
-        // -----------------------------------
-        {
-          key: 'name',
-
-          label: '',
-
-          align: 'center',
-
-          render: (_, row) =>
-            Helpers.ghostBtn(
-              'View',
-              () => this.openDetailModal(row)
-            )
-        },
-
+        { key: 'daysPresent', label: 'Days', align: 'center', render: v => UI.badge(v, { base:'#D1FAE5', text:'#065F46' }) },
+        { key: 'totalHours', label: 'Hours', align: 'center', render: v => `<strong style="color:#EA580C">${v}h</strong>` },
+        { key: 'reportsSubmitted', label: 'Reports', align: 'center', render: v => UI.badge(v, { base:'#DBEAFE', text:'#1E40AF' }) },
+        { key: 'name', label: '', align: 'center', render: (_, row) => Helpers.ghostBtn('View', () => this.openDetailModal(row)) },
       ], list, {
-
         hoverable: true,
-
-        emptyText:
-          'No interns match your filters.',
+        emptyText: 'No interns match your filters.',
       });
 
     wrap.appendChild(UI.card({
@@ -1299,7 +1152,6 @@ const Interns = {
   openDetailModal(intern) {
     const body = document.createElement('div');
 
-    // ── Profile header ──────────────────────────────────────
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #FED7AA';
     const info = document.createElement('div');
@@ -1310,7 +1162,6 @@ const Interns = {
     header.append(Helpers.internAvatar(intern.name, 'lg'), info);
     body.appendChild(header);
 
-    // ── Verified badge ──────────────────────────────────────
     const isReviewed = parseInt(intern.is_profile_reviewed ?? 0) === 1;
     if (isReviewed) {
       const badge = document.createElement('div');
@@ -1319,15 +1170,12 @@ const Interns = {
       body.appendChild(badge);
     }
 
-    // ── Stat strip ──────────────────────────────────────────
     body.appendChild(UI.statRow([
       { value: (intern.totalHours     ?? 0) + 'h', label: 'Total Hours',   color: '#EA580C' },
       { value:  intern.daysPresent    ?? 0,         label: 'Days Present',  color: '#10B981' },
-      { value:  intern.reportsSubmitted ?? intern.reports ?? 0,
-                                                    label: 'Reports Filed', color: '#6366F1' },
+      { value:  intern.reportsSubmitted ?? intern.reports ?? 0, label: 'Reports Filed', color: '#6366F1' },
     ]));
 
-    // ── Progress ────────────────────────────────────────────
     const required = intern.required_hours ?? 500;
     const pct      = Math.min(100, Math.round((intern.totalHours ?? 0) / required * 100));
     const lbl      = document.createElement('p');
@@ -1336,7 +1184,6 @@ const Interns = {
     body.appendChild(lbl);
     body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
 
-    // ── Company info ────────────────────────────────────────
     const compLabel = document.createElement('div');
     compLabel.style.cssText = 'font-family:Sora,sans-serif;font-weight:700;color:#1A0A00;font-size:.875rem;margin:1.25rem 0 .6rem';
     compLabel.textContent   = 'Internship Details';
@@ -1351,7 +1198,6 @@ const Interns = {
       endDate:    intern.endDate        || '—',
     }));
 
-    // ── Verify / Unlock button ──────────────────────────────
     const verifyBtn = isReviewed
       ? UI.button('🔓 Unlock Profile', {
           size: 'sm',
@@ -1396,16 +1242,14 @@ This will lock it from further edits by the intern.`)) return;
       footer: [
         UI.button('Close', { variant:'ghost', size:'sm', onClick: () => m.close() }),
         verifyBtn
-        //Helpers.orangeBtn('Send Message', () => { UI.toast('Messaging coming soon!', 'info'); }),
       ],
     });
     m.open();
   },
-  // Kept for any other parts of coordinator.html that call it directly.
-  // The Interns section itself uses loadInterns() which filters by school year.
+
   async getInternsList() {
     try {
-      const year = this.currentSchoolYear || getCurrentSchoolYearJS();
+      const year = window.AppState?.schoolYear || this.currentSchoolYear || getCurrentSchoolYearJS();
       const res  = await fetch('config/api.php', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1418,28 +1262,18 @@ This will lock it from further edits by the intern.`)) return;
       INTERNS_LIST = [];
     }
   },
+
   downloadExcel(data) {
     if (!data || !data.length) {
       UI.toast('Table is empty or not loaded yet.', 'info');
       return;
     }
     const worksheet = XLSX.utils.json_to_sheet(data);
-
     const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      'Interns'
-    );
-
-    XLSX.writeFile(
-      workbook,
-      'interns.xlsx'
-    );
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Interns');
+    XLSX.writeFile(workbook, 'interns.xlsx');
   }
 };
-
 // ── School year helper — defined here so coordinator-internpage.js
 //    is self-contained and doesn't depend on coordinator.html having it ──
 if (typeof getCurrentSchoolYearJS === 'undefined') {
