@@ -2907,7 +2907,7 @@ const Reports = {
     ));
 
     Helpers.api('getCoordinatorReports').then(data => {
-      console.log('Reports data:', JSON.stringify(data, null, 2));
+      //console.log('Reports data:', JSON.stringify(data, null, 2));
       
       // Use the database-driven intern_name returned by your query
       REPORTS = data.map(r => ({
