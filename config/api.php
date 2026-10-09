@@ -283,7 +283,13 @@ switch ($action) {
 
         setReportStatus($reportId, $status, $feedback);
         break;
-
+    case 'setSelectedSchoolYear':
+        $year = trim($data['school_year'] ?? '');
+        if ($year) {
+            $_SESSION['selected_school_year'] = $year;
+        }
+        echo json_encode(['success' => true]);
+        break;
     case 'getSchoolYears':
         $years   = getSchoolYears();
         $current = getCurrentSchoolYear();

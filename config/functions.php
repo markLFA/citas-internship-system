@@ -3034,7 +3034,15 @@ function reviewInternDocument(int $docId, string $status, string $feedback, int 
 //  SCHOOL YEAR FUNCTIONS
 //  Append these to functions.php
 // ============================================================
-
+function getActiveSchoolYear(): string 
+{
+    // 1. Prefer session override if set by user
+    if (!empty($_SESSION['selected_school_year'])) {
+        return $_SESSION['selected_school_year'];
+    }
+    // 2. Fallback to current calendar school year
+    return getCurrentSchoolYear();
+}
 /**
  * Calculate the current Philippine school year.
  * School year starts June (month 6).

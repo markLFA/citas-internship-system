@@ -108,6 +108,16 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
 'use strict';
+window.AppState = {
+  get schoolYear() {
+    return localStorage.getItem('citas_school_year') || getCurrentSchoolYearJS();
+  },
+  set schoolYear(val) {
+    localStorage.setItem('citas_school_year', val);
+    // Optional: Dispatch a custom event so other active UI components update automatically
+    window.dispatchEvent(new CustomEvent('schoolYearChanged', { detail: val }));
+  }
+};
 function initializeSpinner () {
   const sec  = document.getElementById('sec-dashboard');
   sec.appendChild(
@@ -973,13 +983,23 @@ const Interns = {
       })),
       value:    this.currentSchoolYear,
       onChange: async e => {
-        this.currentSchoolYear = e.target.value;
+        const newYear = e.target.value;
+        
+        // Update global state & persist
+        window.AppState.schoolYear = newYear; 
+        this.currentSchoolYear = newYear;
+        
+        // Optionally sync with PHP session in background
+        fetch('config/api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'setSelectedSchoolYear', school_year: newYear })
+        });
+
         filterSearch = '';
         filterDept   = '';
-        const searchEl = bar.querySelector('input[type="search"]');
-        if (searchEl) searchEl.value = '';
-        await this.loadInterns(this.currentSchoolYear);
-      },
+        await this.loadInterns(newYear);
+      },     
     });
     yearSel.style.minWidth   = '200px';
     yearSel.style.fontWeight = '600';
