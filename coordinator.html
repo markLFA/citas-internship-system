@@ -2455,6 +2455,7 @@ const Announcements = {
       const res = await fetch('config/api.php?action=getAnnouncements');
       const data = await res.json();
       window.ANNOUNCEMENTS = Array.isArray(data) ? data : [];
+      console.log('Loaded announcements:', window.ANNOUNCEMENTS);
     } catch (err) {
       console.error('Failed to load announcements:', err);
       window.ANNOUNCEMENTS = [];
