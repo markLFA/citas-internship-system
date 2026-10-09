@@ -2448,9 +2448,41 @@ openDetailModal(intern) {
 const Announcements = {
 
   // ─────────────────────────────────────────────────────────
+  //  API FETCHERS
+  // ─────────────────────────────────────────────────────────
+  async fetchAnnouncements() {
+    try {
+      const res = await fetch('config/api.php?action=getAnnouncements');
+      const data = await res.json();
+      window.ANNOUNCEMENTS = Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Failed to load announcements:', err);
+      window.ANNOUNCEMENTS = [];
+    }
+  },
+
+  async fetchComments(announcementId) {
+    try {
+      const res = await fetch('config/api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getAnnouncementComments',
+          announcement_id: announcementId,
+        }),
+      });
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error(`Failed to load comments for announcement ${announcementId}:`, err);
+      return [];
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────────────────────
-  build() {
+  async build() {
     const sec = document.getElementById('sec-announcements');
     sec.innerHTML = '';
 
@@ -2464,6 +2496,19 @@ const Announcements = {
     wrap.id = 'ann-list-wrap';
     sec.appendChild(wrap);
 
+    // 1. Fetch announcements from API
+    await this.fetchAnnouncements();
+
+    // 2. Fetch comments for each announcement
+    if (window.ANNOUNCEMENTS.length > 0) {
+      await Promise.all(
+        window.ANNOUNCEMENTS.map(async (ann) => {
+          ann._comments = await this.fetchComments(ann.id);
+        })
+      );
+    }
+
+    // 3. Render list
     this.renderList();
   },
 
@@ -2493,7 +2538,7 @@ const Announcements = {
     const date    = ann.created_at
       ? new Date(ann.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
       : (ann.date || '');
-    const myName  = 'Coordinator'; // coordinator's display name on comments
+    const myName  = 'Coordinator';
 
     // Ensure _comments exists with _replies on each
     if (!ann._comments) ann._comments = [];
@@ -2623,7 +2668,7 @@ const Announcements = {
     const cWrapOuter = document.createElement('div');
     cWrapOuter.style.cssText = 'padding:.5rem 1rem 0;max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#FED7AA transparent';
 
-    // Render a reply bubble (indented, purple theme)
+    // Render a reply bubble
     const renderReply = (reply) => {
       const rRow = document.createElement('div');
       rRow.id = reply.id ? 'cmt-' + reply.id : '';
@@ -2652,7 +2697,6 @@ const Announcements = {
         cmWrap.id = cm.id ? 'cmt-' + cm.id : '';
         cmWrap.style.marginBottom = '.75rem';
 
-        // Comment bubble
         const cmRow = document.createElement('div');
         cmRow.style.cssText = 'display:flex;gap:.5rem;align-items:flex-start';
         const cmBub = document.createElement('div');
@@ -2670,7 +2714,6 @@ const Announcements = {
         cmText.style.cssText = 'font-size:.8rem;color:#4B2E0A;margin-top:.1rem';
         cmText.textContent = cm.text ?? cm.comment ?? '';
 
-        // Reply button
         const replyBtn = document.createElement('button');
         replyBtn.style.cssText = 'background:none;border:none;font-size:.72rem;color:#EA580C;font-weight:600;cursor:pointer;padding:0;margin-top:.3rem;font-family:inherit';
         replyBtn.textContent = '↩ Reply';
@@ -2679,12 +2722,10 @@ const Announcements = {
         cmRow.append(mkAv(cm.author ?? cm.user_name ?? '?'), cmBub);
         cmWrap.appendChild(cmRow);
 
-        // Replies
         const repliesWrap = document.createElement('div');
         cm._replies.forEach(r => repliesWrap.appendChild(renderReply(r)));
         cmWrap.appendChild(repliesWrap);
 
-        // Inline reply input
         const replyRow = document.createElement('div');
         replyRow.style.cssText = 'display:none;align-items:center;gap:.4rem;padding:.4rem 0 0 36px';
         const replyInp = mkInp(`Reply to ${cm.author ?? cm.user_name ?? 'intern'}…`);
@@ -2708,7 +2749,6 @@ const Announcements = {
         replyRow.append(mkAv(myName, 'linear-gradient(135deg,#FF6B00,#EA580C)'), replyInp, replySendBtn);
         cmWrap.appendChild(replyRow);
 
-        // Toggle reply input
         replyBtn.addEventListener('click', () => {
           const open = replyRow.style.display !== 'none';
           replyRow.style.display = open ? 'none' : 'flex';
@@ -2751,7 +2791,7 @@ const Announcements = {
   },
 
   // ─────────────────────────────────────────────────────────
-  //  DELETE COMMENT (coordinator can delete any)
+  //  DELETE COMMENT
   // ─────────────────────────────────────────────────────────
   async deleteComment(commentId, annId) {
     if (!confirm('Delete this comment and its replies?')) return;
@@ -2763,14 +2803,12 @@ const Announcements = {
       const json = await res.json();
       if (!json.success) { UI.toast('❌ Could not delete comment.', 'danger'); return; }
 
-      // Remove from local cache
       const ann = ANNOUNCEMENTS.find(a => a.id === annId);
       if (ann) {
         ann._comments = ann._comments.filter(c => c.id !== commentId);
         ann._comments.forEach(c => {
           c._replies = (c._replies ?? []).filter(r => r.id !== commentId);
         });
-        // Rebuild just this card
         const cardEl = document.getElementById('ann-card-' + annId);
         if (cardEl) cardEl.replaceWith(this.annCard(ann));
       }
@@ -2801,7 +2839,7 @@ const Announcements = {
     try {
       const res  = await fetch('config/api.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteAnnouncement', announcementId: id }),
+        body: JSON.stringify({ action: 'deleteAnnouncement', id: id }),
       });
       const json = await res.json();
       if (!json.success) { UI.toast('❌ Delete failed.', 'danger'); return; }
@@ -2812,7 +2850,7 @@ const Announcements = {
   },
 
   // ─────────────────────────────────────────────────────────
-  //  CREATE / EDIT MODAL  (shared form)
+  //  CREATE / EDIT MODAL
   // ─────────────────────────────────────────────────────────
   openCreateModal() { this._openFormModal(null); },
   openEditModal(ann) { this._openFormModal(ann); },
@@ -2853,52 +2891,46 @@ const Announcements = {
     m.open();
   },
 
-async _saveForm(modal, ann) {
-  const title     = document.getElementById('ann-title')?.value.trim();
-  const body      = document.getElementById('ann-body')?.value.trim();
-  const is_pinned = document.getElementById('ann-pin')?.checked ? 1 : 0;
+  async _saveForm(modal, ann) {
+    const title     = document.getElementById('ann-title')?.value.trim();
+    const body      = document.getElementById('ann-body')?.value.trim();
+    const is_pinned = document.getElementById('ann-pin')?.checked ? 1 : 0;
 
-  if (!title) { UI.toast('Please enter a title.',   'danger'); return; }
-  if (!body)  { UI.toast('Please write a message.', 'danger'); return; }
+    if (!title) { UI.toast('Please enter a title.',   'danger'); return; }
+    if (!body)  { UI.toast('Please write a message.', 'danger'); return; }
 
-  const isEdit = !!ann;
-  // Match backend case 'addAnnouncement'
-  const action = isEdit ? 'updateAnnouncement' : 'addAnnouncement';
+    const isEdit = !!ann;
+    const action = isEdit ? 'updateAnnouncement' : 'addAnnouncement';
 
-  try {
-    const res  = await fetch('config/api.php', {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        id: ann?.id ?? null, // Backend expects 'id'
-        title, 
-        body, 
-        isPinned: is_pinned, // Backend expects 'isPinned'
-      }),
-    });
-    const json = await res.json();
-    if (!json.success) { UI.toast('❌ ' + (json.message ?? json.error ?? 'Failed.'), 'danger'); return; }
-
-    if (isEdit) {
-      Object.assign(ann, { title, body, is_pinned });
-    } else {
-      ANNOUNCEMENTS.unshift({
-        id:         json.id ?? Date.now(), // Backend returns 'id'
-        title, 
-        body, 
-        is_pinned,
-        created_at: new Date().toISOString(),
-        _comments:  [],
+    try {
+      const res  = await fetch('config/api.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          id: ann?.id ?? null,
+          title, body, isPinned: is_pinned,
+        }),
       });
-    }
+      const json = await res.json();
+      if (!json.success) { UI.toast('❌ ' + (json.message ?? json.error ?? 'Failed.'), 'danger'); return; }
 
-    this.renderList();
-    modal.close();
-    UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
-  } catch (_) { UI.toast('❌ Network error.', 'danger'); }
-}};
+      if (isEdit) {
+        Object.assign(ann, { title, body, is_pinned });
+      } else {
+        ANNOUNCEMENTS.unshift({
+          id:         json.id ?? Date.now(),
+          title, body, is_pinned,
+          created_at: new Date().toISOString(),
+          _comments:  [],
+        });
+      }
 
+      this.renderList();
+      modal.close();
+      UI.toast(isEdit ? '✅ Announcement updated.' : '✅ Announcement posted.', 'success');
+    } catch (_) { UI.toast('❌ Network error.', 'danger'); }
+  },
+};
 // ─────────────────────────────────────────────────────────────
 //  REPORTS  (weekly reports from all interns)
 // ─────────────────────────────────────────────────────────────
