@@ -2447,15 +2447,20 @@ openDetailModal(intern) {
 
 const Announcements = {
 
-  // ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
   //  API FETCHERS
   // ─────────────────────────────────────────────────────────
   async fetchAnnouncements() {
     try {
-      const res = await fetch('config/api.php?action=getAnnouncements');
+      const res = await fetch('config/api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getAnnouncements' }),
+      });
       const data = await res.json();
-      window.ANNOUNCEMENTS = Array.isArray(data) ? data : [];
-      console.log('Loaded announcements:', window.ANNOUNCEMENTS);
+      
+      // getAnnouncements() returns an array directly: [...]
+      window.ANNOUNCEMENTS = Array.isArray(data) ? data : (data.interns ?? []);
     } catch (err) {
       console.error('Failed to load announcements:', err);
       window.ANNOUNCEMENTS = [];
@@ -2497,10 +2502,10 @@ const Announcements = {
     wrap.id = 'ann-list-wrap';
     sec.appendChild(wrap);
 
-    // 1. Fetch announcements from API
+    // 1. Fetch announcements
     await this.fetchAnnouncements();
 
-    // 2. Fetch comments for each announcement
+    // 2. Fetch comments for each announcement concurrently
     if (window.ANNOUNCEMENTS.length > 0) {
       await Promise.all(
         window.ANNOUNCEMENTS.map(async (ann) => {
@@ -2512,7 +2517,6 @@ const Announcements = {
     // 3. Render list
     this.renderList();
   },
-
   // ─────────────────────────────────────────────────────────
   //  RENDER LIST
   // ─────────────────────────────────────────────────────────
