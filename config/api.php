@@ -110,9 +110,18 @@ switch ($action) {
     case 'getCurrentPage':
         echo json_encode(getCurrentPage());
         break;
+    // ── Announcement ──────────────────────────────────
     case 'getAnnouncements':
         echo json_encode(getAnnouncements());
         break;
+    case 'togglePin':
+            $annId    = (int) ($data['announcementId'] ?? $data['id'] ?? 0);
+            $isPinned = isset($data['is_pinned']) ? (int) $data['is_pinned'] : (int) ($data['isPinned'] ?? 0);
+            
+            echo json_encode($annId 
+                ? togglePin($annId, $isPinned) 
+                : ['success' => false, 'error' => 'Missing announcementId']);
+            break;
     case 'addAnnouncement':
         $title = $data['title'] ?? '';
         $body = $data['body'] ?? '';
