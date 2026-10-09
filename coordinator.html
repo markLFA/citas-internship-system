@@ -426,11 +426,17 @@ function navigate(name) {
   sidebar.setActive(SECTIONS[name]);
   const center = document.querySelector('.cui-navbar-center');
   if (center) center.textContent = SECTIONS[name];
-  // Charts must be drawn after their canvas is visible
-  if (name === 'analytics') setTimeout(() => Analytics.drawAllCharts(), 30);
-  setCurrentPage(name)
-}
 
+  // Rebuild sections when navigated to
+  if (name === 'documents') {
+    CoordinatorDocuments.build();
+  } else if (name === 'analytics') {
+    // Charts must be drawn after their canvas is visible
+    setTimeout(() => Analytics.drawAllCharts(), 30);
+  }
+
+  setCurrentPage(name);
+}
 function viewDocument (file_path) {
     const directFileUrl = `https://kqstxnydtzcpmlexwhcx.supabase.co/storage/v1/object/public/intern-files/${file_path}`;
     const isOfficeDoc = /\.(docx?|xlsx?|pptx?)$/i.test(file_path);
