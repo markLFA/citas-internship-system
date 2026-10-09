@@ -18,8 +18,8 @@ echo json_encode([
     'interns' => $interns
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 */
-$comments    = getAnnouncementComments(16);
+$data    = getAnnouncements();
 echo json_encode([
     'success' => true,
-    'interns' => $comments
+    'interns' => $data
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
