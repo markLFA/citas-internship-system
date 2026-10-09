@@ -428,6 +428,15 @@ function navigate(name) {
   if (center) center.textContent = SECTIONS[name];
 
   // Rebuild pages dynamically when navigated to
+  if (name === 'dashboard') {
+    Dashboard.build();
+  } else if (name === 'approvals') {
+    Approvals.build();
+  } else if (name === 'interns') {
+    Interns.build();
+  } else if (name === 'announcements') {
+    Announcements.build();
+  } else
   if (name === 'reports') {
     Reports.build();
   } else if (name === 'documents') {
@@ -544,7 +553,7 @@ const Dashboard = {
 
   // Quick view of 3 most recent reports on dashboard
   recentReportsCard(row) {
-    Helpers.api('getCoordinatorReports').then(data => {
+    Helpers.api('getCoordinatorReports', { school_year: window.AppState?.schoolYear }).then(data => {
       
       // Use the database-driven intern_name returned by your query
       REPORTS = data.map(r => ({
