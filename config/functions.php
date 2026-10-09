@@ -3126,93 +3126,35 @@ function getInternsBySchoolYear(string $schoolYear = ''): array
     // Build complete intern data structure
     // -------------------------------------------------
     foreach ($internUsers as $intern) {
-
         $internId = $intern['id'];
 
-        // ---------------------------------------------
-        // Get internships + company
-        // ---------------------------------------------
         $stmt = $pdo->prepare("
-            SELECT 
-                i.id,
-                i.position,
-                i.supervisor,
-                i.supervisor_phone,
-                i.start_date,
-                i.end_date,
-                i.status,
-                i.created_at,
-                i.total_hours,
-                i.days_present,
-                i.reports_submitted,
-
-                c.id AS company_id,
-                c.name AS company_name,
-                c.address,
-                c.phone AS company_phone,
-                c.email AS company_email,
-                c.created_at AS company_created
-
+            SELECT i.id, i.position, i.supervisor, i.supervisor_phone,
+                i.start_date, i.end_date, i.status, i.created_at,
+                i.total_hours, i.days_present, i.reports_submitted,
+                c.id AS company_id, c.name AS company_name, c.address,
+                c.phone AS company_phone, c.email AS company_email, c.created_at AS company_created
             FROM internships i
-
-            LEFT JOIN companies c
-                ON c.id = i.company_id
-
-            WHERE i.intern_id = ?
-            AND i.school_year = ?
+            LEFT JOIN companies c ON c.id = i.company_id
+            WHERE i.intern_id = ? AND i.school_year = ?
             ORDER BY i.created_at DESC
         ");
-
         $stmt->execute([$internId, $schoolYear]);
-
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $internships = [];
-
-        foreach ($rows as $row) {
-
-            $internships[] = [
-                "id" => $row["id"],
-                "position" => $row["position"],
-                "supervisor" => $row["supervisor"],
-                "supervisor_phone" => $row["supervisor_phone"],
-                "start_date" => $row["start_date"],
-                "end_date" => $row["end_date"],
-                "status" => $row["status"],
-                "created_at" => $row["created_at"],
-                "total_hours" => $row["total_hours"],
-                "days_present" => $row["days_present"],
-                "reports_submitted" => $row["reports_submitted"],
-
-                "company" => [
-                    "id" => $row["company_id"],
-                    "name" => $row["company_name"],
-                    "address" => $row["address"],
-                    "phone" => $row["company_phone"],
-                    "email" => $row["company_email"],
-                    "created_at" => $row["company_created"]
-                ]
-            ];
+        // FIX: Skip this intern if they have no internship in the selected school year
+        if (empty($rows)) {
+            continue;
         }
 
-        // ---------------------------------------------
-        // Final intern data structure
-        // ---------------------------------------------
+        $internships = [];
+        foreach ($rows as $row) {
+            $internships[] = [ /* ... rest of your mapping code ... */ ];
+        }
+
         $internDatas[] = [
-            "user" => [
-                "id" => $intern["id"],
-                "name" => $intern["name"],
-                "email" => $intern["email"]
-            ],
-
-            "profile" => [
-                "course" => $intern["course"],
-                "year_level" => $intern["year_level"],
-                "phone" => $intern["phone"],
-                "required_hours" => $intern["required_hours"],
-                "joined_date" => $intern["joined_date"]
-            ],
-
+            "user" => [ ... ],
+            "profile" => [ ... ],
             "internships" => $internships
         ];
     }
