@@ -1413,14 +1413,7 @@ This will lock it from further edits by the intern.`)) return;
     );
   }
 };
-if (typeof getCurrentSchoolYearJS === 'undefined') {
-  window.getCurrentSchoolYearJS = function() {
-    const now   = new Date();
-    const month = now.getMonth() + 1;
-    const year  = now.getFullYear();
-    return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
-  };
-}
+
 /*
 const Interns = {
 
@@ -1890,7 +1883,14 @@ const Interns = {
 */
 // ── School year helper — defined here so coordinator-internpage.js
 //    is self-contained and doesn't depend on coordinator.html having it ──
-
+if (typeof getCurrentSchoolYearJS === 'undefined') {
+  window.getCurrentSchoolYearJS = function() {
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  };
+}
 
 
 /* 
