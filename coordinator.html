@@ -2499,21 +2499,10 @@ const CoordinatorDocuments = {
   _filterType:   '',
   _activeTab:    'submissions',  // 'submissions' | 'analytics'
   _chartInstances: [],           // track Chart.js instances to destroy on rebuild
-  _isListening: false,          // ensure event listener is attached once
 
   build() {
     const sec = document.getElementById('sec-documents');
     sec.innerHTML = '';
-
-    // Attach global listener for school year change if not attached yet
-    if (!this._isListening) {
-      window.addEventListener('schoolYearChanged', () => {
-        if (document.getElementById('sec-documents')?.checkVisibility()) {
-          this.build();
-        }
-      });
-      this._isListening = true;
-    }
 
     sec.appendChild(Helpers.pageHeader(
       'Documents',
@@ -2784,7 +2773,6 @@ const CoordinatorDocuments = {
     const pending  = docs.filter(d => d.status === 'pending').length;
     const rejected = docs.filter(d => d.status === 'rejected').length;
 
-    // ── Stat strip ────────────────────────────────────────────
     container.appendChild(UI.statRow([
       { value: total,    label: 'Total Submitted', color: '#EA580C' },
       { value: approved, label: 'Accepted',        color: '#10B981' },
@@ -2792,16 +2780,10 @@ const CoordinatorDocuments = {
       { value: rejected, label: 'Needs Resubmit',  color: '#EF4444' },
     ]));
 
-    // ── Per-intern data ───────────────────────────────────────
     const byIntern = {};
-
     docs.forEach(d => {
       if (!byIntern[d.internId]) {
-        byIntern[d.internId] = {
-          name: d.internName,
-          dept: d.dept || '',
-          docs: []
-        };
+        byIntern[d.internId] = { name: d.internName, dept: d.dept || '', docs: [] };
       }
       byIntern[d.internId].docs.push(d);
     });
@@ -2815,52 +2797,31 @@ const CoordinatorDocuments = {
       const appCount = intern.docs.filter(d => d.status === 'approved').length;
       const penCount = intern.docs.filter(d => d.status === 'pending').length;
       const rejCount = intern.docs.filter(d => d.status === 'rejected').length;
+      const pct = Math.round(((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100);
 
-      const pct = Math.round(
-        ((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100
-      );
-
-      return {
-        ...intern,
-        approved: appCount,
-        pending: penCount,
-        rejected: rejCount,
-        missing,
-        pct
-      };
+      return { ...intern, approved: appCount, pending: penCount, rejected: rejCount, missing, pct };
     }).sort((a, b) => a.pct - b.pct);
 
     const behind = internList.filter(i => i.missing.length > 0);
 
-    // ── Intern progress table ─────────────────────────────────
     const progressLabel = document.createElement('p');
     progressLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
     progressLabel.textContent = '📋 Intern Document Progress';
     container.appendChild(progressLabel);
 
     if (!internList.length) {
-      container.appendChild(UI.card({
-        title: '',
-        body: UI.empty('📭', 'No submissions yet', 'Documents submitted by your interns will appear here.'),
-      }));
+      container.appendChild(UI.card({ title: '', body: UI.empty('📭', 'No submissions yet', 'Documents submitted by your interns will appear here.') }));
     } else {
       const progressTbl = UI.table([
         {
-          key: 'name',
-          label: 'Intern',
+          key: 'name', label: 'Intern',
           render: (v, row) => {
             const cell = document.createElement('div');
             cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
-
             const av = UI.avatar(v);
             av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
-
             const info = document.createElement('div');
-            info.innerHTML = `
-              <div style="font-weight:700;color:#1A0A00">${v}</div>
-              <div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>
-            `;
-
+            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
             cell.append(av, info);
             return cell;
           },
@@ -2869,19 +2830,15 @@ const CoordinatorDocuments = {
         { key: 'pending',  label: 'Pending',  align: 'center', render: v => `<span style="color:#F59E0B;font-weight:600">${v}</span>` },
         { key: 'rejected', label: 'Rejected', align: 'center', render: v => `<span style="color:#EF4444;font-weight:600">${v}</span>` },
         {
-          key: 'pct',
-          label: 'Required Progress',
+          key: 'pct', label: 'Required Progress',
           render: v => {
             const color = v >= 75 ? '#10B981' : v >= 50 ? '#F59E0B' : '#EF4444';
             const wrap = document.createElement('div');
             wrap.style.cssText = 'display:flex;align-items:center;gap:.5rem';
-
             const track = document.createElement('div');
             track.style.cssText = 'flex:1;height:6px;background:#FEE2E2;border-radius:10px;overflow:hidden;min-width:60px';
-
             const fill = document.createElement('div');
             fill.style.cssText = `height:100%;width:${v}%;background:${color};border-radius:10px`;
-
             track.appendChild(fill);
             wrap.innerHTML = `<span style="font-size:.78rem;font-weight:700;color:${color};width:34px;flex-shrink:0">${v}%</span>`;
             wrap.appendChild(track);
@@ -2889,55 +2846,39 @@ const CoordinatorDocuments = {
           },
         },
         {
-          key: 'missing',
-          label: 'Missing Required',
+          key: 'missing', label: 'Missing Required',
           render: v => v.length ? `<span style="font-size:.76rem;color:#EF4444">${v.join(', ')}</span>` : `<span style="color:#10B981;font-size:.78rem;font-weight:600">✓ All submitted</span>`,
         },
       ], internList, { hoverable: true });
 
-      container.appendChild(UI.card({
-        title: '',
-        headerActions: UI.badge(internList.length + ' interns', { base: '#DBEAFE', text: '#1E40AF' }),
-        padding: false,
-        body: progressTbl,
-      }));
+      container.appendChild(UI.card({ title: '', headerActions: UI.badge(internList.length + ' interns', { base: '#DBEAFE', text: '#1E40AF' }), padding: false, body: progressTbl }));
     }
 
-    // ── Behind schedule card ──────────────────────────────────
     const behindLabel = document.createElement('p');
     behindLabel.style.cssText = 'font-size:.85rem;font-weight:700;color:#1A0A00;margin:1.4rem 0 .75rem;font-family:Sora,sans-serif';
     behindLabel.textContent = '⚠️ Behind on Required Documents';
     container.appendChild(behindLabel);
 
     if (!behind.length) {
-      container.appendChild(UI.card({
-        title: '',
-        body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.'),
-      }));
+      container.appendChild(UI.card({ title: '', body: UI.empty('🎉', 'All interns on track!', 'Every intern has submitted all required documents.') }));
     } else {
       const sortedBehind = [...behind].sort((a, b) => b.missing.length - a.missing.length);
-
       const behindTbl = UI.table([
         {
-          key: 'name',
-          label: 'Intern',
+          key: 'name', label: 'Intern',
           render: (v, row) => {
             const cell = document.createElement('div');
             cell.style.cssText = 'display:flex;align-items:center;gap:.6rem';
             const av = UI.avatar(v);
             av.style.background = 'linear-gradient(135deg,#FF6B00,#EA580C)';
             const info = document.createElement('div');
-            info.innerHTML = `
-              <div style="font-weight:700;color:#1A0A00">${v}</div>
-              <div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>
-            `;
+            info.innerHTML = `<div style="font-weight:700;color:#1A0A00">${v}</div><div style="font-size:.74rem;color:#9A6647">${row.dept || ''}</div>`;
             cell.append(av, info);
             return cell;
           },
         },
         {
-          key: 'missing',
-          label: 'Missing Documents',
+          key: 'missing', label: 'Missing Documents',
           render: v => {
             const wrap = document.createElement('div');
             wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.25rem';
@@ -2953,9 +2894,7 @@ const CoordinatorDocuments = {
         },
         { key: 'approved', label: 'Accepted', align: 'center', render: v => UI.badge(v, { base: '#D1FAE5', text: '#065F46' }) },
         {
-          key: 'pct',
-          label: 'Completion',
-          align: 'center',
+          key: 'pct', label: 'Completion', align: 'center',
           render: v => {
             const b = document.createElement('span');
             b.className = 'cui-badge';
@@ -2966,29 +2905,18 @@ const CoordinatorDocuments = {
         },
       ], sortedBehind, { hoverable: true });
 
-      container.appendChild(UI.card({
-        title: '',
-        headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base: '#FEE2E2', text: '#991B1B' }),
-        padding: false,
-        body: behindTbl,
-      }));
+      container.appendChild(UI.card({ title: '', headerActions: UI.badge(behind.length + ' intern' + (behind.length !== 1 ? 's' : ''), { base: '#FEE2E2', text: '#991B1B' }), padding: false, body: behindTbl }));
     }
 
-    // ── Charts row ─────────────────────────────────────────────
     const chartsRow = document.createElement('div');
     chartsRow.className = 'pg-grid-2 mt-lg';
     chartsRow.style.alignItems = 'start';
 
-    // Donut card
     const donutBody = document.createElement('div');
     const donutLegend = document.createElement('div');
     donutLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem;justify-content:center';
 
-    [
-      ['#10B981', 'Accepted', approved],
-      ['#F59E0B', 'Pending', pending],
-      ['#EF4444', 'Rejected', rejected],
-    ].forEach(([color, label, count]) => {
+    [['#10B981', 'Accepted', approved], ['#F59E0B', 'Pending', pending], ['#EF4444', 'Rejected', rejected]].forEach(([color, label, count]) => {
       const item = document.createElement('div');
       item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
       item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>${label} (${count})`;
@@ -3002,16 +2930,11 @@ const CoordinatorDocuments = {
     donutBody.appendChild(donutCanvas);
     chartsRow.appendChild(UI.card({ title: '🍩 Status Breakdown', body: donutBody }));
 
-    // Bar card
     const barBody = document.createElement('div');
     const barLegend = document.createElement('div');
     barLegend.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.75rem';
 
-    [
-      ['#10B981', 'Accepted'],
-      ['#F59E0B', 'Pending'],
-      ['#EF4444', 'Rejected']
-    ].forEach(([color, label]) => {
+    [['#10B981', 'Accepted'], ['#F59E0B', 'Pending'], ['#EF4444', 'Rejected']].forEach(([color, label]) => {
       const item = document.createElement('div');
       item.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:#6B3A1F';
       item.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0"></span>${label}`;
@@ -3027,7 +2950,6 @@ const CoordinatorDocuments = {
 
     container.appendChild(chartsRow);
 
-    // ── Draw charts (after DOM is ready) ──────────────────────
     setTimeout(() => {
       this._chartInstances.forEach(c => c.destroy());
       this._chartInstances = [];
@@ -3038,13 +2960,7 @@ const CoordinatorDocuments = {
           type: 'doughnut',
           data: {
             labels: ['Accepted', 'Pending', 'Rejected'],
-            datasets: [{
-              data: [approved, pending, rejected],
-              backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
-              borderWidth: 2,
-              borderColor: '#fff',
-              hoverOffset: 5,
-            }],
+            datasets: [{ data: [approved, pending, rejected], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff', hoverOffset: 5 }],
           },
           options: { responsive: true, cutout: '62%', plugins: { legend: { display: false } } },
         }));
@@ -3194,8 +3110,7 @@ const CoordinatorDocuments = {
       }
     }).catch(() => UI.toast('Server connection error.', 'danger'));
   },
-};// ─────────────────────────────────────────────────────────────
-//  BOOT  — Helpers must be defined before this runs
+};//  BOOT  — Helpers must be defined before this runs
 // ─────────────────────────────────────────────────────────────
 Helpers.api ("getSessionUser").then(data => {
   if (!data.success) {
