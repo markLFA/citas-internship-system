@@ -370,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
           <span class="inp-icon">✉️</span>
           <input type="email" id="email" name="email" placeholder="you@samar.edu.ph" value="<?= h(post('email')) ?>" required autocomplete="email">
         </div>
-        <div class="hint">Use your official school email. We will send a verification code here.</div>
+        <div class="hint">Use a valid email. We will send a verification code here.</div>
       </div>
 
       <div class="section-label">Internship Details</div>
