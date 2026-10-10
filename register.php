@@ -109,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Send email
     $subject = 'Your CITAS Account Verification Code';
     $message = "Hello {$data['name']},\n\nYour verification code for CITAS Internship Monitoring System is: {$otp}\n\nThis code will expire in 10 minutes.\n\nRegards,\nCITAS Team";
-    $headers = "From: no-reply@samar.edu.ph\r\n" .
-               "Reply-To: no-reply@samar.edu.ph\r\n" .
+    $headers = "From: no-reply@citas.internship.com\r\n" .
+               "Reply-To: no-reply@citas.internship.com\r\n" .
                "X-Mailer: PHP/" . phpversion();
 
     @mail($data['email'], $subject, $message, $headers);
