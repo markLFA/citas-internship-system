@@ -3125,8 +3125,8 @@ Helpers.api ("getSessionUser").then(data => {
     COORDINATOR = data.user;
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
+      const page = data.currentPage || 'dashboard';
       Interns.getInternsList().then(() => {
-        const page = data.currentPage || 'dashboard';
         INTERNS = Interns.filteredList()
         Dashboard    .build();
         Analytics    .build();
