@@ -420,7 +420,7 @@ async function setCurrentPage(page) {
   }
 }
 
-function navigate(name) {
+function navigate(name, isInitialized) {
   document.querySelectorAll('.cui-section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + name).classList.add('active');
   sidebar.setActive(SECTIONS[name]);
@@ -428,22 +428,25 @@ function navigate(name) {
   if (center) center.textContent = SECTIONS[name];
 
   // Rebuild pages dynamically when navigated to
-  if (name === 'dashboard') {
-    Dashboard.build();
-  } else if (name === 'approvals') {
-    Approvals.build();
-  } else if (name === 'interns') {
-    //Interns.build();
-  } else if (name === 'announcements') {
-    Announcements.build();
-  } else
-  if (name === 'reports') {
-    Reports.build();
-  } else if (name === 'documents') {
-    CoordinatorDocuments.build();
-  } else if (name === 'analytics') {
-    setTimeout(() => Analytics.drawAllCharts(), 30);
+  if (!isInitialized) {
+    if (name === 'dashboard') {
+      Dashboard.build();
+    } else if (name === 'approvals') {
+      Approvals.build();
+    } else if (name === 'interns') {
+      //Interns.build();
+    } else if (name === 'announcements') {
+      Announcements.build();
+    } else
+    if (name === 'reports') {
+      Reports.build();
+    } else if (name === 'documents') {
+      CoordinatorDocuments.build();
+    } else if (name === 'analytics') {
+      setTimeout(() => Analytics.drawAllCharts(), 30);
+    }
   }
+
 
   setCurrentPage(name);
 }
@@ -3142,7 +3145,7 @@ Helpers.api ("getSessionUser").then(data => {
       //console.log('Current page:', JSON.stringify(data));
       const page = data.currentPage || 'dashboard';
       document.getElementById('nav-' + page)?.classList.add('active');
-      navigate(page)
+      navigate(page, initial = true)
       }).catch(err => {
         console.error('Error fetching current page:', err);
     });
