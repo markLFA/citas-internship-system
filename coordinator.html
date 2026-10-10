@@ -1099,7 +1099,7 @@ const Interns = {
   },
 
   filteredList() {
-    return INTERNS_LIST
+    INTERNS = INTERNS_LIST
       .map(i => {
         const internship = i.internships?.[0] || {};
         const company    = internship.company || {};
@@ -1133,7 +1133,8 @@ const Interns = {
         days:    b.daysPresent - a.daysPresent,
         reports: b.reportsSubmitted - a.reportsSubmitted,
       }[filterSort] ?? 0));
-  },
+      return INTERNS
+    },
 
   renderTable() {
     const wrap = document.getElementById('interns-table-wrap');
