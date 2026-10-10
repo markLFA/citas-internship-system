@@ -436,7 +436,8 @@ function navigate(name) {
     //Interns.build();
   } else if (name === 'announcements') {
     Announcements.build();
-  } else if (name === 'reports') {
+  } else
+  if (name === 'reports') {
     Reports.build();
   } else if (name === 'documents') {
     CoordinatorDocuments.build();
@@ -1835,7 +1836,6 @@ const Reports = {
   _isListening: false,
 
   build() {
-    console.log('Reports build() called');
     const sec = document.getElementById('sec-reports');
     sec.innerHTML = ''; // Clear container on rebuild
 
@@ -3124,26 +3124,23 @@ Helpers.api ("getSessionUser").then(data => {
     COORDINATOR = data.user;
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
-      const page = data.currentPage || 'dashboard';
       Interns.getInternsList().then(() => {
-        console.log('init ');
+        //console.log(JSON.stringify(Interns.filteredList(), null, 2))
         INTERNS = Interns.filteredList()
         Dashboard    .build();
         Analytics    .build();
         Approvals    .build();
         Interns      .build();
-        if (page != 'reports') {
-          console.log('init reports');
-          Reports.build();
-        }
+        Reports      .build();
         Announcements.build();
-        if (page != 'documents') CoordinatorDocuments.build();
+        CoordinatorDocuments.build();
       })
       if (data.error) {
         console.error(data.error);
         return;
       }
       //console.log('Current page:', JSON.stringify(data));
+      const page = data.currentPage || 'dashboard';
       document.getElementById('nav-' + page)?.classList.add('active');
       navigate(page)
       }).catch(err => {
