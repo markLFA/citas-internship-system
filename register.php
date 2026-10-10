@@ -365,7 +365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
       </div>
 
       <div class="field">
-        <label for="email">School Email Address</label>
+        <label for="email">Email Address</label>
         <div class="inp-wrap">
           <span class="inp-icon">✉️</span>
           <input type="email" id="email" name="email" placeholder="you@samar.edu.ph" value="<?= h(post('email')) ?>" required autocomplete="email">
@@ -379,8 +379,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <div class="field">
           <label for="course">Course</label>
           <select id="course" name="course" required>
-            <option value="" disabled selected>Select your course...</option>
-            <option value="BSIT">BSIT</option>
+            <option value="" disabled>Select your course...</option>
+            <option value="BSIT" selected>BSIT</option>
             <option value="BSCS">BSCS</option>
           </select>
         </div>
