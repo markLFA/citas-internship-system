@@ -428,6 +428,30 @@ function navigate(name) {
   if (center) center.textContent = SECTIONS[name];
 
   // Rebuild pages dynamically when navigated to
+  switch (name) {
+    case 'dashboard':
+      Dashboard.build();
+      break;
+    case 'approvals':
+      Approvals.build();
+      break;
+    case 'interns':
+      //Interns.build();
+      break;
+    case 'announcements':
+      Announcements.build();
+      break;
+    case 'reports':
+      Reports.build();
+      break;
+    case 'documents':
+      CoordinatorDocuments.build();
+      break;
+    case 'analytics':
+      setTimeout(() => Analytics.drawAllCharts(), 30);
+      break;
+  }
+  /*
   if (name === 'dashboard') {
     Dashboard.build();
   } else if (name === 'approvals') {
@@ -436,15 +460,14 @@ function navigate(name) {
     //Interns.build();
   } else if (name === 'announcements') {
     Announcements.build();
-  } else
-  if (name === 'reports') {
+  } else if (name === 'reports') {
     Reports.build();
   } else if (name === 'documents') {
     CoordinatorDocuments.build();
   } else if (name === 'analytics') {
     setTimeout(() => Analytics.drawAllCharts(), 30);
   }
-
+  */
   setCurrentPage(name);
 }
 function viewDocument (file_path) {
