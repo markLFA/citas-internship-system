@@ -3148,30 +3148,32 @@ Helpers.api ("getSessionUser").then(data => {
     COORDINATOR = data.user;
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
+      const page = data.currentPage || 'dashboard';
       Interns.getInternsList().then(() => {
-        //console.log(JSON.stringify(Interns.filteredList(), null, 2))
+        console.log('init ');
         INTERNS = Interns.filteredList()
         Dashboard    .build();
         Analytics    .build();
         Approvals    .build();
         Interns      .build();
-        Reports      .build();
+        if (page != 'reports') {
+          console.log('init reports');
+          Reports.build();
+        }
         Announcements.build();
-        CoordinatorDocuments.build();
+        if (page != 'documents') CoordinatorDocuments.build();
       })
       if (data.error) {
         console.error(data.error);
         return;
       }
       //console.log('Current page:', JSON.stringify(data));
-      const page = data.currentPage || 'dashboard';
       document.getElementById('nav-' + page)?.classList.add('active');
       navigate(page)
       }).catch(err => {
         console.error('Error fetching current page:', err);
     });
   }
-})
-</script>
+})</script>
 </body>
 </html>
