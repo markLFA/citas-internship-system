@@ -1870,7 +1870,13 @@ const Reports = {
 
   // Status filter pill tabs
   statusTabs() {
-    const wrap = document.createElement('div');
+  let wrap = document.getElementById('your-wrap-id');
+
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'your-wrap-id';
+    sec.appendChild(wrap);
+  }
     wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem';
 
     const tabs = [
