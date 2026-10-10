@@ -1836,6 +1836,7 @@ const Reports = {
   _isListening: false,
 
   build() {
+    condole.log('Reports.build() called');
     const sec = document.getElementById('sec-reports');
     sec.innerHTML = ''; // Clear container on rebuild
 
@@ -1870,12 +1871,7 @@ const Reports = {
 
   // Status filter pill tabs
   statusTabs() {
-  let wrap = document.getElementById('your-wrap-id');
-
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'your-wrap-id';
-  }
+    const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem';
 
     const tabs = [
@@ -3136,9 +3132,9 @@ Helpers.api ("getSessionUser").then(data => {
         Analytics    .build();
         Approvals    .build();
         Interns      .build();
-        Reports      .build();
+        if (page != 'reports') Reports.build();
         Announcements.build();
-        CoordinatorDocuments.build();
+        if (page != 'documents') CoordinatorDocuments.build();
       })
       if (data.error) {
         console.error(data.error);
