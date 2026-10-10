@@ -2776,14 +2776,14 @@ const CoordinatorDocuments = {
     const approved = docs.filter(d => d.status === 'approved').length;
     const pending  = docs.filter(d => d.status === 'pending').length;
     const rejected = docs.filter(d => d.status === 'rejected').length;
-
+/*
     container.appendChild(UI.statRow([
       { value: total,    label: 'Total Submitted', color: '#EA580C' },
       { value: approved, label: 'Accepted',        color: '#10B981' },
       { value: pending,  label: 'Pending Review',  color: '#F59E0B' },
       { value: rejected, label: 'Needs Resubmit',  color: '#EF4444' },
     ]));
-
+*/
     const byIntern = {};
     docs.forEach(d => {
       if (!byIntern[d.internId]) {
