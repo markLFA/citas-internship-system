@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-//  register.php — Intern self-registration with Email OTP
+//  register.php — Intern self-registration
 // ============================================================
 
 require_once __DIR__ . '/config/db.php';
@@ -20,33 +20,16 @@ function post(string $key): string {
     return trim($_POST[$key] ?? '');
 }
 
-// Ensure verification_code column exists in users table safely
-try {
-    $dbCheck = getDB();
-    $colCheck = $dbCheck->query("SHOW COLUMNS FROM users LIKE 'verification_code'");
-    if (!$colCheck->fetch()) {
-        $dbCheck->exec("ALTER TABLE users ADD COLUMN verification_code VARCHAR(10) DEFAULT NULL");
-    }
-} catch (Exception $e) {
-    // Fail silently if permissions or table doesn't exist yet
-}
-
 function validate(array $data): array {
     $errors = [];
 
     if (empty($data['name']))
         $errors[] = 'Full name is required.';
 
-    if (empty($data['email'])) {
+    if (empty($data['email']))
         $errors[] = 'Email address is required.';
-    } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+    elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))
         $errors[] = 'Please enter a valid email address.';
-    } else {
-        $domain = substr(strrchr($data['email'], "@"), 1);
-        if (!checkdnsrr($domain, "MX") && !checkdnsrr($domain, "A")) {
-            $errors[] = 'The email domain does not appear to be valid or active.';
-        }
-    }
 
     if (empty($data['password']))
         $errors[] = 'Password is required.';
@@ -65,6 +48,68 @@ function validate(array $data): array {
     return $errors;
 }
 
+function create_user(array $data): int {
+    $db     = getDB();
+    $role   = 'intern';
+    $active = 0;
+    $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
+
+    $stmt = $db->prepare(
+        'INSERT INTO users (name, email, password, role, is_active)
+         VALUES (:name, :email, :password, :role, :is_active)'
+    );
+    $stmt->execute([
+        ':name'      => $data['name'],
+        ':email'     => $data['email'],
+        ':password'  => $hash,
+        ':role'      => $role,
+        ':is_active' => $active,
+    ]);
+
+    return (int)$db->lastInsertId();
+}
+
+function create_placeholder_company(): int {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO companies (name, address) VALUES (:name, :address)'
+    );
+    $stmt->execute([':name' => 'Not yet assigned', ':address' => 'Enter company address here']);
+    return (int)$db->lastInsertId();
+}
+
+function create_intern_profile(int $userId, array $data): void {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO intern_profiles
+           (user_id, course, year_level, phone, coordinator_id, required_hours)
+         VALUES
+           (:user_id, :course, :year_level, :phone, :coordinator_id, :required_hours)'
+    );
+    $stmt->execute([
+        ':user_id'       => $userId,
+        ':course'        => $data['course']     ?: null,
+        ':year_level'    => $data['year_level'] ?: null,
+        ':phone'         => $data['phone']      ?: null,
+        ':coordinator_id'=> 23,
+        ':required_hours'=> 500,
+    ]);
+}
+
+function create_internship(int $userId, int $companyId): int {
+    $db   = getDB();
+    $stmt = $db->prepare(
+        'INSERT INTO internships (intern_id, company_id, status)
+         VALUES (:intern_id, :company_id, :status)'
+    );
+    $stmt->execute([
+        ':intern_id'  => $userId,
+        ':company_id' => $companyId,
+        ':status'     => 'active',
+    ]);
+    return (int) $db->lastInsertId();
+}
+
 function email_taken(string $email): bool {
     $db   = getDB();
     $stmt = $db->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
@@ -72,10 +117,10 @@ function email_taken(string $email): bool {
     return (bool)$stmt->fetch();
 }
 
-// Handle AJAX Request for sending OTP
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_otp') {
-    header('Content-Type: application/json');
-    
+$errors = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     $data = [
         'name'             => post('name'),
         'email'            => post('email'),
@@ -93,115 +138,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $errors[] = 'An account with that email already exists.';
     }
 
-    if (!empty($errors)) {
-        echo json_encode(['success' => false, 'errors' => $errors]);
-        exit;
-    }
-
-    // Generate 6-digit OTP
-    $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-    
-    // Store temporary registration payload and OTP in session
-    $_SESSION['temp_reg_data'] = $data;
-    $_SESSION['temp_otp'] = $otp;
-    $_SESSION['temp_otp_time'] = time();
-
-    // Send email
-    $subject = 'Your CITAS Account Verification Code';
-    $message = "Hello {$data['name']},\n\nYour verification code for CITAS Internship Monitoring System is: {$otp}\n\nThis code will expire in 10 minutes.\n\nRegards,\nCITAS Team";
-    $headers = "From: no-reply@samar.edu.ph\r\n" .
-               "Reply-To: no-reply@samar.edu.ph\r\n" .
-               "X-Mailer: PHP/" . phpversion();
-
-    @mail($data['email'], $subject, $message, $headers);
-
-    // For local testing/development environments where mail() isn't configured, return token in response 
-    // (Remove or comment out 'debug_otp' in production)
-    echo json_encode(['success' => true, 'message' => 'Verification code sent to your email.', 'debug_otp' => $otp]);
-    exit;
-}
-
-// Handle Final Registration Submission with OTP verification
-$errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_and_register') {
-    $userOtp = trim($_POST['otp_code'] ?? '');
-
-    if (empty($_SESSION['temp_reg_data']) || empty($_SESSION['temp_otp'])) {
-        $errors[] = 'Session expired or invalid registration sequence. Please try again.';
-    } elseif ((time() - $_SESSION['temp_otp_time']) > 600) {
-        $errors[] = 'Verification code has expired. Please request a new one.';
-    } elseif ($userOtp !== $_SESSION['temp_otp']) {
-        $errors[] = 'Invalid verification code. Please check your email and try again.';
-    } else {
-        $data = $_SESSION['temp_reg_data'];
-
+    if (empty($errors)) {
         try {
             $db = getDB();
             $db->beginTransaction();
 
-            $role   = 'intern';
-            $active = 0;
-            $hash   = password_hash($data['password'], PASSWORD_DEFAULT);
-
-            $stmt = $db->prepare(
-                'INSERT INTO users (name, email, password, role, is_active, verification_code)
-                 VALUES (:name, :email, :password, :role, :is_active, :code)'
-            );
-            $stmt->execute([
-                ':name'      => $data['name'],
-                ':email'     => $data['email'],
-                ':password'  => $hash,
-                ':role'      => $role,
-                ':is_active' => $active,
-                ':code'      => $userOtp,
-            ]);
-            $userId = (int)$db->lastInsertId();
-
-            // Create placeholder company
-            $stmtComp = $db->prepare('INSERT INTO companies (name, address) VALUES (:name, :address)');
-            $stmtComp->execute([':name' => 'Not yet assigned', ':address' => 'Enter company address here']);
-            $companyId = (int)$db->lastInsertId();
-
-            // Create intern profile
-            $stmtProfile = $db->prepare(
-                'INSERT INTO intern_profiles (user_id, course, year_level, phone, coordinator_id, required_hours)
-                 VALUES (:user_id, :course, :year_level, :phone, :coordinator_id, :required_hours)'
-            );
-            $stmtProfile->execute([
-                ':user_id'        => $userId,
-                ':course'         => $data['course']     ?: null,
-                ':year_level'     => $data['year_level'] ?: null,
-                ':phone'          => $data['phone']      ?: null,
-                ':coordinator_id' => 23,
-                ':required_hours' => 500,
-            ]);
-
-            // Create internship record
-            $stmtInternship = $db->prepare(
-                'INSERT INTO internships (intern_id, company_id, status) VALUES (:intern_id, :company_id, :status)'
-            );
-            $stmtInternship->execute([
-                ':intern_id'  => $userId,
-                ':company_id' => $companyId,
-                ':status'     => 'active',
-            ]);
-            $internshipId = (int)$db->lastInsertId();
-
-            assignSchoolYear($internshipId);  
+            $userId       = create_user($data);
+            $companyId    = create_placeholder_company();
+            create_intern_profile($userId, $data);
+            $internshipId = create_internship($userId, $companyId);
+            assignSchoolYear($internshipId);  // auto-tag with current school year
 
             $db->commit();
 
-            // Clear temporary session items
-            unset($_SESSION['temp_reg_data'], $_SESSION['temp_otp'], $_SESSION['temp_otp_time']);
+            $_SESSION['flash_success'] = 'Account created! Please wait for your coordinator to approve your account before logging in.';
 
-            $_SESSION['flash_success'] = 'Account created and verified! Please wait for your coordinator to approve your account before logging in.';
             header('Location: index.php');
             exit;
 
         } catch (PDOException $e) {
-            if (isset($db) && $db->inTransaction()) {
-                $db->rollBack();
-            }
+            $db->rollBack();
             error_log('Registration error: ' . $e->getMessage());
             $errors[] = 'Something went wrong. Please try again later.';
         }
@@ -233,6 +189,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     body::before { width:520px;height:520px;top:-180px;right:-140px; background:radial-gradient(circle,rgba(255,140,0,.35) 0%,transparent 70%); }
     body::after  { width:400px;height:400px;bottom:-130px;left:-100px; background:radial-gradient(circle,rgba(255,100,0,.2) 0%,transparent 70%); }
 
+    .banner {
+      width:100%; max-width:480px; background:rgba(255,255,255,.12); backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:.6rem 1rem; margin-bottom:1rem;
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .dot { width:8px;height:8px;border-radius:50%;background:#FCD34D;flex-shrink:0;box-shadow:0 0 6px #FCD34D;animation:blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)} }
+    .banner p { font-size:.78rem;color:rgba(255,255,255,.9);line-height:1.4; }
+    .banner strong { color:#FCD34D; }
+
     .card {
       width:100%; max-width:480px; background:#fff; border-radius:20px; overflow:hidden;
       box-shadow:0 24px 64px rgba(194,65,12,.18),0 4px 16px rgba(0,0,0,.08);
@@ -255,7 +221,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     .alert ul { list-style:none; display:flex; flex-direction:column; gap:.25rem; }
     .alert li::before { content:'⚠ '; }
     .alert-error   { background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; }
-    .alert-success { background:#F0FDF4; border:1px solid #BBF7D0; color:#166534; }
 
     .section-label {
       font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--o2);
@@ -288,6 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     select { padding-left:.85rem; }
     input::placeholder { color:#C4845A;opacity:.7; }
     input:focus, select:focus { border-color:var(--o2);background:#fff;box-shadow:0 0 0 3px var(--ring); }
+    input.err, select.err { border-color:#EF4444;background:#FEF2F2; }
 
     .terms-field { display: flex; align-items: flex-start; gap: .6rem; margin: 1.25rem 0 .5rem; }
     .terms-field input[type="checkbox"] { accent-color: var(--o2); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0; }
@@ -298,16 +264,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     .field-row { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
     @media(max-width:480px){ .field-row{grid-template-columns:1fr;} }
 
-    .otp-row { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
-
-    .btn-submit, .btn-action {
+    .btn-submit {
       display:flex;align-items:center;justify-content:center;gap:.5rem; width:100%;padding:.8rem;margin-top:1.4rem;
       background:linear-gradient(135deg,var(--o1) 0%,var(--o2) 100%); color:#fff;font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700;
       border:none;border-radius:10px;cursor:pointer; box-shadow:0 4px 14px rgba(234,88,12,.4); transition:filter .15s,transform .12s;
     }
-    .btn-action { margin-top: 0; padding: .68rem 1rem; font-size: .85rem; width: auto; white-space: nowrap; }
-    .btn-submit:hover, .btn-action:hover  { filter:brightness(1.08);transform:translateY(-1px); }
-    .btn-submit:active, .btn-action:active { transform:none; }
+    .btn-submit:hover  { filter:brightness(1.08);transform:translateY(-1px); }
+    .btn-submit:active { transform:none; }
 
     .card-link { text-align:center;margin-top:1.1rem;font-size:.83rem;color:var(--text-muted); }
     .card-link a { color:var(--o2);font-weight:600;text-decoration:none; }
@@ -318,7 +281,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     .page-foot strong { color:rgba(255,255,255,.75); }
 
     .role-info { background:var(--pale); border:1px solid #FED7AA; border-radius:8px; padding:.65rem .85rem; font-size:.78rem; color:var(--text-mid); margin-bottom:.75rem; }
-    #otp-section { display: none; }
   </style>
 </head>
 <body>
@@ -334,25 +296,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
       </div>
     </div>
     <h1>Create Student Account</h1>
-    <p>Fill in your details and verify your email to register</p>
+    <p>Fill in your details to register as a student intern</p>
   </div>
 
   <div class="card-body">
 
-    <!-- Global Alert Container -->
-    <div id="alert-box" class="alert alert-error" style="display: <?= !empty($errors) ? 'flex' : 'none' ?>;">
-      <ul id="alert-list">
-        <?php if (!empty($errors)): foreach ($errors as $e): ?>
-          <li><?= h($e) ?></li>
-        <?php endforeach; endif; ?>
-      </ul>
-    </div>
+    <?php if (!empty($errors)): ?>
+      <div class="alert alert-error">
+        <ul>
+          <?php foreach ($errors as $e): ?>
+            <li><?= h($e) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
 
-    <!-- Initial Details Form -->
-    <form id="reg-form" method="POST" action="">
-      <input type="hidden" name="action" value="send_otp">
+    <form method="POST" action="" novalidate>
 
-      <div class="role-info">⏳ Intern accounts require coordinator approval and active email verification before logging in.</div>
+      <div class="role-info">⏳ Intern accounts require coordinator approval before you can log in.</div>
 
       <div class="section-label">Personal Information</div>
 
@@ -370,7 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
           <span class="inp-icon">✉️</span>
           <input type="email" id="email" name="email" placeholder="you@samar.edu.ph" value="<?= h(post('email')) ?>" required autocomplete="email">
         </div>
-        <div class="hint">Use your official school email. We will send a verification code here.</div>
+        <div class="hint">Use your official school email if applicable.</div>
       </div>
 
       <div class="section-label">Internship Details</div>
@@ -379,20 +340,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <div class="field">
           <label for="course">Course</label>
           <select id="course" name="course" required>
-            <option value="" disabled selected>Select your course...</option>
-            <option value="BSIT">BSIT</option>
-            <option value="BSCS">BSCS</option>
+            <option value="" disabled <?= empty(post('course')) ? '' : '' ?>>Select your course...</option>
+            <option value="BSIT" <?= (empty(post('course')) || post('course') === 'BSIT') ? 'selected' : '' ?>>BSIT</option>
+            <option value="BSCS" <?= post('course') === 'BSCS' ? 'selected' : '' ?>>BSCS</option>
           </select>
         </div>
 
         <div class="field">
           <label for="year_level">Year Level</label>
           <select id="year_level" name="year_level" required>
-            <option value="" disabled selected>Select year level...</option>
-            <option value="1st Year">1st Year</option>
-            <option value="2nd Year">2nd Year</option>
-            <option value="3rd Year">3rd Year</option>
-            <option value="4th Year" selected>4th Year</option>
+            <option value="" disabled <?= empty(post('year_level')) ? '' : '' ?>>Select year level...</option>
+            <option value="1st Year" <?= post('year_level') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
+            <option value="2nd Year" <?= post('year_level') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
+            <option value="3rd Year" <?= post('year_level') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
+            <option value="4th Year" <?= (empty(post('year_level')) || post('year_level') === '4th Year') ? 'selected' : '' ?>>4th Year</option>
           </select>
         </div>
       </div>
@@ -401,9 +362,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <label for="phone">Phone Number <span style="font-weight:400;opacity:.6">(optional)</span></label>
         <div class="inp-wrap">
           <span class="inp-icon">📱</span>
-          <input type="tel" id="phone" name="phone" placeholder="+63 9xx xxx xxxx">
+          <input type="tel" id="phone" name="phone" placeholder="+63 9xx xxx xxxx" value="<?= h(post('phone')) ?>">
         </div>
       </div>
+
+      <p style="font-size:.75rem;color:#9A6647;margin-bottom:.5rem">
+        💡 Company and supervisor details can be filled in later from your profile page.
+      </p>
 
       <div class="section-label">Password</div>
 
@@ -412,11 +377,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
           <label for="password">Create Password</label>
           <div class="inp-wrap">
             <span class="inp-icon">🔒</span>
-            <input type="password" id="password" name="password" placeholder="Min. 6 chars" required autocomplete="new-password">
+            <input type="password" id="password" name="password" placeholder="Min. 6 characters" required autocomplete="new-password">
             <button type="button" class="toggle-pass" data-target="password" aria-label="Toggle visibility">
               <svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
             </button>
           </div>
+          <div class="hint">Minimum 6 characters.</div>
         </div>
         <div class="field">
           <label for="confirm_password">Confirm Password</label>
@@ -431,34 +397,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
       </div>
 
       <div class="terms-field">
-        <input type="checkbox" id="terms" name="terms" value="yes" required>
+        <input type="checkbox" id="terms" name="terms" value="yes" <?= post('terms') === 'yes' ? 'checked' : '' ?> required>
         <label for="terms">
-          I read and agree to the <a href="#" onclick="alert('Terms of Service:\n\nThis application is strictly for academic and capstone evaluation deployment purposes.'); return false;">Terms and Services</a> and data privacy guidelines.
+          I read and agree to the <a href="#" onclick="alert('Terms of Service:\n\nThis application is strictly for academic and capstone evaluation deployment purposes. All logged data including profiles, attendance, logs, and information uploaded will safely map into the project platform databases.'); return false;">Terms and Services</a> and data privacy guidelines for academic evaluation.
         </label>
       </div>
 
-      <button class="btn-submit" type="submit" id="btn-send-otp">Send Verification Code →</button>
+      <button class="btn-submit" type="submit">Create Account →</button>
 
-    </form>
-
-    <!-- OTP Verification Form Component (Revealed After Sending OTP) -->
-    <form id="otp-section" method="POST" action="" style="display:none; margin-top: 1.5rem;">
-      <input type="hidden" name="action" value="verify_and_register">
-      
-      <div class="section-label">Email Verification</div>
-      <div class="role-info" style="margin-bottom:1rem;">📬 We've sent a 6-digit confirmation code to your email address. Enter it below to complete your registration.</div>
-
-      <div class="field">
-        <label for="otp_code">Enter 6-Digit OTP Code</label>
-        <div class="otp-row">
-          <div class="inp-wrap">
-            <span class="inp-icon">🔢</span>
-            <input type="text" id="otp_code" name="otp_code" placeholder="123456" maxlength="6" pattern="\d{6}" required style="letter-spacing: 2px; font-weight: bold;">
-          </div>
-          <button type="submit" class="btn-action">Verify & Register</button>
-        </div>
-        <div class="hint">Didn't get the code? <a href="#" id="resend-otp-link" style="color:var(--o2); font-weight:600; text-decoration:none;">Resend code</a></div>
-      </div>
     </form>
 
     <div class="card-link">
@@ -477,7 +423,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 </div>
 
 <script>
-// Toggle Password Visibility Script
 document.querySelectorAll('.toggle-pass').forEach(btn => {
   btn.addEventListener('click', function() {
     const targetId = this.getAttribute('data-target');
@@ -490,75 +435,6 @@ document.querySelectorAll('.toggle-pass').forEach(btn => {
       this.innerHTML = '<svg class="eye-open" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
     }
   });
-});
-
-// Handle AJAX Submission to trigger OTP generation & dispatch
-const regForm = document.getElementById('reg-form');
-const alertBox = document.getElementById('alert-box');
-const alertList = document.getElementById('alert-list');
-const otpSection = document.getElementById('otp-section');
-const btnSendOtp = document.getElementById('btn-send-otp');
-
-regForm.addEventListener('submit', function(e) {
-  e.preventDefault();
-  
-  btnSendOtp.disabled = true;
-  btnSendOtp.textContent = 'Sending OTP...';
-
-  const formData = new FormData(regForm);
-
-  fetch('', {
-    method: 'POST',
-    body: formData
-  })
-  .then(response => response.json())
-  .then(data => {
-    btnSendOtp.disabled = false;
-    btnSendOtp.textContent = 'Send Verification Code →';
-
-    if (data.success) {
-      // Hide error alert, show success info
-      alertBox.className = 'alert alert-success';
-      alertList.innerHTML = '<li>' + data.message + ' (Check debug console or email inbox)</li>';
-      alertBox.style.display = 'flex';
-
-      // Optional: helpful developer hint in console if mail server isn't running locally
-      if (data.debug_otp) {
-        console.log("Development OTP Code:", data.debug_otp);
-      }
-
-      // Hide main inputs / switch layout to prompt for OTP code
-      regForm.style.display = 'none';
-      otpSection.style.display = 'block';
-      document.getElementById('otp_code').focus();
-    } else {
-      // Render errors
-      alertBox.className = 'alert alert-error';
-      alertList.innerHTML = '';
-      data.errors.forEach(err => {
-        const li = document.createElement('li');
-        li.textContent = err;
-        alertList.appendChild(li);
-      });
-      alertBox.style.display = 'flex';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  })
-  .catch(error => {
-    btnSendOtp.disabled = false;
-    btnSendOtp.textContent = 'Send Verification Code →';
-    alertBox.className = 'alert alert-error';
-    alertList.innerHTML = '<li>A network or server error occurred. Please try again.</li>';
-    alertBox.style.display = 'flex';
-  });
-});
-
-// Resend Code handler
-document.getElementById('resend-otp-link').addEventListener('click', function(e) {
-  e.preventDefault();
-  regForm.style.display = 'block';
-  otpSection.style.display = 'none';
-  alertBox.style.display = 'none';
 });
 </script>
 </body>
