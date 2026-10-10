@@ -433,7 +433,7 @@ function navigate(name) {
   } else if (name === 'approvals') {
     Approvals.build();
   } else if (name === 'interns') {
-    Interns.build();
+    //Interns.build();
   } else if (name === 'announcements') {
     Announcements.build();
   } else
@@ -491,31 +491,35 @@ const Dashboard = {
     ]);
   },
 
-  // Three-column bottom row
+// Three-column bottom row
   bottomRow() {
     const row = document.createElement('div');
     row.className = 'pg-grid-3 mt-lg';
+
+    // 1. Create a dedicated container for Pending Approvals
     const approvalCardContainer = document.createElement('div');
-    approvalCardContainer.id = 'pending-approvals-card-container';
-    row.appendChild( approvalCardContainer );
+    row.appendChild(approvalCardContainer);
     this.pendingApprovalsCard(approvalCardContainer);
+
+    // 2. Weekly Reports Card
     this.recentReportsCard(row);
-    row.appendChild( this.analyticsPreviewCard()    );
+
+    // 3. Analytics Snapshot Card
+    row.appendChild(this.analyticsPreviewCard());
+    
     return row;
   },
 
-  // Quick view of pending registrations on dashboard
-  pendingApprovalsCard() {
+  // Quick view of pending registrations on dashboard (always renders the card)
+  pendingApprovalsCard(container) {
     const body = document.createElement('div');
+    
     getPendingInterns().then(data => {
       PENDING = (data && !data.error) ? data : [];
 
       if (!PENDING.length) {
-        //body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
-        const container = document.getElementById('pending-approvals-card-container');
-        container.remove();
-        return;
-
+        // Show a nice empty state inside the card instead of destroying it
+        body.appendChild(UI.empty('✅', 'All caught up!', 'No pending registrations.'));
       } else {
         PENDING.slice(0, 3).forEach(p => {
           const item = document.createElement('div');
@@ -537,7 +541,8 @@ const Dashboard = {
           body.appendChild(more);
         }
       }
-      const container = document.getElementById('pending-approvals-card-container');
+
+      // Render the card inside its column container
       container.appendChild(UI.card({
         title: '⏳ Pending Approvals',
         headerActions: UI.badge(PENDING.length, { base:'#FEF3C7', text:'#92400E' }),
@@ -545,12 +550,11 @@ const Dashboard = {
         footer: PENDING.length ? [
           Helpers.ghostBtn('View all →', () => navigate('approvals')),
         ] : [],
-      }) );
-
+      }));
+    }).catch(err => {
+      console.error('Failed to load pending approvals:', err);
     });
-
   },
-
   // Quick view of 3 most recent reports on dashboard
   recentReportsCard(row) {
     Helpers.api('getCoordinatorReports', { school_year: window.AppState?.schoolYear }).then(data => {
