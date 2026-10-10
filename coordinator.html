@@ -3126,7 +3126,7 @@ Helpers.api ("getSessionUser").then(data => {
     buildNavBar () 
     Helpers.api ("getCurrentPage").then(data => {
       Interns.getInternsList().then(() => {
-        //console.log(JSON.stringify(Interns.filteredList(), null, 2))
+        const page = data.currentPage || 'dashboard';
         INTERNS = Interns.filteredList()
         Dashboard    .build();
         Analytics    .build();
@@ -3141,7 +3141,6 @@ Helpers.api ("getSessionUser").then(data => {
         return;
       }
       //console.log('Current page:', JSON.stringify(data));
-      const page = data.currentPage || 'dashboard';
       document.getElementById('nav-' + page)?.classList.add('active');
       navigate(page)
       }).catch(err => {
