@@ -3127,6 +3127,7 @@ Helpers.api ("getSessionUser").then(data => {
     Helpers.api ("getCurrentPage").then(data => {
       const page = data.currentPage || 'dashboard';
       Interns.getInternsList().then(() => {
+        console.log('init ');
         INTERNS = Interns.filteredList()
         Dashboard    .build();
         Analytics    .build();
