@@ -1987,12 +1987,13 @@ build() {
       </div>
     `;
     
-    sec.appendChild(disclaimer);
 
     const grid = document.createElement('div');
     grid.className = 'pg-grid-2';
     grid.style.alignItems = 'start';
     grid.appendChild(this.clockCard());
+
+    sec.appendChild(disclaimer);
 
     // Slot so hours card can be refreshed after clock actions (with min-width: 0 fix)
     const hoursSlot = document.createElement('div');
