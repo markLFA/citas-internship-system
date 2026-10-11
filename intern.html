@@ -1966,23 +1966,16 @@ build() {
       'line-height:1.6',
     ].join(';');
     
-    disclaimer.innerHTML = `
+disclaimer.innerHTML = `
       <span style="font-size:1.25rem;flex-shrink:0;margin-top:.05rem">⚠️</span>
       <div>
         <strong style="font-family:Sora,sans-serif;font-size:.84rem;display:block;margin-bottom:.2rem">
           Attendance Disclaimer
         </strong>
-        The time in and time out recorded here are for
-        <strong>reference and monitoring purposes only</strong>
-        and may not exactly match your official
-        <strong>Daily Time Record (DTR)</strong>
-        submitted to your host company. Internet delays, browser
-        issues, or manual edits may cause discrepancies.
+        Times recorded here are for <strong>monitoring only</strong> and may differ from your official <strong>Daily Time Record (DTR)</strong> due to technical delays or edits.
         <br>
         <span style="margin-top:.3rem;display:block">
-          Your official attendance is based on the DTR signed and verified
-          by your company supervisor — not on this system alone.
-          Always ensure your DTR is properly accomplished and submitted.
+          Your official record relies on your supervisor-verified DTR, not this system.
         </span>
       </div>
     `;
