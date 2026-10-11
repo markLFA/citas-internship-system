@@ -1231,7 +1231,6 @@ announcementsCard() {
 // ─────────────────────────────────────────────────────────────
 const Profile = {
 
-
   // ── Modal state ───────────────────────────────────────────
   _personalModal: null,
   _internshipModal: null,
@@ -1267,7 +1266,6 @@ const Profile = {
   },
 
   // ── Layout ────────────────────────────────────────────────
-// ── Layout ────────────────────────────────────────────────
   leftColumn() {
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem;min-width:0;width:100%';
@@ -1314,7 +1312,6 @@ const Profile = {
     const required = parseInt(InternData.profile.required_hours ?? 500);
     const pct      = required ? Math.min(100, Math.round((total / required) * 100)) : 0;
     
-    // Round rendered and remaining values to 2 decimal places (or use Math.round / Math.ceil as needed)
     const renderedDisplay = (Math.round(total * 100) / 100) + 'h';
     const remainingVal = Math.max(0, required - total);
     const remainingDisplay = (Math.round(remainingVal * 100) / 100) + 'h';
@@ -1332,25 +1329,28 @@ const Profile = {
     body.appendChild(UI.progress(pct, { color: { base:'#EA580C' }, label: true }));
     return UI.card({ title: '⏳ Hours Summary', body });
   },
+
   // ── Cards ─────────────────────────────────────────────────
   personalCard() {
+    const joinedVal = InternData.user?.joined_date || InternData.profile?.joined_date;
     return UI.profileCard({
       name:      InternData.user.name,
       role:      `${InternData.profile.course || '—'} · ${InternData.profile.year_level || '—'}`,
       email:     InternData.user.email,
       dept:      InternData.profile.course,
       yearLevel: InternData.profile.year_level,
-      joined:    InternData.profile.joined_date || '—',
+      joined:    joinedVal ? new Date(joinedVal).toLocaleDateString() : '—',
     });
   },
 
   detailsCard() {
     const body = document.createElement('div');
+    const joinedVal = InternData.user?.joined_date || InternData.profile?.joined_date;
     [
       ['📱', 'Phone',      InternData.profile.phone],
       ['📚', 'Course',     InternData.profile.course],
       ['🎓', 'Year Level', InternData.profile.year_level],
-      ['📅', 'Joined',     InternData.profile.joined_date],
+      ['📅', 'Joined',     joinedVal ? new Date(joinedVal).toLocaleDateString() : '—'],
     ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v || '—')));
     return UI.card({ title: '📋 Personal Details', body });
   },
@@ -1368,10 +1368,7 @@ const Profile = {
     });
   },
 
-
   // ── Profile incomplete reminder card ──────────────────────
-  // Call this anywhere: sec.appendChild(Profile.incompleteCard())
-  // Returns null if profile is already complete (so you can skip appending)
   incompleteCard() {
     const i = this.internship;
     const c = this.company;
@@ -1384,8 +1381,8 @@ const Profile = {
     if (!i.start_date)                             missing.push('Start date');
     if (!i.end_date)                               missing.push('End date');
     if (!InternData.profile.phone)                 missing.push('Phone number');
+    if (!c.email)                                  missing.push('Company email');
 
-    // Return null when nothing is missing — caller can check before appending
     if (!missing.length) return null;
 
     const card = document.createElement('div');
@@ -1435,25 +1432,18 @@ const Profile = {
   },
 
   calculateProjectedEndDate(startDate, requiredHours = 500, hoursPerDay = 8) {
-
     const date = new Date(`${startDate}T00:00:00`);
 
     if (Number.isNaN(date.getTime())) {
       return '';
     }
 
-    // 500 / 8 = 62.5, so round up to 63 working days
     const workingDays = Math.ceil(requiredHours / hoursPerDay);
-
     let daysAdded = 0;
 
     while (daysAdded < workingDays) {
-
       date.setDate(date.getDate() + 1);
-
       const day = date.getDay();
-
-      // Monday = 1, Friday = 5
       if (day !== 0 && day !== 6) {
         daysAdded++;
       }
@@ -1465,12 +1455,10 @@ const Profile = {
 
     return `${year}-${month}-${day}`;
   },
-    // ── Modal: Personal info only ─────────────────────────────
+
+  // ── Modal: Personal info only ─────────────────────────────
   openPersonalModal() {
-
-    // Create modal only once
     if (!this._personalModal) {
-
       const body = document.createElement('div');
 
       const sec = label => {
@@ -1499,13 +1487,8 @@ const Profile = {
         placeholder: '+63 9xx xxx xxxx'
       });
 
-      body.appendChild(
-        UI.formGroup('Full Name', nameField)
-      );
-
-      body.appendChild(
-        UI.formGroup('Phone', phoneField)
-      );
+      body.appendChild(UI.formGroup('Full Name', nameField));
+      body.appendChild(UI.formGroup('Phone', phoneField));
 
       const courseField = UI.input({
         id: 'profile-personal-course',
@@ -1520,14 +1503,8 @@ const Profile = {
       });
 
       const r1 = row();
-
-      r1.appendChild(
-        UI.formGroup('Course', courseField)
-      );
-
-      r1.appendChild(
-        UI.formGroup('Year Level', yearLevelField)
-      );
+      r1.appendChild(UI.formGroup('Course', courseField));
+      r1.appendChild(UI.formGroup('Year Level', yearLevelField));
 
       this._personalFields = {
         name: nameField,
@@ -1546,50 +1523,31 @@ const Profile = {
             size: 'sm',
             onClick: () => this._personalModal.close()
           }),
-
           UI.button('Save Changes', {
             size: 'sm',
-            color: {
-              base: '#EA580C',
-              hover: '#C2410C',
-              text: '#fff'
-            },
+            color: { base: '#EA580C', hover: '#C2410C', text: '#fff' },
             onClick: () => this.savePersonal(this._personalModal)
           })
         ]
       });
     }
 
-    // Refresh values before opening
-    this._personalFields.name.value =
-      InternData.user.name || '';
-
-    this._personalFields.phone.value =
-      InternData.profile.phone || '';
-
-    this._personalFields.course.value =
-      InternData.profile.course || '';
-
-    this._personalFields.yearLevel.value =
-      InternData.profile.year_level || '';
+    this._personalFields.name.value = InternData.user.name || '';
+    this._personalFields.phone.value = InternData.profile.phone || '';
+    this._personalFields.course.value = InternData.profile.course || '';
+    this._personalFields.yearLevel.value = InternData.profile.year_level || '';
 
     this._personalModal.open();
   },
 
-    // ── Modal: Internship/Company info only ───────────────────
+  // ── Modal: Internship/Company info only ───────────────────
   openInternshipModal() {
-
     if (this.isReviewed) {
-      UI.toast(
-        '⛔ Your internship info has been locked by the coordinator.',
-        'danger'
-      );
+      UI.toast('⛔ Your internship info has been locked by the coordinator.', 'danger');
       return;
     }
 
-    // Create modal only once
     if (!this._internshipModal) {
-
       const body = document.createElement('div');
 
       const sec = label => {
@@ -1611,6 +1569,12 @@ const Profile = {
       const companyNameField = UI.input({
         id: 'profile-internship-company',
         placeholder: 'Company name'
+      });
+
+      const companyEmailField = UI.input({
+        id: 'profile-internship-email',
+        type: 'email',
+        placeholder: 'company@email.com'
       });
 
       const positionField = UI.input({
@@ -1644,67 +1608,26 @@ const Profile = {
         type: 'date'
       });
 
-      body.appendChild(
-        UI.formGroup('Company Name', companyNameField)
-      );
-
-      body.appendChild(
-        UI.formGroup('Position', positionField)
-      );
-
-      body.appendChild(
-        UI.formGroup('Address', addressField)
-      );
-
-      body.appendChild(
-        UI.formGroup('Supervisor', supervisorField)
-      );
-
-      body.appendChild(
-        UI.formGroup('Supervisor Phone', supervisorPhoneField)
-      );
+      body.appendChild(UI.formGroup('Company Name', companyNameField));
+      body.appendChild(UI.formGroup('Company Email', companyEmailField));
+      body.appendChild(UI.formGroup('Position', positionField));
+      body.appendChild(UI.formGroup('Address', addressField));
+      body.appendChild(UI.formGroup('Supervisor', supervisorField));
+      body.appendChild(UI.formGroup('Supervisor Phone', supervisorPhoneField));
 
       const r2 = row();
-
-      r2.appendChild(
-        UI.formGroup('Start Date', startDateField)
-      );
-
-      r2.appendChild(
-        UI.formGroup('End Date', endDateField)
-      );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Automatically calculate projected end date
-      |--------------------------------------------------------------------------
-      */
+      r2.appendChild(UI.formGroup('Start Date', startDateField));
+      r2.appendChild(UI.formGroup('End Date', endDateField));
 
       startDateField.addEventListener('change', () => {
-
         const startDate = startDateField.value;
+        if (!startDate) return;
 
-        if (!startDate) {
-          return;
-        }
-
-        const projectedEnd = this.calculateProjectedEndDate(
-          startDate,
-          500,
-          8
-        );
-
+        const projectedEnd = this.calculateProjectedEndDate(startDate, 500, 8);
         endDateField.value = projectedEnd;
       });
 
-      /*
-      |--------------------------------------------------------------------------
-      | Info note
-      |--------------------------------------------------------------------------
-      */
-
       const note = document.createElement('div');
-
       note.style.cssText =
         'margin-top:.75rem;' +
         'padding:.7rem 1rem;' +
@@ -1725,6 +1648,7 @@ const Profile = {
 
       this._internshipFields = {
         companyName: companyNameField,
+        companyEmail: companyEmailField,
         position: positionField,
         address: addressField,
         supervisor: supervisorField,
@@ -1737,120 +1661,87 @@ const Profile = {
         title: '✏️ Edit Internship Info',
         body,
         size: 'lg',
-
         footer: [
           UI.button('Cancel', {
             variant: 'ghost',
             size: 'sm',
             onClick: () => this._internshipModal.close()
           }),
-
           UI.button('Save Changes', {
             size: 'sm',
-            color: {
-              base: '#EA580C',
-              hover: '#C2410C',
-              text: '#fff'
-            },
+            color: { base: '#EA580C', hover: '#C2410C', text: '#fff' },
             onClick: () => this.saveInternship(this._internshipModal)
           })
         ]
       });
     }
 
-    // Refresh values before opening
-    this._internshipFields.companyName.value =
-      this.company.name || '';
-
-    this._internshipFields.position.value =
-      this.internship.position || '';
-
-    this._internshipFields.address.value =
-      this.company.address || '';
-
-    this._internshipFields.supervisor.value =
-      this.internship.supervisor || '';
-
-    this._internshipFields.supervisorPhone.value =
-      this.internship.supervisor_phone || '';
-
-    this._internshipFields.startDate.value =
-      this.internship.start_date || '';
-
-    this._internshipFields.endDate.value =
-      this.internship.end_date || '';
+    this._internshipFields.companyName.value = this.company.name || '';
+    this._internshipFields.companyEmail.value = this.company.email || '';
+    this._internshipFields.position.value = this.internship.position || '';
+    this._internshipFields.address.value = this.company.address || '';
+    this._internshipFields.supervisor.value = this.internship.supervisor || '';
+    this._internshipFields.supervisorPhone.value = this.internship.supervisor_phone || '';
+    this._internshipFields.startDate.value = this.internship.start_date || '';
+    this._internshipFields.endDate.value = this.internship.end_date || '';
 
     this._internshipModal.open();
   },
 
   // ── Save personal info only ───────────────────────────────
-async savePersonal(modal) {
+  async savePersonal(modal) {
+    const f = this._personalFields;
 
-  const f = this._personalFields;
+    const name =
+      f.name?.querySelector('input')?.value?.trim() ??
+      f.name?.value?.trim() ??
+      '';
 
-  const name =
-    f.name?.querySelector('input')?.value?.trim() ??
-    f.name?.value?.trim() ??
-    '';
+    const phone =
+      f.phone?.querySelector('input')?.value?.trim() ??
+      f.phone?.value?.trim() ??
+      '';
 
-  const phone =
-    f.phone?.querySelector('input')?.value?.trim() ??
-    f.phone?.value?.trim() ??
-    '';
+    const course =
+      f.course?.value ??
+      f.course?.querySelector('select')?.value ??
+      '';
 
-  const course =
-    f.course?.value ??
-    f.course?.querySelector('select')?.value ??
-    '';
+    const yearLevel =
+      f.yearLevel?.value ??
+      f.yearLevel?.querySelector('select')?.value ??
+      '';
 
-  const yearLevel =
-    f.yearLevel?.value ??
-    f.yearLevel?.querySelector('select')?.value ??
-    '';
+    const payload = {
+      action: 'updateInternProfile',
+      user: { name },
+      profile: {
+        phone,
+        course,
+        year_level: yearLevel
+      },
+      internship: {
+        position: this.internship.position || '',
+        supervisor: this.internship.supervisor || '',
+        supervisor_phone: this.internship.supervisor_phone || '',
+        start_date: this.internship.start_date || null,
+        end_date: this.internship.end_date || null
+      },
+      company: {
+        name: this.company.name || '',
+        address: this.company.address || '',
+        phone: this.company.phone || '',
+        email: this.company.email || ''
+      }
+    };
 
-  console.log('Profile save data mmdjjj:', {
-    name,
-    phone,
-    course,
-    yearLevel
-  });
-
-  const payload = {
-    action: 'updateInternProfile',
-
-    user: {
-      name
-    },
-
-    profile: {
-      phone,
-      course,
-      year_level: yearLevel
-    },
-
-    internship: {
-      position: this.internship.position || '',
-      supervisor: this.internship.supervisor || '',
-      supervisor_phone: this.internship.supervisor_phone || '',
-      start_date: this.internship.start_date || null,
-      end_date: this.internship.end_date || null
-    },
-
-    company: {
-      name: this.company.name || '',
-      address: this.company.address || '',
-      phone: this.company.phone || '',
-      email: this.company.email || ''
-    }
-  };
-
-  await this.saveProfileChanges(modal, payload);
-},
-
+    await this.saveProfileChanges(modal, payload);
+  },
 
   // ── Save internship/company info only ─────────────────────
   async saveInternship(modal) {
     const companyNameField      = document.getElementById('profile-internship-company');
+    const companyEmailField     = document.getElementById('profile-internship-email');
     const positionField         = document.getElementById('profile-internship-position');
     const addressField          = document.getElementById('profile-internship-address');
     const supervisorField       = document.getElementById('profile-internship-supervisor');
@@ -1859,6 +1750,7 @@ async savePersonal(modal) {
     const endDateField          = document.getElementById('profile-internship-end');
 
     const companyName     = companyNameField?.value?.trim() || '';
+    const companyEmail    = companyEmailField?.value?.trim() || '';
     const position        = positionField?.value?.trim() || '';
     const address         = addressField?.value?.trim() || '';
     const supervisor      = supervisorField?.value?.trim() || '';
@@ -1868,17 +1760,14 @@ async savePersonal(modal) {
 
     const payload = {
       action: 'updateInternProfile',
-
       user: {
         name: InternData.user.name
       },
-
       profile: {
         phone: InternData.profile.phone || '',
         course: InternData.profile.course || '',
         year_level: InternData.profile.year_level || ''
       },
-
       internship: {
         position,
         supervisor,
@@ -1886,21 +1775,13 @@ async savePersonal(modal) {
         start_date: startDate,
         end_date: endDate
       },
-
-      // IMPORTANT:
-      // Company phone and email belong here, not inside internship.
       company: {
         name: companyName,
         address,
-
-        // Get these from the existing company data for now.
-        // If you have editable fields for them, read those fields instead.
         phone: supervisorPhone || '',
-        email: this.company.email || ''
+        email: companyEmail
       }
     };
-    console.log('Profile save payload:', payload);
-    //console.log('Internship save payload:', payload);
 
     await this.saveProfileChanges(modal, payload);
   },
@@ -1919,7 +1800,6 @@ async savePersonal(modal) {
       const result = await response.json();
       if (!result.success) throw new Error(result.message || 'Failed to update profile.');
 
-      // Sync InternData with server response
       Object.assign(InternData.user,    result.user    || {});
       Object.assign(InternData.profile, result.profile || {});
 
@@ -1932,7 +1812,6 @@ async savePersonal(modal) {
       UI.toast(result.message || 'Profile updated.', 'success');
       modal.close();
 
-      // Rebuild the profile section with fresh data
       this.build();
 
     } catch (error) {
