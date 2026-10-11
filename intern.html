@@ -1238,6 +1238,18 @@ const Profile = {
   _personalFields: {},
   _internshipFields: {},
 
+  // ── Date Formatting Helper ────────────────────────────────
+  formatDate(dateString) {
+    if (!dateString || dateString === '—') return '—';
+    const date = new Date(dateString.includes('T') ? dateString : `${dateString}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  },
+
   // ── Getters ───────────────────────────────────────────────
   get internship() {
     return InternData.internships?.[0] || {};
@@ -1271,7 +1283,7 @@ const Profile = {
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem;min-width:0;width:100%';
     col.appendChild(this.personalCard());
     col.appendChild(this.detailsCard());
-    // Edit personal button — always editable
+    
     col.appendChild(UI.button('✏️ Edit Personal Info', {
       block: true,
       color: { base:'#FFF7ED', hover:'#FFEDD5', text:'#EA580C', border:'#FED7AA' },
@@ -1284,7 +1296,6 @@ const Profile = {
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:1.1rem;min-width:0;width:100%';
 
-    // Reviewed badge shown above the company card when locked
     if (this.isReviewed) {
       const badge = document.createElement('div');
       badge.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;font-size:.83rem;color:#166534;font-weight:600';
@@ -1295,7 +1306,6 @@ const Profile = {
     col.appendChild(this.companyCard());
     col.appendChild(this.hoursCard());
 
-    // Edit internship button — locked once reviewed
     if (!this.isReviewed) {
       col.appendChild(UI.button('✏️ Edit Internship Info', {
         block: true,
@@ -1339,7 +1349,7 @@ const Profile = {
       email:     InternData.user.email,
       dept:      InternData.profile.course,
       yearLevel: InternData.profile.year_level,
-      joined:    joinedVal ? new Date(joinedVal).toLocaleDateString() : '—',
+      joined:    this.formatDate(joinedVal),
     });
   },
 
@@ -1350,7 +1360,7 @@ const Profile = {
       ['📱', 'Phone',      InternData.profile.phone],
       ['📚', 'Course',     InternData.profile.course],
       ['🎓', 'Year Level', InternData.profile.year_level],
-      ['📅', 'Joined',     joinedVal ? new Date(joinedVal).toLocaleDateString() : '—'],
+      ['📅', 'Joined',     this.formatDate(joinedVal)],
     ].forEach(([i, l, v]) => body.appendChild(UI.infoRow(i, l, v || '—')));
     return UI.card({ title: '📋 Personal Details', body });
   },
@@ -1363,8 +1373,8 @@ const Profile = {
       supervisor: this.internship.supervisor   || '—',
       phone:      this.company.phone      || '—',
       email:      this.company.email      || '—',
-      startDate:  this.internship.start_date   || '—',
-      endDate:    this.internship.end_date     || '—',
+      startDate:  this.formatDate(this.internship.start_date),
+      endDate:    this.formatDate(this.internship.end_date),
     });
   },
 
