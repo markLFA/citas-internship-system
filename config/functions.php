@@ -2816,6 +2816,7 @@ try {
 function getCoordinatorDocuments(string $schoolYear = ''): array
 {
     $pdo = getDB();
+
     $coordinatorId = $_SESSION['user']['id'] ?? null;
 
     if (!$coordinatorId) {
@@ -2827,7 +2828,6 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
         $schoolYear = getCurrentSchoolYear();
     }
 
-    // Switched to selecting all active interns in this school year, with a LEFT JOIN on their documents
     $sql = "SELECT 
                    d.id, 
                    u.id AS internId, 
