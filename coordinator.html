@@ -2618,11 +2618,11 @@ const CoordinatorDocuments = {
 
   // ── Summary strip ──────────────────────────────────────────
   _summaryStrip() {
-    const docs     = this._docs;
-    const pending  = docs.filter(d => d.status === 'pending').length;
-    const approved = docs.filter(d => d.status === 'approved').length;
-    const rejected = docs.filter(d => d.status === 'rejected').length;
-    const total    = docs.length;
+    const validDocs = this._docs.filter(d => d.id !== null && d.type !== null);
+    const pending  = validDocs.filter(d => d.status === 'pending').length;
+    const approved = validDocs.filter(d => d.status === 'approved').length;
+    const rejected = validDocs.filter(d => d.status === 'rejected').length;
+    const total    = validDocs.length;
     return UI.statRow([
       { value: total,    label: 'Total Submitted', color: '#EA580C' },
       { value: pending,  label: 'Pending Review',  color: '#F59E0B' },
@@ -2682,7 +2682,7 @@ const CoordinatorDocuments = {
   // ── Filter helper ──────────────────────────────────────────
   _filtered() {
     return this._docs.filter(d =>
-      (!this._filterIntern || d.internName.toLowerCase().includes(this._filterIntern)) &&
+      (!this._filterIntern || (d.internName && d.internName.toLowerCase().includes(this._filterIntern))) &&
       (!this._filterType   || d.type === this._filterType) &&
       (!this._filterStatus || d.status === this._filterStatus)
     );
@@ -2791,13 +2791,13 @@ const CoordinatorDocuments = {
       wrap.appendChild(UI.card({ title: '', padding: true, headerActions, body }));
     });
   },
+
   // ── Analytics tab ──────────────────────────────────────────
   _buildAnalytics(container) {
     const REQUIRED_TYPES = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report'];
     const ALL_TYPES      = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
     const docs = this._docs;
 
-    // Filter out null document rows when aggregating global statistics
     const validDocs = docs.filter(d => d.id !== null && d.type !== null);
 
     const total    = validDocs.length;
@@ -2807,7 +2807,7 @@ const CoordinatorDocuments = {
 
     const byIntern = {};
     
-    // Group all interns, tracking empty arrays for those with zero submissions
+    // Build list of unique interns from the dataset (including those with 0 submissions)
     docs.forEach(d => {
       if (!byIntern[d.internId]) {
         byIntern[d.internId] = { name: d.internName, dept: d.dept || '', docs: [] };
@@ -3023,6 +3023,7 @@ const CoordinatorDocuments = {
       }
     }, 50);
   },
+
   // ── Review modal ───────────────────────────────────────────
   _openReviewModal(doc) {
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };
@@ -3138,7 +3139,7 @@ const CoordinatorDocuments = {
       }
     }).catch(() => UI.toast('Server connection error.', 'danger'));
   },
-};//  BOOT  — Helpers must be defined before this runs
+};
 // ─────────────────────────────────────────────────────────────
 Helpers.api ("getSessionUser").then(data => {
   if (!data.success) {
