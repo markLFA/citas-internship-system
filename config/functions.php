@@ -2839,14 +2839,14 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
                    d.status, 
                    IFNULL(d.feedback, '') AS feedback,
                    DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM internships i
+            FROM intern_profiles p
+            JOIN internships i 
+                ON i.intern_id = p.user_id
             JOIN users u 
-                ON i.intern_id = u.id
-            LEFT JOIN intern_profiles p 
                 ON u.id = p.user_id
             LEFT JOIN intern_documents d 
                 ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
-            WHERE i.coordinator_id = :coordinator_id
+            WHERE p.coordinator_id = :coordinator_id
               AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
