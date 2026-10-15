@@ -2529,7 +2529,7 @@ const CoordinatorDocuments = {
   _activeTab:    'submissions',  // 'submissions' | 'analytics'
   _chartInstances: [],           // track Chart.js instances to destroy on rebuild
 
-build() {
+  build() {
     const sec = document.getElementById('sec-documents');
     sec.innerHTML = '';
 
@@ -2539,35 +2539,8 @@ build() {
     ));
 
     // Send the active school year from global AppState to the API
-    Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }).then(docsData => {
-      const submissions = Array.isArray(docsData) ? docsData : [];
-
-      // Fallback: Use the global/window `INTERNS` array, or fallback to empty array if not defined yet
-      const allInterns = Array.isArray(window.INTERNS) ? window.INTERNS : (typeof INTERNS !== 'undefined' ? INTERNS : []);
-
-      // Filter interns matching the current selected school year if your INTERNS array contains multiple years, 
-      // or use them directly if they are already filtered by school year.
-      // (Assuming INTERNS represents the active dataset)
-      const submittedInternIds = new Set(submissions.map(d => d.internId));
-
-      // Build baseline placeholder records for interns who haven't submitted anything yet
-      const missingInternRecords = allInterns
-        .filter(intern => !submittedInternIds.has(intern.id))
-        .map(intern => ({
-          id: null,
-          internId: intern.id,
-          internName: intern.name,
-          dept: intern.dept || intern.course || 'General',
-          type: null,
-          file_path: null,
-          file: null,
-          status: null,
-          feedback: '',
-          submitted: null
-        }));
-
-      // Combine actual submissions + zero-submission placeholders
-      this._docs = [...submissions, ...missingInternRecords];
+    Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }).then(data => {
+      this._docs = data || [];
 
       sec.appendChild(this._summaryStrip());
       sec.appendChild(this._tabStrip());
@@ -2586,12 +2559,14 @@ build() {
 
       this._applyTabVisibility();
       this._renderList();
-      console.log("documents & INTERNS merged ", JSON.stringify(this._docs, null, 2));
+      console.log("documents ", JSON.stringify(this._docs, null, 2));
     }).catch(err => {
       console.error(err);
       UI.toast('Failed to sync documents from server.', 'danger');
     });
   },
+
+  // ── Tab strip ──────────────────────────────────────────────
   _tabStrip() {
     const wrap = document.createElement('div');
     wrap.id = 'cdoc-tab-strip';
