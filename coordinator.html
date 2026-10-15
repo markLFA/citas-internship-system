@@ -1133,6 +1133,7 @@ const Interns = {
         days:    b.daysPresent - a.daysPresent,
         reports: b.reportsSubmitted - a.reportsSubmitted,
       }[filterSort] ?? 0));
+      console.log('Filtered interns list:', INTERNS);
       return INTERNS
     },
 
