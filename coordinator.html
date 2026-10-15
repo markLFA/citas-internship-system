@@ -2538,19 +2538,19 @@ build() {
       `Review end-of-internship documents submitted by interns (${window.AppState.schoolYear})`
     ));
 
-    // Fetch documents AND all active interns for this school year simultaneously
-    Promise.all([
-      Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }),
-      Helpers.api('getCoordinatorInterns', { school_year: window.AppState.schoolYear }) // Adjust this endpoint name to whatever your app uses to get the interns list
-    ]).then(([docsData, internsData]) => {
-      const submissions = docsData || [];
-      const allInterns = internsData || [];
+    // Send the active school year from global AppState to the API
+    Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }).then(docsData => {
+      const submissions = Array.isArray(docsData) ? docsData : [];
 
-      // Create a map or lookup of existing submissions by internId
+      // Fallback: Use the global/window `INTERNS` array, or fallback to empty array if not defined yet
+      const allInterns = Array.isArray(window.INTERNS) ? window.INTERNS : (typeof INTERNS !== 'undefined' ? INTERNS : []);
+
+      // Filter interns matching the current selected school year if your INTERNS array contains multiple years, 
+      // or use them directly if they are already filtered by school year.
+      // (Assuming INTERNS represents the active dataset)
       const submittedInternIds = new Set(submissions.map(d => d.internId));
 
-      // For any intern who has NOT submitted anything, create a baseline "empty" record 
-      // so they still show up in analytics and progress tables!
+      // Build baseline placeholder records for interns who haven't submitted anything yet
       const missingInternRecords = allInterns
         .filter(intern => !submittedInternIds.has(intern.id))
         .map(intern => ({
@@ -2566,7 +2566,7 @@ build() {
           submitted: null
         }));
 
-      // Combine real submissions + blank records for non-submitters
+      // Combine actual submissions + zero-submission placeholders
       this._docs = [...submissions, ...missingInternRecords];
 
       sec.appendChild(this._summaryStrip());
@@ -2586,13 +2586,12 @@ build() {
 
       this._applyTabVisibility();
       this._renderList();
-      console.log("documents & interns merged ", JSON.stringify(this._docs, null, 2));
+      console.log("documents & INTERNS merged ", JSON.stringify(this._docs, null, 2));
     }).catch(err => {
       console.error(err);
       UI.toast('Failed to sync documents from server.', 'danger');
     });
   },
-  // ── Tab strip ──────────────────────────────────────────────
   _tabStrip() {
     const wrap = document.createElement('div');
     wrap.id = 'cdoc-tab-strip';
