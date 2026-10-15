@@ -72,10 +72,10 @@ function getAllInternData() {
     $userId = $_SESSION['user']['id'];
 
     // ---------------------------
-    // 1. Get user (including created_at as joined_date)
+    // 1. Get user
     // ---------------------------
     $stmt = $pdo->prepare("
-        SELECT id, name, email, created_at AS joined_date
+        SELECT id, name, email
         FROM users
         WHERE id = ?
         LIMIT 1
@@ -153,22 +153,51 @@ function getAllInternData() {
                 "name" => $row["company_name"],
                 "address" => $row["address"],
                 "phone" => $row["company_phone"],
-                "email" => $row["company_email"], // Properly mapped from companies table
+                "email" => $row["company_email"],
                 "created_at" => $row["company_created"]
             ]
         ];
     }
 
-    return [
-        "user" => [
-            "id" => $user["id"],
-            "name" => $user["name"],
-            "email" => $user["email"],
-            "joined_date" => $user["joined_date"]
-        ],
+    // ---------------------------
+    // Final structured response
+    // ---------------------------
+
+    /** @var array{
+     *  user: array{id:int,name:string,email:string},
+     *  profile: array{
+     *      school:string,
+     *      course:string,
+     *      year_level:string,
+     *      phone:string,
+     *      required_hours:int,
+     *      joined_date:string
+     *  }|null,
+     *  internships: array<array{
+     *      id:int,
+     *      position:string,
+     *      supervisor:string,
+     *      start_date:string,
+     *      end_date:string,
+     *      status:string,
+     *      created_at:string,
+     *      company: array{
+     *          id:int|null,
+     *          name:string|null,
+     *          address:string|null,
+     *          phone:string|null,
+     *          email:string|null,
+     *          created_at:string|null
+     *      }|null
+     *  }>
+     * } */
+    $result = [
+        "user" => $user,
         "profile" => $profile,
         "internships" => $internships
     ];
+
+    return $result;
 }
 
 function getPendingInterns(): array
@@ -283,19 +312,43 @@ function updateInternProfile(array $data): void
     try {
         $pdo->beginTransaction();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Update users
+        |--------------------------------------------------------------------------
+        */
         $name = trim($user['name'] ?? '');
+
         if ($name === '') {
             throw new Exception('Name is required.');
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET name = ? WHERE id = ?");
-        $stmt->execute([$name, $userId]);
+        $stmt = $pdo->prepare("
+            UPDATE users
+            SET name = ?
+            WHERE id = ?
+        ");
 
+        $stmt->execute([
+            $name,
+            $userId
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update intern_profiles
+        |--------------------------------------------------------------------------
+        */
         $stmt = $pdo->prepare("
             UPDATE intern_profiles
-            SET phone = ?, course = ?, year_level = ?
+            SET
+                phone = ?,
+                course = ?,
+                year_level = ?
             WHERE user_id = ?
         ");
+
         $stmt->execute([
             trim($profile['phone'] ?? ''),
             trim($profile['course'] ?? ''),
@@ -303,25 +356,53 @@ function updateInternProfile(array $data): void
             $userId
         ]);
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get the intern's active internship
+        |--------------------------------------------------------------------------
+        */
         $stmt = $pdo->prepare("
             SELECT id, company_id, is_profile_reviewed
             FROM internships
-            WHERE intern_id = ? AND status = 'active'
+            WHERE intern_id = ?
+              AND status = 'active'
             ORDER BY created_at DESC
             LIMIT 1
         ");
+
         $stmt->execute([$userId]);
         $currentInternship = $stmt->fetch(PDO::FETCH_ASSOC);
 
+
         if ($currentInternship) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Prevent editing after coordinator verification
+            |--------------------------------------------------------------------------
+            */
             if ((int)$currentInternship['is_profile_reviewed'] === 1) {
-                throw new Exception('Your internship information has already been verified and locked by your coordinator.');
+                throw new Exception(
+                    'Your internship information has already been verified and locked by your coordinator.'
+                );
             }
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update companies
+            |--------------------------------------------------------------------------
+            */
             if (!empty($currentInternship['company_id'])) {
+
                 $stmt = $pdo->prepare("
                     UPDATE companies
-                    SET name = ?, address = ?, phone = ?, email = ?
+                    SET
+                        name = ?,
+                        address = ?,
+                        phone = ?,
+                        email = ?
                     WHERE id = ?
                 ");
 
@@ -329,57 +410,115 @@ function updateInternProfile(array $data): void
                     trim($company['name'] ?? ''),
                     trim($company['address'] ?? ''),
                     trim($company['phone'] ?? ''),
-                    trim($company['email'] ?? ''), // Properly saves company email
+                    trim($company['email'] ?? ''),
                     (int)$currentInternship['company_id']
                 ]);
             }
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update internships
+            |--------------------------------------------------------------------------
+            */
             $stmt = $pdo->prepare("
                 UPDATE internships
-                SET position = ?, supervisor = ?, supervisor_phone = ?, start_date = ?, end_date = ?
-                WHERE id = ? AND intern_id = ?
+                SET
+                    position = ?,
+                    supervisor = ?,
+                    supervisor_phone = ?,
+                    start_date = ?,
+                    end_date = ?
+                WHERE id = ?
+                  AND intern_id = ?
             ");
 
             $stmt->execute([
                 trim($internship['position'] ?? ''),
                 trim($internship['supervisor'] ?? ''),
                 trim($internship['supervisor_phone'] ?? ''),
-                !empty($internship['start_date']) ? $internship['start_date'] : null,
-                !empty($internship['end_date']) ? $internship['end_date'] : null,
+                !empty($internship['start_date'])
+                    ? $internship['start_date']
+                    : null,
+                !empty($internship['end_date'])
+                    ? $internship['end_date']
+                    : null,
                 (int)$currentInternship['id'],
                 $userId
             ]);
         }
 
-        // Fetch updated user with created_at as joined_date
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get the updated data
+        |--------------------------------------------------------------------------
+        */
         $stmt = $pdo->prepare("
-            SELECT u.name, u.email, u.created_at AS joined_date,
-                   ip.phone, ip.course, ip.year_level, ip.required_hours
+            SELECT
+                u.name,
+                u.email,
+                ip.phone,
+                ip.course,
+                ip.year_level,
+                ip.required_hours,
+                ip.joined_date
             FROM users u
-            LEFT JOIN intern_profiles ip ON ip.user_id = u.id
+            LEFT JOIN intern_profiles ip
+                ON ip.user_id = u.id
             WHERE u.id = ?
             LIMIT 1
         ");
+
         $stmt->execute([$userId]);
         $updatedUser = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Fetch updated internship + company (including company email)
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get updated internship + company
+        |--------------------------------------------------------------------------
+        */
+        $updatedInternship = null;
+
         $stmt = $pdo->prepare("
-            SELECT i.id, i.position, i.supervisor, i.supervisor_phone, i.start_date, i.end_date, 
-                   i.status, i.school_year, i.is_profile_reviewed, i.created_at, i.total_hours, 
-                   i.days_present, i.reports_submitted,
-                   c.id AS company_id, c.name AS company_name, c.address AS company_address, 
-                   c.phone AS company_phone, c.email AS company_email, c.created_at AS company_created_at
+            SELECT
+                i.id,
+                i.position,
+                i.supervisor,
+                i.supervisor_phone,
+                i.start_date,
+                i.end_date,
+                i.status,
+                i.school_year,
+                i.is_profile_reviewed,
+                i.created_at,
+                i.total_hours,
+                i.days_present,
+                i.reports_submitted,
+
+                c.id AS company_id,
+                c.name AS company_name,
+                c.address AS company_address,
+                c.phone AS company_phone,
+                c.email AS company_email,
+                c.created_at AS company_created_at
+
             FROM internships i
-            INNER JOIN companies c ON c.id = i.company_id
-            WHERE i.intern_id = ? AND i.status = 'active'
+
+            INNER JOIN companies c
+                ON c.id = i.company_id
+
+            WHERE i.intern_id = ?
+              AND i.status = 'active'
+
             ORDER BY i.created_at DESC
             LIMIT 1
         ");
+
         $stmt->execute([$userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $updatedInternship = null;
         if ($row) {
             $updatedInternship = [
                 'id' => (int)$row['id'],
@@ -395,6 +534,7 @@ function updateInternProfile(array $data): void
                 'total_hours' => (float)$row['total_hours'],
                 'days_present' => (int)$row['days_present'],
                 'reports_submitted' => (int)$row['reports_submitted'],
+
                 'company' => [
                     'id' => (int)$row['company_id'],
                     'name' => $row['company_name'],
@@ -406,31 +546,42 @@ function updateInternProfile(array $data): void
             ];
         }
 
+
         $pdo->commit();
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return updated data
+        |--------------------------------------------------------------------------
+        */
         echo json_encode([
             'success' => true,
             'message' => 'Profile updated successfully.',
+
             'user' => [
                 'id' => $userId,
                 'name' => $updatedUser['name'] ?? '',
-                'email' => $updatedUser['email'] ?? '',
-                'joined_date' => $updatedUser['joined_date'] ?? ''
+                'email' => $updatedUser['email'] ?? ''
             ],
+
             'profile' => [
                 'phone' => $updatedUser['phone'] ?? '',
                 'course' => $updatedUser['course'] ?? '',
                 'year_level' => $updatedUser['year_level'] ?? '',
                 'required_hours' => (int)($updatedUser['required_hours'] ?? 500),
-                'joined_date' => $updatedUser['joined_date'] ?? ''
+                'joined_date' => $updatedUser['joined_date'] ?? null
             ],
+
             'internship' => $updatedInternship
         ]);
 
     } catch (Throwable $e) {
+
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
+
         echo json_encode([
             'success' => false,
             'message' => $e->getMessage()
@@ -2828,9 +2979,9 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
         $schoolYear = getCurrentSchoolYear();
     }
 
-    $sql = "SELECT 
+    $sql = "SELECT DISTINCT
                    d.id, 
-                   u.id AS internId, 
+                   d.intern_id AS internId, 
                    u.name AS internName, 
                    p.course AS dept,
                    d.document_type AS type, 
@@ -2839,14 +2990,14 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
                    d.status, 
                    IFNULL(d.feedback, '') AS feedback,
                    DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_profiles p
-            JOIN internships i 
-                ON i.intern_id = p.user_id
+            FROM intern_documents d
             JOIN users u 
-                ON u.id = p.user_id
-            LEFT JOIN intern_documents d 
-                ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
-            WHERE p.coordinator_id = :coordinator_id
+                ON d.intern_id = u.id
+            LEFT JOIN intern_profiles p 
+                ON d.intern_id = p.user_id
+            INNER JOIN internships i 
+                ON i.intern_id = d.intern_id
+            WHERE d.coordinator_id = :coordinator_id
               AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
