@@ -63,57 +63,143 @@ function getInternCoordinatorId () {
 
     return $result ? (int)$result['coordinator_id'] : null;
 }
-function getCoordinatorDocuments(string $schoolYear = ''): array
-{
+function getAllInternData() {
+    if (!isset($_SESSION['user']['id'])) {
+        return null;
+    }
+
     $pdo = getDB();
+    $userId = $_SESSION['user']['id'];
 
-    $coordinatorId = $_SESSION['user']['id'] ?? null;
+    // ---------------------------
+    // 1. Get user
+    // ---------------------------
+    $stmt = $pdo->prepare("
+        SELECT id, name, email
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$coordinatorId) {
-        error_log("getCoordinatorDocuments called without an active session.");
-        return [];
+    if (!$user) return null;
+
+    // ---------------------------
+    // 2. Get intern profile
+    // ---------------------------
+    $stmt = $pdo->prepare("
+        SELECT course, year_level, phone, coordinator_id, required_hours, joined_date
+        FROM intern_profiles
+        WHERE user_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$userId]);
+    $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // ---------------------------
+    // 3. Get internships + company
+    // ---------------------------
+    $stmt = $pdo->prepare("
+        SELECT 
+            i.id,
+            i.is_profile_reviewed, 
+            i.position,
+            i.supervisor,
+            i.supervisor_phone,
+            i.start_date,
+            i.end_date,
+            i.status,
+            i.created_at,
+            i.total_hours,
+            i.days_present,
+            i.reports_submitted,
+
+            c.id AS company_id,
+            c.name AS company_name,
+            c.address,
+            c.phone AS company_phone,
+            c.email AS company_email,
+            c.created_at AS company_created
+
+        FROM internships i
+        LEFT JOIN companies c ON c.id = i.company_id
+        WHERE i.intern_id = ?
+        ORDER BY i.created_at DESC
+    ");
+
+    $stmt->execute([$userId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $internships = [];
+
+    foreach ($rows as $row) {
+        $internships[] = [
+            "id" => $row["id"],
+            "is_profile_reviewed" => $row["is_profile_reviewed"],   
+            "position" => $row["position"],
+            "supervisor" => $row["supervisor"],
+            "supervisor_phone" => $row["supervisor_phone"],
+            "start_date" => $row["start_date"],
+            "end_date" => $row["end_date"],
+            "status" => $row["status"],
+            "created_at" => $row["created_at"],
+            "total_hours" => $row["total_hours"],
+            "days_present" => $row["days_present"],
+            "reports_submitted" => $row["reports_submitted"],
+
+            "company" => [
+                "id" => $row["company_id"],
+                "name" => $row["company_name"],
+                "address" => $row["address"],
+                "phone" => $row["company_phone"],
+                "email" => $row["company_email"],
+                "created_at" => $row["company_created"]
+            ]
+        ];
     }
 
-    if (empty($schoolYear)) {
-        $schoolYear = getCurrentSchoolYear();
-    }
+    // ---------------------------
+    // Final structured response
+    // ---------------------------
 
-    $sql = "SELECT 
-                   d.id, 
-                   u.id AS internId, 
-                   u.name AS internName, 
-                   p.course AS dept,
-                   d.document_type AS type, 
-                   d.file_path, 
-                   d.file_name AS file, 
-                   d.status, 
-                   IFNULL(d.feedback, '') AS feedback,
-                   DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_profiles p
-            JOIN internships i 
-                ON i.intern_id = p.user_id
-            JOIN users u 
-                ON u.id = p.user_id
-            LEFT JOIN intern_documents d 
-                ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
-            WHERE p.coordinator_id = :coordinator_id
-              AND i.school_year = :school_year
-            ORDER BY d.id DESC";
+    /** @var array{
+     *  user: array{id:int,name:string,email:string},
+     *  profile: array{
+     *      school:string,
+     *      course:string,
+     *      year_level:string,
+     *      phone:string,
+     *      required_hours:int,
+     *      joined_date:string
+     *  }|null,
+     *  internships: array<array{
+     *      id:int,
+     *      position:string,
+     *      supervisor:string,
+     *      start_date:string,
+     *      end_date:string,
+     *      status:string,
+     *      created_at:string,
+     *      company: array{
+     *          id:int|null,
+     *          name:string|null,
+     *          address:string|null,
+     *          phone:string|null,
+     *          email:string|null,
+     *          created_at:string|null
+     *      }|null
+     *  }>
+     * } */
+    $result = [
+        "user" => $user,
+        "profile" => $profile,
+        "internships" => $internships
+    ];
 
-    try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':coordinator_id' => $coordinatorId,
-            ':school_year'    => $schoolYear
-        ]);
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-    } catch (PDOException $e) {
-        error_log("Database error in getCoordinatorDocuments: " . $e->getMessage());
-        return [];
-    }
+    return $result;
 }
+
 function getPendingInterns(): array
 {
     $pdo = getDB();
@@ -2893,9 +2979,9 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
         $schoolYear = getCurrentSchoolYear();
     }
 
-    $sql = "SELECT DISTINCT
+    $sql = "SELECT 
                    d.id, 
-                   d.intern_id AS internId, 
+                   u.id AS internId, 
                    u.name AS internName, 
                    p.course AS dept,
                    d.document_type AS type, 
@@ -2904,14 +2990,14 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
                    d.status, 
                    IFNULL(d.feedback, '') AS feedback,
                    DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_documents d
+            FROM intern_profiles p
+            JOIN internships i 
+                ON i.intern_id = p.user_id
             JOIN users u 
-                ON d.intern_id = u.id
-            LEFT JOIN intern_profiles p 
-                ON d.intern_id = p.user_id
-            INNER JOIN internships i 
-                ON i.intern_id = d.intern_id
-            WHERE d.coordinator_id = :coordinator_id
+                ON u.id = p.user_id
+            LEFT JOIN intern_documents d 
+                ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
+            WHERE p.coordinator_id = :coordinator_id
               AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
