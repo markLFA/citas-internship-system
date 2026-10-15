@@ -2694,7 +2694,8 @@ const CoordinatorDocuments = {
     if (!wrap) return;
     wrap.innerHTML = '';
 
-    const list = this._filtered();
+    // Only process rows that actually have a document submission
+    const list = this._filtered().filter(d => d.id !== null && d.type !== null);
 
     if (!list.length) {
       wrap.appendChild(UI.card({
@@ -2790,31 +2791,30 @@ const CoordinatorDocuments = {
       wrap.appendChild(UI.card({ title: '', padding: true, headerActions, body }));
     });
   },
-
   // ── Analytics tab ──────────────────────────────────────────
   _buildAnalytics(container) {
     const REQUIRED_TYPES = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report'];
     const ALL_TYPES      = ['TOR', 'Certificate of Completion', 'Endorsement Letter', 'Final Report', 'Waiver / MOA', 'Medical Certificate', 'Other'];
     const docs = this._docs;
 
-    const total    = docs.length;
-    const approved = docs.filter(d => d.status === 'approved').length;
-    const pending  = docs.filter(d => d.status === 'pending').length;
-    const rejected = docs.filter(d => d.status === 'rejected').length;
-/*
-    container.appendChild(UI.statRow([
-      { value: total,    label: 'Total Submitted', color: '#EA580C' },
-      { value: approved, label: 'Accepted',        color: '#10B981' },
-      { value: pending,  label: 'Pending Review',  color: '#F59E0B' },
-      { value: rejected, label: 'Needs Resubmit',  color: '#EF4444' },
-    ]));
-*/
+    // Filter out null document rows when aggregating global statistics
+    const validDocs = docs.filter(d => d.id !== null && d.type !== null);
+
+    const total    = validDocs.length;
+    const approved = validDocs.filter(d => d.status === 'approved').length;
+    const pending  = validDocs.filter(d => d.status === 'pending').length;
+    const rejected = validDocs.filter(d => d.status === 'rejected').length;
+
     const byIntern = {};
+    
+    // Group all interns, tracking empty arrays for those with zero submissions
     docs.forEach(d => {
       if (!byIntern[d.internId]) {
         byIntern[d.internId] = { name: d.internName, dept: d.dept || '', docs: [] };
       }
-      byIntern[d.internId].docs.push(d);
+      if (d.id !== null && d.type !== null) {
+        byIntern[d.internId].docs.push(d);
+      }
     });
 
     const internList = Object.values(byIntern).map(intern => {
@@ -2839,7 +2839,7 @@ const CoordinatorDocuments = {
     container.appendChild(progressLabel);
 
     if (!internList.length) {
-      container.appendChild(UI.card({ title: '', body: UI.empty('📭', 'No submissions yet', 'Documents submitted by your interns will appear here.') }));
+      container.appendChild(UI.card({ title: '', body: UI.empty('📭', 'No interns found', 'Interns enrolled in this school year will appear here.') }));
     } else {
       const progressTbl = UI.table([
         {
@@ -2997,7 +2997,7 @@ const CoordinatorDocuments = {
 
       const typeCounts = {};
       ALL_TYPES.forEach(t => { typeCounts[t] = { approved: 0, pending: 0, rejected: 0 }; });
-      docs.forEach(d => { if (typeCounts[d.type]) typeCounts[d.type][d.status]++; });
+      validDocs.forEach(d => { if (typeCounts[d.type]) typeCounts[d.type][d.status]++; });
 
       const barCtx = document.getElementById('chart-cdoc-bar');
       if (barCtx) {
@@ -3023,7 +3023,6 @@ const CoordinatorDocuments = {
       }
     }, 50);
   },
-
   // ── Review modal ───────────────────────────────────────────
   _openReviewModal(doc) {
     const slCls = { pending:'ds-pending', approved:'ds-approved', rejected:'ds-rejected' };

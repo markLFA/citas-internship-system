@@ -2816,7 +2816,6 @@ try {
 function getCoordinatorDocuments(string $schoolYear = ''): array
 {
     $pdo = getDB();
-
     $coordinatorId = $_SESSION['user']['id'] ?? null;
 
     if (!$coordinatorId) {
@@ -2828,9 +2827,10 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
         $schoolYear = getCurrentSchoolYear();
     }
 
-    $sql = "SELECT DISTINCT
+    // Switched to selecting all active interns in this school year, with a LEFT JOIN on their documents
+    $sql = "SELECT 
                    d.id, 
-                   d.intern_id AS internId, 
+                   u.id AS internId, 
                    u.name AS internName, 
                    p.course AS dept,
                    d.document_type AS type, 
@@ -2839,14 +2839,14 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
                    d.status, 
                    IFNULL(d.feedback, '') AS feedback,
                    DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_documents d
+            FROM internships i
             JOIN users u 
-                ON d.intern_id = u.id
+                ON i.intern_id = u.id
             LEFT JOIN intern_profiles p 
-                ON d.intern_id = p.user_id
-            INNER JOIN internships i 
-                ON i.intern_id = d.intern_id
-            WHERE d.coordinator_id = :coordinator_id
+                ON u.id = p.user_id
+            LEFT JOIN intern_documents d 
+                ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
+            WHERE i.coordinator_id = :coordinator_id
               AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
