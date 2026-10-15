@@ -2558,6 +2558,7 @@ const CoordinatorDocuments = {
 
       this._applyTabVisibility();
       this._renderList();
+      console.log("documents ", JSON.stringify(this._docs, null, 2));
     }).catch(err => {
       console.error(err);
       UI.toast('Failed to sync documents from server.', 'danger');
