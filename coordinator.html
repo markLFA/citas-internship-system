@@ -1133,7 +1133,7 @@ const Interns = {
         days:    b.daysPresent - a.daysPresent,
         reports: b.reportsSubmitted - a.reportsSubmitted,
       }[filterSort] ?? 0));
-      console.log('Filtered interns list:', JSON.stringify(INTERNS, null, 2));
+      //console.log('Filtered interns list:', JSON.stringify(INTERNS, null, 2));
       return INTERNS
     },
 
@@ -2529,7 +2529,7 @@ const CoordinatorDocuments = {
   _activeTab:    'submissions',  // 'submissions' | 'analytics'
   _chartInstances: [],           // track Chart.js instances to destroy on rebuild
 
-  build() {
+build() {
     const sec = document.getElementById('sec-documents');
     sec.innerHTML = '';
 
@@ -2538,9 +2538,36 @@ const CoordinatorDocuments = {
       `Review end-of-internship documents submitted by interns (${window.AppState.schoolYear})`
     ));
 
-    // Send the active school year from global AppState to the API
-    Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }).then(data => {
-      this._docs = data || [];
+    // Fetch documents AND all active interns for this school year simultaneously
+    Promise.all([
+      Helpers.api('getCoordinatorDocuments', { school_year: window.AppState.schoolYear }),
+      Helpers.api('getCoordinatorInterns', { school_year: window.AppState.schoolYear }) // Adjust this endpoint name to whatever your app uses to get the interns list
+    ]).then(([docsData, internsData]) => {
+      const submissions = docsData || [];
+      const allInterns = internsData || [];
+
+      // Create a map or lookup of existing submissions by internId
+      const submittedInternIds = new Set(submissions.map(d => d.internId));
+
+      // For any intern who has NOT submitted anything, create a baseline "empty" record 
+      // so they still show up in analytics and progress tables!
+      const missingInternRecords = allInterns
+        .filter(intern => !submittedInternIds.has(intern.id))
+        .map(intern => ({
+          id: null,
+          internId: intern.id,
+          internName: intern.name,
+          dept: intern.dept || intern.course || 'General',
+          type: null,
+          file_path: null,
+          file: null,
+          status: null,
+          feedback: '',
+          submitted: null
+        }));
+
+      // Combine real submissions + blank records for non-submitters
+      this._docs = [...submissions, ...missingInternRecords];
 
       sec.appendChild(this._summaryStrip());
       sec.appendChild(this._tabStrip());
@@ -2559,13 +2586,12 @@ const CoordinatorDocuments = {
 
       this._applyTabVisibility();
       this._renderList();
-      console.log("documents ", JSON.stringify(this._docs, null, 2));
+      console.log("documents & interns merged ", JSON.stringify(this._docs, null, 2));
     }).catch(err => {
       console.error(err);
       UI.toast('Failed to sync documents from server.', 'danger');
     });
   },
-
   // ── Tab strip ──────────────────────────────────────────────
   _tabStrip() {
     const wrap = document.createElement('div');
