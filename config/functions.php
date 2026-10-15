@@ -2979,9 +2979,9 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
         $schoolYear = getCurrentSchoolYear();
     }
 
-    $sql = "SELECT 
+    $sql = "SELECT DISTINCT
                    d.id, 
-                   u.id AS internId, 
+                   d.intern_id AS internId, 
                    u.name AS internName, 
                    p.course AS dept,
                    d.document_type AS type, 
@@ -2990,14 +2990,14 @@ function getCoordinatorDocuments(string $schoolYear = ''): array
                    d.status, 
                    IFNULL(d.feedback, '') AS feedback,
                    DATE_FORMAT(d.submitted_at, '%b %e, %Y') AS submitted
-            FROM intern_profiles p
-            JOIN internships i 
-                ON i.intern_id = p.user_id
+            FROM intern_documents d
             JOIN users u 
-                ON u.id = p.user_id
-            LEFT JOIN intern_documents d 
-                ON d.intern_id = u.id AND d.coordinator_id = :coordinator_id
-            WHERE p.coordinator_id = :coordinator_id
+                ON d.intern_id = u.id
+            LEFT JOIN intern_profiles p 
+                ON d.intern_id = p.user_id
+            INNER JOIN internships i 
+                ON i.intern_id = d.intern_id
+            WHERE d.coordinator_id = :coordinator_id
               AND i.school_year = :school_year
             ORDER BY d.id DESC";
 
