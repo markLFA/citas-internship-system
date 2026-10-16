@@ -118,8 +118,8 @@ window.AppState = {
     window.dispatchEvent(new CustomEvent('schoolYearChanged', { detail: val }));
   }
 };
-function initializeSpinner () {
-  const sec  = document.getElementById('sec-dashboard');
+function initializeSpinner (sectionId = 'sec-dashboard') {
+  const sec  = document.getElementById(sectionId);
   sec.appendChild(
       UI.spinner("120px")
     );
@@ -2531,6 +2531,7 @@ const CoordinatorDocuments = {
 
 build() {
     const sec = document.getElementById('sec-documents');
+    initializeSpinner('sec-documents' );
     sec.innerHTML = '';
 
     sec.appendChild(Helpers.pageHeader(
